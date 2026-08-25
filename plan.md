@@ -33,21 +33,38 @@ Official-portal facts worth citing in the pitch (verified Aug 2026):
 
 ## 3. Core demo flow
 
-1. Citizen speaks naturally (voice primary, full text fallback). Visible editable transcript; interruptible anytime.
-2. Agent extracts only the essentials: records sought, date range, location, likely body, format. Asks **one** plain follow-up when something material is missing. Accepts "I don't know." Never invents facts.
-3. Agent separates grievance language from the information need, writes the complete neutral editable RTI draft, reads it back. Citizen corrects by voice or text.
-4. Jurisdiction gate: **State matter → explain Central-only limit, stop cleanly** (no fabricated State authorities). Central matter → return **exactly 3 explained candidates** with reasons + ambiguity warnings. Citizen can select, manually search, or override.
-5. Sandbox OTP sign-in (or fixed judge OTP when offline) before confirmation — never silently.
-6. Explicit confirm of draft **and** destination → mock ₹10 payment (BPL ₹0 path) → idempotent `DEMO` receipt (`government_submission_status: NOT_SUBMITTED`).
-7. Sandbox test email/SMS with consent; deterministic outbox preview fallback. On-screen/download receipt always available.
-8. **My Applications**: owner-scoped history with internal-only timeline (Draft → Authority selected → Prepared → Receipt generated → …). Every screen says it is demo history, not synchronized with RTI Online.
+```mermaid
+flowchart TD
+    A[Citizen speaks / types / attaches photos] --> B[AI transcript + photo-evidence review]
+    B --> C{Sensitive or exempt info requested?}
+    C -- Yes --> X[Politely refuse + plain-language summary why]
+    C -- No --> D{Key details missing?}
+    D -- Yes --> F[Ask ONE follow-up] --> B
+    D -- No --> E[Agent writes neutral RTI draft citing attached evidence]
+    E --> G{Central matter?}
+    G -- State --> H[Explain Central-only limit - stop]
+    G -- Central --> I[Show exactly 3 explained departments]
+    I --> J[Citizen selects + OTP + confirms]
+    J --> K[Mock ₹10 payment]
+    K --> L[DEMO receipt - prepared application routed to selected department]
+```
+
+1. Citizen speaks naturally (voice primary, full text fallback) and may attach photos of the incident. Visible editable transcript; interruptible anytime.
+2. Agent extracts only the essentials: records sought, date range, location, likely body, format — plus observable facts from any uploaded photos. Asks **one** plain follow-up when something material is missing. Accepts "I don't know." Never invents facts.
+3. **Sensitive-request guard:** if the ask targets exempt material — national security, cabinet papers, trade secrets, personal details of officials unconnected to public duty (Section 8(1)) — the agent does **not** draft. It refuses plainly and returns a short summary of exactly why (which exemption applies), with a lawful reframing where one exists.
+4. Agent separates grievance language from the information need, writes the complete neutral editable RTI draft (citing attached evidence where relevant), reads it back. Citizen corrects by voice or text.
+5. Jurisdiction gate: **State matter → explain Central-only limit, stop cleanly** (no fabricated State authorities). Central matter → return **exactly 3 explained candidates** with reasons + ambiguity warnings. Citizen can select, manually search, or override.
+6. Sandbox OTP sign-in (or fixed judge OTP when offline) before confirmation — never silently.
+7. Explicit confirm of draft **and** destination → mock ₹10 payment (BPL ₹0 path) → idempotent `DEMO` receipt (`government_submission_status: NOT_SUBMITTED`).
+8. Sandbox test email/SMS with consent; deterministic outbox preview fallback. On-screen/download receipt always available.
+9. **My Applications**: owner-scoped history with internal-only timeline (Draft → Authority selected → Prepared → Receipt generated → …). Every screen says it is demo history, not synchronized with RTI Online.
 
 ---
 
 ## 4. Scope
 
 **In (hackathon):**
-Voice/text intake → agent-authored editable draft → exactly 3 explained Central candidates → sandbox OTP → explicit confirm → mock payment → simulated receipt → sandbox notifications w/ fallback → authenticated internal history.
+Voice/text/photo intake → agent-authored editable draft → exactly 3 explained Central candidates → sandbox OTP → explicit confirm → mock payment → simulated receipt → sandbox notifications w/ fallback → authenticated internal history — plus a sensitive/exemption guard that refuses with a reasoned summary, and vision-based photo-evidence analysis folded into the draft.
 
 **Out (deferred, mention only as future work):**
 Real government integration or filing · real payments · live SLA tracking/reminders/deemed refusal · appeal generation (Sections 18/19/20 are context only) · production identity verification & account recovery · production email/SMS delivery.
@@ -80,6 +97,7 @@ Labeling requirements:
 
 The reliable judging path works with zero credentials/API keys:
 - Sample audio per language → fixed labeled transcript fixture.
+- Sample photo + prompt → fixed labeled evidence-analysis fixture.
 - Rule-based conversation fixture asks the expected missing-detail question.
 - Template drafting builds the full application from confirmed facts.
 - Keyword/BM25 lookup over the mock directory returns the 3 candidates.
@@ -87,6 +105,14 @@ The reliable judging path works with zero credentials/API keys:
 - OTP uses a judge-only code, visibly labeled, still exercising expiry/attempt limits.
 
 Every adapter reports its mode: `LIVE_SANDBOX` | `DETERMINISTIC_DEMO` | `UNAVAILABLE`.
+
+### 5.3 Photo / evidence uploads
+
+- Intake accepts up to 3 images (JPG/PNG, ≤5 MB each) alongside voice/text.
+- A vision pass extracts **only what is clearly observable**: scene description, visible text/signboards, apparent damage or condition, timestamps if present. Findings are read back and become draft facts **only after citizen confirmation** — the AI never asserts what a photo proves.
+- The draft references photos as attached supporting evidence ("photographs of the incident attached"), matching the official portal's attachment-based filing format; it never uses them as accusations.
+- Without a vision key, a deterministic labeled fixture simulates the analysis (`Demo evidence analysis` badge).
+- Privacy: images are deleted after processing unless the citizen saves the application; then retained only inside that owned demo record and removed with it.
 
 ---
 
@@ -140,7 +166,7 @@ All endpoints: TLS, rate limits, ownership derived from session cookie only (nev
 | `POST /auth/otp/request` | E.164 mobile → generic ack, 5-min expiry, 45-s resend cooldown |
 | `POST /auth/otp/verify` | ≤5 attempts, consume-once, rotate session, HttpOnly Secure cookie |
 | `GET /auth/me`, `POST /auth/logout` | Current session info; revoke |
-| `POST /agent/intake-and-draft` | Audio or edited transcript → transcript, confirmed facts, summary, full editable draft (or one follow-up question) |
+| `POST /agent/intake-and-draft` | Audio, edited transcript, optional evidence photos → transcript, confirmed facts + evidence findings (citizen-confirmed), summary, full editable draft — or one follow-up question — or `outcome: REJECTED_EXEMPT` with `rejection_summary` |
 | `POST /routing/recommend` | Normalized need → exactly 3 ranked candidates (stable ID, name, ministry, reason, context, ambiguity warning) + snapshot metadata; State matter → redirect state |
 | `GET /public-authorities/search?q=` | Search the mock directory |
 | `POST /demo/confirm` | Authenticated; binds app to owner; returns confirmation token |
@@ -183,6 +209,8 @@ Hackathon storage: SQLite file. Postgres/pgvector is a production migration path
 5. The agent writes the complete application — the citizen never supplies legal wording.
 6. Never invent dates, locations, identities, bodies, or record types. Ask instead, or state the limitation in the draft.
 7. Call it an "application"/"request", never a complaint. Optional: tag life-and-liberty matters `PRIORITY_48H` (Sec 7(1) proviso).
+8. Exemption guard: requests aimed at exempt material — national security, cabinet papers, trade secrets, personal details of officials unconnected to public duty (Sec 8(1)) — are **never drafted**. Reply with a short plain-language summary of which exemption applies and why; suggest a lawful reframing where one exists.
+9. Evidence rule: derive facts only from what is clearly visible in uploaded photos; confirm each finding with the citizen before it enters the draft; reference photos as attached supporting evidence, never as proof of accusations.
 
 Worked example (use in demo/pitch):
 
@@ -230,6 +258,8 @@ Worked example (use in demo/pitch):
 
 (Squeeze sandbox email/SMS with one `FALLBACK_ONLY` channel into 2:30–2:50 to prove honest failure handling.)
 
+(Optional judge-bait beat: type a sensitive ask — *"give me the minister's personal bank details"* — and show the polite refusal with its reason summary instead of a draft.)
+
 ---
 
 ## 12. Build order
@@ -237,7 +267,7 @@ Worked example (use in demo/pitch):
 1. Contracts + curated mock directory (~40–60 PAs, dated JSON).
 2. Accessible mobile shell: banner, theme/text-size/language controls.
 3. Intake: mic capture, transcript edit, deterministic STT fixture.
-4. Agent loop: follow-up question, fact confirmation, full draft, read-back.
+4. Agent loop + guardrails: follow-up question, fact confirmation, sensitive/exemption rejection with reasoned summary, evidence-photo vision pass, full draft, read-back.
 5. Routing: keyword/BM25 over mock directory → 3 explained candidates; State redirect; manual search + override.
 6. OTP sessions + judge mode.
 7. Confirm guard + mock payment + simulated receipt.
@@ -252,6 +282,8 @@ Worked example (use in demo/pitch):
 | Check | Expected |
 | :--- | :--- |
 | Draft quality | Complete editable application from voice facts; zero invented facts |
+| Sensitive ask | Exemption-targeting request returns a reasoned refusal and no draft |
+| Evidence photos | Observable findings extracted from image, citizen-confirmed before entering the draft |
 | Routing | Exactly 3 explained candidates on valid Central match; State matter redirects without fabricating destinations |
 | Honest vocabulary | Only approved internal statuses; nothing says filed/accepted/replied |
 | Idempotency | Repeat pay/receipt/notify calls return the original result, no duplicates |
