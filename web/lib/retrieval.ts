@@ -67,7 +67,12 @@ function tokenize(text: string): string[] {
 const FIELD_OFFICE = /\b(piu[- ]|e\/i\b|embassy|high commission|consulate|regional office|field (unit|office)|circle office|division office|branch office|sub[- ]division|project implementation)\b/i;
 
 function isFieldOffice(pa: PublicAuthority): boolean {
-  return (pa.level ?? 0) >= 2 || FIELD_OFFICE.test(pa.name);
+  if ((pa.level ?? 0) >= 2 || FIELD_OFFICE.test(pa.name)) return true;
+  if (/external affairs/i.test(pa.ministry)) {
+    const n = pa.name.trim();
+    if (n.split(/\s+/).length <= 2 && !/passport|visa|consular|cpv|mea|external/i.test(n)) return true;
+  }
+  return false;
 }
 
 interface IndexedDoc {
@@ -182,6 +187,11 @@ export function shortlistDirectory(query: string, pool = 16): { results: ScoredD
   if (parent && !results.some((r) => r.pa.pa_code === parent.pa.pa_code)) {
     results = [results[0], { pa: parent.pa, score: Math.max(results[0].score * 0.35, 1), matched: [] }, ...results.slice(1)];
   }
+
+  const head = results[0];
+  const restCore = results.slice(1).filter((r) => !isFieldOffice(r.pa));
+  const restField = results.slice(1).filter((r) => isFieldOffice(r.pa));
+  results = [head, ...restCore, ...restField];
 
   if (results.length < 3) {
     const ministry = results[0].pa.ministry;

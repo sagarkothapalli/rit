@@ -86,6 +86,7 @@ Field rules:
 - Pick EXACTLY 3 ids from the given shortlist. Best match first.
 - Do not add, remove, rename, or invent authorities. Use the exact ids given.
 - Prefer the parent body over a field office / PIU unless the citizen named that office.
+- Do not pick foreign missions, embassies, or one-city posts unless the citizen named that place.
 - why: max 25 words, grounded ONLY in the candidate's name/ministry/keywords and the citizen's stated need.
 - caveat: max 20 words, the honest uncertainty (e.g. "executing authority varies by stretch").
 - Order is the ranking.`,
