@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --text-scale: 1;
   --bg: #f7f7f4;
   --bg-raise: #ffffff;
   --fg: #17202d;
@@ -17,16 +18,47 @@
   --green-soft: #edf7ef;
   --red: #b42318;
   --amber: #8a5b00;
+  --heading: #052444;
+  --accent: #082f5b;
+  --surface: #ffffff;
+  --surface-soft: #f5f7f9;
+  --surface-muted: #f2f4f6;
+  --surface-warm: #fbfbf9;
+  --utility-bg: #f0f2f4;
+  --utility-fg: #3f4c5e;
+  --masthead: #082f5b;
+  --masthead-text: #ffffff;
+  --masthead-muted: #d9e4ef;
+  --masthead-rule: rgba(255, 255, 255, 0.34);
+  --masthead-action-bg: #ffffff;
+  --masthead-action-fg: #082f5b;
+  --masthead-action-hover: #f6e5ca;
+  --truth-bg: #fff8eb;
+  --truth-fg: #5f4a20;
+  --truth-line: #ead8b7;
+  --truth-strong: #4c3915;
+  --on-accent: #ffffff;
+  --good-fg: #236132;
+  --action-fg: #7b4800;
+  --focus-ring: #f0a14a;
+  --selection: #cbdbea;
+  --quote: #334052;
+  --toolbar-fg: #536071;
+  --wax-bg: #fff1ef;
+  --wax-line: #f2b8b2;
+  --next-muted: #d3dfeb;
+  --footer-muted: #afc0d1;
+  --footer-text: #d5e0eb;
   --shadow-soft: 0 18px 45px -32px rgba(8, 47, 91, 0.48);
   --shadow-panel: 0 22px 60px -38px rgba(23, 32, 45, 0.44);
 
   --iris: var(--navy);
   --iris-deep: var(--navy-deep);
   --iris-tint: var(--navy-soft);
-  --glass: #ffffff;
-  --glass-strong: #ffffff;
-  --glass-soft: #f5f7f9;
-  --glass-faint: #f7f8fa;
+  --glass: var(--surface);
+  --glass-strong: var(--surface);
+  --glass-soft: var(--surface-soft);
+  --glass-faint: var(--surface-muted);
   --linen: var(--bg);
   --linen-deep: #edf0f2;
   --linen-edge: var(--line);
@@ -36,8 +68,8 @@
   --leather-deep: #dbe6f0;
   --leather-edge: var(--line);
   --leather-stitch: var(--navy);
-  --paper: #ffffff;
-  --paper-warm: #fbfbf8;
+  --paper: var(--surface);
+  --paper-warm: var(--surface-warm);
   --paper-edge: var(--line);
   --ink: var(--fg);
   --ink-soft: var(--fg-soft);
@@ -49,6 +81,85 @@
   --ok: var(--green);
   --warn: var(--amber);
   --danger: var(--red);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121920;
+  --bg-raise: #1a2430;
+  --fg: #e7eef5;
+  --fg-soft: #b4c2d1;
+  --fg-faint: #8d9dad;
+  --line: #2c3b4c;
+  --line-strong: #3e5166;
+  --navy: #0b3c73;
+  --navy-deep: #051525;
+  --navy-soft: #1b3044;
+  --saffron: #e09b3a;
+  --saffron-soft: #3a2c14;
+  --green: #4ea15f;
+  --green-soft: #163222;
+  --red: #e06b64;
+  --amber: #d4a24a;
+  --heading: #e7eef5;
+  --accent: #9dc4e6;
+  --surface: #1a2430;
+  --surface-soft: #202c3a;
+  --surface-muted: #182330;
+  --surface-warm: #1c2836;
+  --utility-bg: #0d141c;
+  --utility-fg: #b4c2d1;
+  --masthead: #082f5b;
+  --masthead-text: #ffffff;
+  --masthead-muted: #d4e2ef;
+  --masthead-rule: rgba(255, 255, 255, 0.34);
+  --masthead-action-bg: #ffffff;
+  --masthead-action-fg: #082f5b;
+  --masthead-action-hover: #f6e5ca;
+  --truth-bg: #2c2414;
+  --truth-fg: #e8d6aa;
+  --truth-line: #5c4a28;
+  --truth-strong: #f3e4bc;
+  --on-accent: #ffffff;
+  --good-fg: #8ecf9a;
+  --action-fg: #f0c37a;
+  --focus-ring: #f0a14a;
+  --selection: #2a4560;
+  --quote: #d5dee8;
+  --toolbar-fg: #9aabbc;
+  --wax-bg: #3a1e1c;
+  --wax-line: #7a3a36;
+  --next-muted: #d3dfeb;
+  --footer-muted: #afc0d1;
+  --footer-text: #d5e0eb;
+  --shadow-soft: 0 18px 45px -32px rgba(0, 0, 0, 0.72);
+  --shadow-panel: 0 22px 60px -38px rgba(0, 0, 0, 0.8);
+  --iris: var(--accent);
+  --iris-deep: var(--accent);
+  --iris-tint: var(--navy-soft);
+  --glass: var(--surface);
+  --glass-strong: var(--surface-soft);
+  --glass-soft: var(--surface-soft);
+  --glass-faint: var(--surface-muted);
+  --linen: var(--bg);
+  --linen-deep: var(--surface-muted);
+  --linen-edge: var(--line);
+  --walnut: var(--surface-muted);
+  --walnut-deep: var(--navy-deep);
+  --leather: var(--navy-soft);
+  --leather-deep: #152536;
+  --leather-edge: var(--line);
+  --leather-stitch: var(--accent);
+  --paper: var(--surface);
+  --paper-warm: var(--surface-warm);
+  --paper-edge: var(--line);
+  --ink: var(--fg);
+  --ink-soft: var(--fg-soft);
+  --ink-faint: var(--fg-faint);
+  --brass: var(--navy);
+  --brass-deep: var(--navy-deep);
+  --wax: var(--red);
+  --wax-deep: #b4453f;
 }
 
 @theme inline {
@@ -216,10 +327,9 @@ svg {
 }
 
 .brand-emblem {
-  filter: brightness(0) invert(1);
-  height: 70px;
+  height: 78px;
   object-fit: contain;
-  width: 48px;
+  width: 47px;
 }
 
 .brand-rule {
@@ -1216,11 +1326,13 @@ svg {
   gap: 14px;
 }
 
-.footer-brand img {
-  filter: brightness(0) invert(1);
-  height: 54px;
+.footer-emblem {
+  display: block;
+  flex-shrink: 0;
+  height: 72px;
+  max-width: none;
   object-fit: contain;
-  width: 37px;
+  width: 43px;
 }
 
 .footer-brand div {
@@ -1514,8 +1626,8 @@ svg {
   }
 
   .brand-emblem {
-    height: 58px;
-    width: 40px;
+    height: 64px;
+    width: 38px;
   }
 
   .brand-rule {
@@ -1645,8 +1757,8 @@ svg {
   }
 
   .brand-emblem {
-    height: 48px;
-    width: 33px;
+    height: 54px;
+    width: 32px;
   }
 
   .brand-rule {

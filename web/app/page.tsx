@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import Emblem from "@/components/Emblem";
 import HeroDraftActions from "@/components/HeroDraftActions";
+import SiteMasthead from "@/components/SiteMasthead";
 
 const serviceSteps = [
   {
@@ -111,58 +113,27 @@ function StepIcon({ index }: { index: number }) {
 export default function Page() {
   return (
     <main className="site-shell">
-      <a className="skip-link" href="#main-content">Skip to main content</a>
-
-      <div className="tricolour" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-
-      <div className="utility-bar">
-        <div className="site-container utility-inner">
-          <span>Independent citizen assistance for RTI</span>
-          <div className="utility-links" aria-label="Utility links">
-            <a href="#accessibility">Accessibility</a>
+      <SiteMasthead
+        notice="Independent citizen assistance for RTI"
+        links={
+          <>
+            <a href="#accessibility">Accessibility help</a>
             <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Official RTI portal</a>
-          </div>
-        </div>
-      </div>
-
-      <header className="civic-header">
-        <div className="site-container header-inner">
-          <Link className="brand" href="/" aria-label="Praja RTI home">
-            <Image
-              alt="State Emblem of India"
-              className="brand-emblem"
-              height={72}
-              priority
-              src="/india-emblem-white.png"
-              width={50}
-            />
-            <span className="brand-rule" aria-hidden="true" />
-            <span>
-              <strong>Praja RTI</strong>
-              <small lang="hi">प्रजा आरटीआई</small>
-            </span>
-            <span className="brand-context">Independent<br />Citizen Assistance</span>
-          </Link>
-
-          <nav className="primary-nav" aria-label="Primary navigation">
-            <a href="#how-it-works">How it works</a>
-            <a href="#rti-lifecycle">RTI lifecycle</a>
-            <a href="#safeguards">Safeguards</a>
-          </nav>
-
-          <Link className="header-action header-start-action" href="/request">Start drafting</Link>
-        </div>
-      </header>
-
-      <div className="truth-strip">
-        <div className="site-container">
-          <strong>Important:</strong> Praja RTI is independent citizen assistance. It is not a government portal and does not file an application on your behalf.
-        </div>
-      </div>
+          </>
+        }
+        truth={
+          <>
+            <strong>Important:</strong> Praja RTI is independent citizen assistance. It is not a government portal and does not file an application on your behalf.
+          </>
+        }
+      >
+        <nav className="primary-nav" aria-label="Primary navigation">
+          <a href="#how-it-works">How it works</a>
+          <a href="#rti-lifecycle">RTI lifecycle</a>
+          <a href="#safeguards">Safeguards</a>
+        </nav>
+        <Link className="header-action header-start-action" href="/request">Start drafting</Link>
+      </SiteMasthead>
 
       <section className="hero site-container" id="main-content">
         <div className="hero-copy">
@@ -402,7 +373,7 @@ export default function Page() {
       <footer className="site-footer" id="accessibility">
         <div className="site-container footer-grid">
           <div className="footer-brand">
-            <Image alt="State Emblem of India" height={54} src="/india-emblem-white.png" width={37} />
+            <Emblem className="footer-emblem" height={72} width={43} />
             <div>
               <strong>Praja RTI</strong>
               <span>Independent citizen assistance</span>
@@ -420,8 +391,9 @@ export default function Page() {
           </div>
           <div>
             <strong>Accessibility</strong>
-            <span>Keyboard friendly</span>
-            <span>Reduced motion supported</span>
+            <span>Dark and light appearance</span>
+            <span>Text size controls in the top bar</span>
+            <span>Keyboard and reduced motion supported</span>
           </div>
         </div>
         <div className="site-container footer-bottom">

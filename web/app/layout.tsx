@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Devanagari, Public_Sans } from "next/font/google";
 import RevealObserver from "@/components/RevealObserver";
+import { PREFS_SCRIPT } from "@/lib/prefs-script";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -19,6 +20,10 @@ export const metadata: Metadata = {
   title: "Praja RTI | Independent citizen assistance",
   description:
     "Speak or type your concern, review a records focused RTI draft, and compare explained Central public authority suggestions. Independent citizen assistance, not a government portal.",
+  icons: {
+    icon: [{ url: "/favicon.ico", sizes: "any" }],
+    apple: [{ url: "/apple-touch-icon.png" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -28,6 +33,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${publicSans.variable} ${devanagari.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: PREFS_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col" data-design-seed="2d3f5aee">
         <template
           dangerouslySetInnerHTML={{

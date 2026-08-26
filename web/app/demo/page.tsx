@@ -1,7 +1,7 @@
 "use client";
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import SiteMasthead from "@/components/SiteMasthead";
 import { useSpeech } from "@/hooks/useSpeech";
 import { searchDirectory, DIRECTORY, DIRECTORY_SNAPSHOT, type PublicAuthority } from "@/lib/retrieval";
 import {
@@ -290,45 +290,26 @@ export default function DraftingPage() {
 
   return (
     <main className="relative min-h-screen flex flex-col bg-[var(--bg)]">
-      <div className="tricolour" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-
-      <div className="utility-bar">
-        <div className="site-container utility-inner">
-          <span>Only edited transcript text is analysed. Audio is not sent.</span>
-          <div className="utility-links">
+      <SiteMasthead
+        compact
+        notice="Only edited transcript text is analysed. Audio is not sent."
+        links={
+          <>
             <Link href="/admin">Service settings</Link>
             <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Official RTI portal</a>
-          </div>
-        </div>
-      </div>
-
-      <header className="civic-header">
-        <div className="site-container header-inner !min-h-[92px]">
-          <Link className="brand" href="/" aria-label="Praja RTI home">
-            <Image alt="State Emblem of India" className="brand-emblem !h-[58px] !w-[40px]" height={58} priority src="/india-emblem-white.png" width={40} />
-            <span className="brand-rule !h-[46px]" aria-hidden="true" />
-            <span>
-              <strong>Praja RTI</strong>
-              <small lang="hi">प्रजा आरटीआई</small>
-            </span>
-            <span className="brand-context">Independent<br />Citizen Assistance</span>
-          </Link>
-          <Link href="/" className="header-action request-home-action ml-auto">Back to home</Link>
-        </div>
-      </header>
-
-      <div className="truth-strip">
-        <div className="site-container">
-          <strong>Important:</strong> This workspace prepares a draft. It does not file with or connect to a government system.
-        </div>
-      </div>
+          </>
+        }
+        truth={
+          <>
+            <strong>Important:</strong> This workspace prepares a draft. It does not file with or connect to a government system.
+          </>
+        }
+      >
+        <Link href="/" className="header-action request-home-action">Back to home</Link>
+      </SiteMasthead>
 
       {/* Mode badges */}
-      <div className="mx-auto max-w-5xl px-6 pt-4 flex flex-wrap items-center gap-2">
+      <div className="mx-auto max-w-5xl px-6 pt-4 flex flex-wrap items-center gap-2" id="main-content">
         <span className={`inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] ${speech.supported ? "border-[var(--iris)]/25 bg-[var(--iris-tint)] text-[var(--iris)]" : "border-[var(--line-strong)] text-[var(--fg-faint)]"}`}>
           Voice: {micMode}
         </span>

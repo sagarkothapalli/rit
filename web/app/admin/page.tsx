@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import AccessibilityControls from "@/components/AccessibilityControls";
 
 interface Status {
   configured: boolean;
@@ -120,19 +121,24 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="relative min-h-screen flex flex-col">
+    <main className="relative min-h-screen flex flex-col bg-[var(--bg)]">
       <div className="tricolour" aria-hidden="true">
         <span />
         <span />
         <span />
       </div>
-      <div className="w-full border-b border-[var(--line)] bg-white">
-        <div className="mx-auto max-w-3xl px-6 py-2 flex items-center gap-2.5 text-[13px] text-[var(--fg-soft)]">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--amber)]">Admin</span>
-          <span>Model control room. Your key is stored on the server and never shown again.</span>
-          <Link href="/request" className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--iris)] hover:underline shrink-0">
-            Back to workspace
-          </Link>
+      <div className="utility-bar">
+        <div className="site-container utility-inner">
+          <span className="utility-notice">
+            <span className="admin-tag">Admin</span>
+            Model control room. Your key is stored on the server and never shown again.
+          </span>
+          <div className="utility-end">
+            <div className="utility-links">
+              <Link href="/request">Back to workspace</Link>
+            </div>
+            <AccessibilityControls />
+          </div>
         </div>
       </div>
 
