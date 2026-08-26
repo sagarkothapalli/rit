@@ -14,6 +14,7 @@ import {
   type Draft,
 } from "@/lib/cage/schemas";
 import { normalizeNotes, routingQuery } from "@/lib/intake";
+import { hostedGate } from "@/lib/cage/hosted";
 
 /* ============================================================
    Drafting workspace. Live microphone through Web Speech and
@@ -112,8 +113,12 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
     });
     if (res.ok) return (await res.json()) as T;
   } catch {
-    // A static host has no Next.js route handlers. Continue with the same
-    // deterministic local fallbacks used by the server when no model is set.
+    // Next.js route handlers are absent on the static host.
+  }
+  try {
+    return (await hostedGate(url, body)) as T;
+  } catch {
+    // Proxy or model unavailable — same deterministic local path as no-key mode.
   }
   return localFallback(url, body) as T;
 }
