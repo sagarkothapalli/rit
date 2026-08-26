@@ -52,11 +52,18 @@ export function useSpeech(lang: string) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSupported(getRecognitionCtor() !== null);
   }, []);
-  const [finalText, setFinalText] = useState("");
+  const [finalText, setFinalTextState] = useState("");
   const [interimText, setInterimText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const shouldListenRef = useRef(false);
+  const finalTextRef = useRef("");
+
+  const setFinalText = useCallback((update: string | ((prev: string) => string)) => {
+    const next = typeof update === "function" ? update(finalTextRef.current) : update;
+    finalTextRef.current = next;
+    setFinalTextState(next);
+  }, []);
 
   const start = useCallback(() => {
     const Ctor = getRecognitionCtor();
@@ -126,7 +133,7 @@ export function useSpeech(lang: string) {
       setStatus("error");
       setError("Could not start the microphone. You can type instead.");
     }
-  }, [lang]);
+  }, [lang, setFinalText]);
 
   const stop = useCallback(() => {
     shouldListenRef.current = false;
@@ -139,7 +146,7 @@ export function useSpeech(lang: string) {
     setInterimText("");
     setError(null);
     setStatus(supported ? "idle" : "unsupported");
-  }, [supported]);
+  }, [supported, setFinalText]);
 
   return { status, finalText, interimText, error, supported, start, stop, reset, setFinalText };
 }

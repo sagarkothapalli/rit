@@ -21,15 +21,17 @@ export function notesPrompt(transcriptBlock: string, schema: string): { system: 
   return {
     system: `${COMMON}
 
-TASK: Extract the citizen's underlying information need.
+TASK: Convert a spoken complaint/rant into the material records an RTI can request. Do not interview the citizen.
 Return JSON exactly in this shape:
 ${schema}
 
 Field rules:
-- records_sought: what existing records/documents the citizen wants (their words, normalised to noun phrases, max 8 items).
-- date_range: period they mention, else null. place: locality/city/region, else null. body_hint: any authority they named, else null.
-- format: one of the enum; default "unspecified" if not stated.
-- missing_essentials: which of records_sought/date_range/place/body_hint/format are missing AND materially needed to file.
+- ALWAYS fill records_sought from the rant even if the citizen never named a document. This is required conversion, not invention. Typical conversions: "road/highway broken, where did the money go" → sanctioned budget, expenditure, work order, contractor agreement, quality inspection reports, delay-penalty clauses, file notings. "why hasn't X happened" → rules on file, written reasons recorded, inspection registers.
+- records_sought: 3 to 6 noun phrases, most specific first (budget/work order/inspection before generic notings). Max 8.
+- date_range / place: extract if spoken; else null. Never invent a date, amount, file number, or locality.
+- body_hint: the likely Central public authority (plain official name), inferred from the subject even if unnamed; null only if truly unclear.
+- format: "certified copies" unless they asked for inspection, electronic copies, or samples. Never leave "unspecified".
+- missing_essentials: always []. Never ask what record they want. Never block on format, authority, period, or place.
 - is_state_matter: true if the subject clearly belongs to a State government or local body (municipal, state police, state road, electricity board, panchayat, land records, tehsil, state university...). state_name: the state if identifiable.`,
     user: transcriptBlock,
   };
@@ -62,7 +64,8 @@ Return JSON exactly in this shape:
 ${schema}
 
 Field rules:
-- 3 to 5 requests. Each request: one sentence, starts with "Please provide", names the record type (certified copies / inspection / samples), and stays neutral.
+- 3 to 5 requests, one per inferred record in notes.records_sought (same order: most specific first).
+- Each request: one sentence, starts with "Please provide", names the record type (certified copies / inspection / samples), and stays neutral.
 - Strip every emotional, accusatory, or defamatory element. Convert "why" complaints into requests for rules, written reasons recorded on file, or inspection registers.
 - Use only facts present in the notes. Where a detail is unknown, phrase generically ("for the period concerned") — never invent.
 - title: short neutral application title, max 120 chars.`,
@@ -74,15 +77,18 @@ export function explainPrompt(notesJson: string, candidatesJson: string, schema:
   return {
     system: `${COMMON}
 
-TASK: Explain why each pre-retrieved public authority is (or is not) a good destination.
+TASK: Rank the three best public authorities for this records request.
+The input list is a shortlist already retrieved from a dated snapshot of the RTI Online directory (2,916 listed public authorities). You only rank. You never invent a new authority.
 Return JSON exactly in this shape:
 ${schema}
 
 Field rules:
-- The candidate list is fixed. Do not add, remove, rename, or invent authorities. Use the exact ids given.
-- why: max 25 words, grounded ONLY in the candidate's own keywords/ministry and the citizen's stated need.
+- Pick EXACTLY 3 ids from the given shortlist. Best match first.
+- Do not add, remove, rename, or invent authorities. Use the exact ids given.
+- Prefer the parent body over a field office / PIU unless the citizen named that office.
+- why: max 25 words, grounded ONLY in the candidate's name/ministry/keywords and the citizen's stated need.
 - caveat: max 20 words, the honest uncertainty (e.g. "executing authority varies by stretch").
-- Order must match the input order.`,
-    user: `Confirmed information need (data):\n${notesJson}\n\nPre-retrieved candidates (data, fixed):\n${candidatesJson}`,
+- Order is the ranking.`,
+    user: `Confirmed information need (data):\n${notesJson}\n\nShortlist retrieved from the dated RTI Online snapshot (data, fixed):\n${candidatesJson}`,
   };
 }

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import type { z } from "zod";
-import { NotesRequest, NotesSchema, notesFallback, type GateResult } from "@/lib/cage/schemas";
+import { NotesRequest, NotesSchema, notesFallback, type GateResult, type Notes } from "@/lib/cage/schemas";
 import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { notesPrompt, wrapUntrusted } from "@/lib/cage/prompts";
 import { looksStateMatter } from "@/lib/retrieval";
+import { normalizeNotes } from "@/lib/intake";
 import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -29,13 +29,19 @@ export async function POST(req: Request) {
   // Code-side state hint is always applied, model or not.
   const stateHint = looksStateMatter(transcript);
 
+  function finish(raw: Notes, mode: "LIVE" | "SIMULATED", model?: string) {
+    const normalized = normalizeNotes(transcript, raw);
+    const data = NotesSchema.parse({
+      ...normalized,
+      is_state_matter: normalized.is_state_matter || stateHint,
+    });
+    const result: GateResult<Notes> = { mode, model, data };
+    return NextResponse.json(result);
+  }
+
   const cfg = await getModelConfig();
   if (!cfg) {
-    const result: GateResult<z.infer<typeof NotesSchema>> = {
-      mode: "SIMULATED",
-      data: { ...notesFallback(transcript), is_state_matter: stateHint || notesFallback(transcript).is_state_matter },
-    };
-    return NextResponse.json(result);
+    return finish(notesFallback(transcript), "SIMULATED");
   }
 
   const shape = `{
@@ -44,26 +50,19 @@ export async function POST(req: Request) {
   "place": string | null,
   "body_hint": string | null,
   "format": "certified copies" | "inspection" | "electronic copies" | "samples" | "unspecified",
-  "missing_essentials": ("records_sought" | "date_range" | "place" | "body_hint" | "format")[],
+  "missing_essentials": [],
   "is_state_matter": boolean,
   "state_name": string | null
 }`;
 
   const { system, user } = notesPrompt(wrapUntrusted(transcript, lang), shape);
-  const res = await callModelJSON({ cfg, model: cfg.fast, system, user, maxTokens: 600 }, (x) =>
+  const res = await callModelJSON({ cfg, model: cfg.fast, system, user, maxTokens: 700 }, (x) =>
     NotesSchema.parse(x)
   );
 
   if (!res.ok) {
-    const result: GateResult<z.infer<typeof NotesSchema>> = {
-      mode: "SIMULATED",
-      data: { ...notesFallback(transcript), is_state_matter: stateHint || notesFallback(transcript).is_state_matter },
-    };
-    return NextResponse.json(result);
+    return finish(notesFallback(transcript), "SIMULATED");
   }
 
-  const data = res.data;
-  data.is_state_matter = stateHint || data.is_state_matter;
-  const result: GateResult<z.infer<typeof NotesSchema>> = { mode: "LIVE", model: res.model, data };
-  return NextResponse.json(result);
+  return finish(res.data, "LIVE", res.model);
 }

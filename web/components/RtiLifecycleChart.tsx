@@ -92,9 +92,18 @@ export default function RtiLifecycleChart() {
   const nextNodes = lit ? lit.next.map((id) => NODE_BY_ID[id]).filter(Boolean) : [];
 
   useEffect(() => {
-    const root = viewportRef.current;
-    if (!root) return;
-    root.dataset.interactive = "true";
+    const shell = viewportRef.current;
+    if (!shell) return;
+    const viewport: HTMLDivElement = shell;
+    viewport.dataset.interactive = "true";
+
+    function frameStart() {
+      const svg = viewport.querySelector("svg");
+      if (!svg) return;
+      const scale = svg.getBoundingClientRect().width / VIEW.w;
+      const target = NODE_BY_ID.start.x * scale - viewport.clientWidth / 2;
+      viewport.scrollLeft = Math.max(0, Math.min(target, viewport.scrollWidth - viewport.clientWidth));
+    }
 
     function onMove(event: PointerEvent | MouseEvent) {
       if ("pointerType" in event && event.pointerType === "touch") return;
@@ -112,17 +121,30 @@ export default function RtiLifecycleChart() {
       else setPinned(null);
     }
 
-    root.addEventListener("pointermove", onMove);
-    root.addEventListener("mousemove", onMove);
-    root.addEventListener("pointerleave", onLeave);
-    root.addEventListener("mouseleave", onLeave);
-    root.addEventListener("click", onClick);
+    const ready = window.requestAnimationFrame(() => frameStart());
+    let userPanned = false;
+    const onScroll = () => {
+      userPanned = true;
+    };
+    viewport.addEventListener("scroll", onScroll, { passive: true });
+    const resize = new ResizeObserver(() => {
+      if (!userPanned) frameStart();
+    });
+    resize.observe(viewport);
+    viewport.addEventListener("pointermove", onMove);
+    viewport.addEventListener("mousemove", onMove);
+    viewport.addEventListener("pointerleave", onLeave);
+    viewport.addEventListener("mouseleave", onLeave);
+    viewport.addEventListener("click", onClick);
     return () => {
-      root.removeEventListener("pointermove", onMove);
-      root.removeEventListener("mousemove", onMove);
-      root.removeEventListener("pointerleave", onLeave);
-      root.removeEventListener("mouseleave", onLeave);
-      root.removeEventListener("click", onClick);
+      window.cancelAnimationFrame(ready);
+      resize.disconnect();
+      viewport.removeEventListener("scroll", onScroll);
+      viewport.removeEventListener("pointermove", onMove);
+      viewport.removeEventListener("mousemove", onMove);
+      viewport.removeEventListener("pointerleave", onLeave);
+      viewport.removeEventListener("mouseleave", onLeave);
+      viewport.removeEventListener("click", onClick);
     };
   }, []);
 
@@ -140,7 +162,7 @@ export default function RtiLifecycleChart() {
   return (
     <div className={`rti-chart${lit ? " is-tracing" : ""}`}>
       <div className="rti-chart-toolbar">
-        <p className="rti-chart-hint">On a phone, swipe the map and tap a step to pin its path.</p>
+        <p className="rti-chart-hint">The map opens on the RTI request. Swipe to see the other branches, and tap a step to pin its path.</p>
         <ul className="rti-legend">
           {LEGEND.map((item) => (
             <li key={item.id}>
@@ -234,7 +256,15 @@ export default function RtiLifecycleChart() {
                 data-node={node.id}
                 key={node.id}
                 onBlur={() => setHovered((current) => (current === node.id ? null : current))}
-                onFocus={() => setHovered(node.id)}
+                onFocus={(event) => {
+                  setHovered(node.id);
+                  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                  event.currentTarget.scrollIntoView({
+                    block: "nearest",
+                    inline: "center",
+                    behavior: reduce ? "auto" : "smooth",
+                  });
+                }}
                 onKeyDown={(event) => handleKey(event, node.id)}
                 role="button"
                 tabIndex={0}

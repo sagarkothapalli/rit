@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-26T17:10:02Z",
+  "generatedAt": "2026-08-27T12:00:00Z",
   "title": "Design System: Praja RTI",
   "extensions": {
     "colorMeta": {
@@ -105,6 +105,12 @@
         "displayName": "Caution Amber",
         "canonical": "#8a5b00",
         "tonalRamp": ["#3a2600", "#5b3c00", "#795000", "#8a5b00", "#af8f52", "#cab58c", "#e1d4bd", "#f3efe6"]
+      },
+      "appeal-teal": {
+        "role": "tertiary-info",
+        "displayName": "Appeal Teal",
+        "canonical": "#0e5c6b",
+        "tonalRamp": ["#06262d", "#0a3d48", "#0c4e5b", "#0e5c6b", "#4a8a96", "#84b3bb", "#b8d4d8", "#e6f1f3"]
       }
     },
     "typographyMeta": {
@@ -150,7 +156,7 @@
       {
         "name": "control-state",
         "value": "180ms ease",
-        "purpose": "Button, link, border, and color state changes."
+        "purpose": "Button, link, border, color, and lifecycle-path state changes."
       },
       {
         "name": "request-enter",
@@ -253,6 +259,13 @@
       "css": ".ds-transform { overflow: hidden; border-radius: 14px; background: #fff; color: var(--fg); box-shadow: 0 22px 60px -38px rgba(23,32,45,.44); font-family: var(--font-body), 'Public Sans', sans-serif; } .ds-transform-toolbar { min-height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--line); background: #f2f4f6; color: #536071; font-size: 12px; } .ds-ready { color: var(--green); } .ds-transform-grid { min-height: 300px; display: grid; grid-template-columns: minmax(0,.85fr) 42px minmax(0,1.15fr); } .ds-transcript, .ds-records { padding: 28px 24px; } .ds-transcript { background: #fbfbf9; } .ds-kicker { display: block; margin-bottom: 2px; color: var(--fg-faint); font-size: 11px; letter-spacing: .035em; } .ds-transcript strong, .ds-records strong { color: var(--navy-deep); font-size: 14px; } .ds-transcript p { margin: 34px 0 0; color: #334052; font-size: 14px; line-height: 1.73; } .ds-transform-arrow { display: grid; place-items: center; border-left: 1px solid var(--line); border-right: 1px solid var(--line); background: #f7f8f9; color: var(--navy); } .ds-transform-arrow svg { width: 18px; height: 18px; } .ds-records ol { margin: 24px 0 0; padding-left: 24px; } .ds-records li { padding: 12px 0 12px 7px; border-top: 1px solid var(--line); color: #354254; font-size: 13px; line-height: 1.58; } .ds-records li::marker { color: var(--navy); font-weight: 700; }"
     },
     {
+      "name": "RTI Lifecycle Map",
+      "kind": "custom",
+      "description": "Interactive four-lane official RTI Online lifecycle: hover or focus lights the active step and the next connected stages; a dock explains the lit path; the original flowchart is a text link.",
+      "html": "<div class=\"ds-rti-chart\"><div class=\"ds-rti-toolbar\"><ul class=\"ds-rti-legend\"><li><i class=\"ds-swatch ds-swatch-time\"></i>Time limit</li><li><i class=\"ds-swatch ds-swatch-process\"></i>Process</li><li><i class=\"ds-swatch ds-swatch-ok\"></i>Closed</li><li><i class=\"ds-swatch ds-swatch-bad\"></i>Not satisfied</li><li><i class=\"ds-swatch ds-swatch-appeal\"></i>Appeal</li><li><i class=\"ds-swatch ds-swatch-complaint\"></i>Complaint</li></ul></div><svg aria-label=\"Interactive RTI request lifecycle\" role=\"group\" viewBox=\"0 0 640 220\"><rect fill=\"#f1f5f8\" height=\"110\" width=\"640\" x=\"0\" y=\"0\"></rect><text fill=\"#082f5b\" font-size=\"11\" font-weight=\"700\" letter-spacing=\".16em\" opacity=\".55\" x=\"18\" y=\"22\">01  PIO</text><rect fill=\"#f6f3ec\" height=\"110\" width=\"640\" x=\"0\" y=\"110\"></rect><text fill=\"#082f5b\" font-size=\"11\" font-weight=\"700\" letter-spacing=\".16em\" opacity=\".55\" x=\"18\" y=\"132\">02  APPLICANT</text><path d=\"M320 86 L178 86 L178 118\" fill=\"none\" stroke=\"#082f5b\" stroke-width=\"2.5\"></path><path d=\"M320 86 L462 86 L462 118\" fill=\"none\" stroke=\"#3e4c5c\" stroke-width=\"1.7\" opacity=\".18\"></path><g tabindex=\"0\" role=\"button\"><rect fill=\"#082f5b\" height=\"44\" rx=\"8\" width=\"168\" x=\"236\" y=\"28\"></rect><text fill=\"#fff\" font-size=\"12.5\" font-weight=\"650\" letter-spacing=\".12em\" text-anchor=\"middle\" x=\"320\" y=\"55\">RTI REQUEST</text></g><g tabindex=\"0\" role=\"button\"><rect fill=\"#082f5b\" height=\"32\" rx=\"16\" width=\"96\" x=\"130\" y=\"126\"></rect><text fill=\"#fff\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\" x=\"178\" y=\"147\">30 DAYS</text></g><g tabindex=\"0\" role=\"button\"><rect fill=\"#fff\" height=\"36\" rx=\"8\" stroke=\"#082f5b\" stroke-width=\"1.8\" width=\"120\" x=\"402\" y=\"124\"></rect><text fill=\"#082f5b\" font-size=\"12\" font-weight=\"650\" letter-spacing=\".06em\" text-anchor=\"middle\" x=\"462\" y=\"147\">TRANSFER</text></g></svg><div class=\"ds-rti-dock\" role=\"status\"><strong>30 days</strong><p>The public information officer has 30 days to send a reply.</p><p class=\"ds-rti-next\">Next <span>REPLY</span></p></div><p class=\"ds-rti-source\">Replica of the RTI Online lifecycle, redrawn for interaction. <a href=\"https://rtionline.gov.in/images/rti_lifecycle.jpg\">View the original flowchart</a>.</p></div>",
+      "css": ".ds-rti-chart { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--fg); font-family: var(--font-body), 'Public Sans', sans-serif; } .ds-rti-toolbar { min-height: 52px; display: flex; align-items: center; justify-content: flex-end; padding: 12px 20px; border-bottom: 1px solid var(--line); } .ds-rti-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; list-style: none; margin: 0; padding: 0; color: var(--fg-soft); font-size: 12px; font-weight: 650; } .ds-rti-legend li { display: inline-flex; align-items: center; gap: 8px; } .ds-swatch { width: 16px; height: 10px; border: 1px solid var(--line); border-radius: 3px; display: block; } .ds-swatch-time { width: 20px; border: 0; border-radius: 8px; background: var(--navy); } .ds-swatch-process { background: #fff; border: 1.5px solid var(--navy); } .ds-swatch-ok { background: var(--green); border: 0; } .ds-swatch-bad { background: var(--red); border: 0; } .ds-swatch-appeal { background: var(--appeal, #0e5c6b); border: 0; } .ds-swatch-complaint { background: var(--saffron-soft); border: 1.5px solid var(--saffron); } .ds-rti-chart svg { display: block; width: 100%; height: auto; } .ds-rti-chart g[role='button'] { cursor: pointer; } .ds-rti-chart g[role='button']:focus { outline: none; } .ds-rti-chart g[role='button']:focus-visible rect { stroke: #f0a14a; stroke-width: 3; } .ds-rti-dock { min-height: 118px; display: grid; gap: 8px; padding: 18px 22px 20px; border-top: 1px solid var(--line); background: #fbfbf9; } .ds-rti-dock strong { color: var(--navy-deep); font-size: 15px; } .ds-rti-dock p { margin: 0; max-width: 78ch; color: var(--fg-soft); font-size: 14px; line-height: 1.55; } .ds-rti-next { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .ds-rti-next span { padding: 6px 8px; border-radius: 5px; background: var(--navy-soft); color: var(--navy); font-size: 11px; font-weight: 700; } .ds-rti-source { margin: 0; padding: 16px 22px 18px; border-top: 1px solid var(--line); color: var(--fg-soft); font-size: 12.5px; line-height: 1.6; } .ds-rti-source a { color: var(--navy); font-weight: 680; text-underline-offset: 3px; }"
+    },
+    {
       "name": "Preparation Receipt",
       "kind": "custom",
       "description": "An internal preparation summary whose red status explicitly prevents a filing interpretation.",
@@ -268,14 +281,14 @@
       "One visible speech-to-numbered-records workspace as the signature product demonstration.",
       "Public Sans throughout Latin text, with Noto Sans Devanagari for Hindi identity text.",
       "Flat solid surfaces, one-pixel rules, rare soft shadows, and mostly 6–12px corners.",
-      "Saffron, green, amber, and red communicate emphasis or semantic state; navy owns action and structure.",
-      "Authored outline SVG icons, semantic lifecycle connectors, and one-time IntersectionObserver reveals.",
+      "Saffron, green, amber, red, and teal communicate emphasis or semantic state; navy owns action and structure.",
+      "Authored outline SVG icons, an interactive four-lane RTI lifecycle map, and one-time IntersectionObserver reveals.",
       "Independent preparation and official filing are always presented as two distinct services."
     ],
     "rules": [
       {
         "name": "The Navy Owns Action Rule",
-        "body": "Navy is the only general-purpose interactive color. Saffron, green, amber, and red stay semantic.",
+        "body": "Navy is the only general-purpose interactive color. Saffron, green, amber, red, and teal stay semantic.",
         "section": "colors"
       },
       {
@@ -327,6 +340,16 @@
         "name": "The Circle Means Sequence Rule",
         "body": "Circles denote voice input, ordered progress, or a compact state marker; they are not general decoration.",
         "section": "shapes"
+      },
+      {
+        "name": "The Lit Path Rule",
+        "body": "Lighting a lifecycle node highlights that node and the next connected stages only. Dim the rest; never flood the whole map.",
+        "section": "components"
+      },
+      {
+        "name": "The Source Is Text Rule",
+        "body": "Cite the official flowchart as a text link. Do not embed a thumbnail of the government image.",
+        "section": "components"
       }
     ],
     "dos": [

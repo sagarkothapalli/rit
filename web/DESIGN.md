@@ -19,6 +19,7 @@ colors:
   confirmation-green-soft: "#edf7ef"
   refusal-red: "#b42318"
   caution-amber: "#8a5b00"
+  appeal-teal: "#0e5c6b"
 typography:
   display:
     fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
@@ -120,8 +121,8 @@ The service boundary is part of the design, not footer fine print. Praja RTI pre
 - One visible speech-to-numbered-records workspace as the signature product demonstration.
 - Public Sans throughout Latin text, with Noto Sans Devanagari for Hindi identity text.
 - Flat solid surfaces, one-pixel rules, rare soft shadows, and mostly 6–12px corners.
-- Saffron, green, amber, and red communicate emphasis or semantic state; navy owns action and structure.
-- Authored outline SVG icons, semantic lifecycle connectors, and one-time IntersectionObserver reveals.
+- Saffron, green, amber, red, and teal communicate emphasis or semantic state; navy owns action and structure.
+- Authored outline SVG icons, an interactive four-lane RTI lifecycle map, and one-time IntersectionObserver reveals.
 - Independent preparation and official filing are always presented as two distinct services.
 
 ## Colors
@@ -130,32 +131,33 @@ The palette carries institutional clarity without claiming institutional authori
 
 ### Primary
 
-- **Civic Navy:** The masthead, primary actions, active tabs, numbered request markers, key links, and structural icons. It is the system's dominant interactive and civic color.
+- **Civic Navy:** The masthead, primary actions, active tabs, numbered request markers, key links, structural icons, lifecycle time capsules, and the RTI REQUEST start block. It is the system's dominant interactive and civic color.
 - **Deep Civic Navy:** Hovered primary actions, footer ground, and the strongest heading emphasis.
-- **Civic Navy Wash:** Selected choices, icon fields, and quiet informational emphasis where a solid navy block would be too strong.
+- **Civic Navy Wash:** Selected choices, icon fields, quiet informational emphasis, and muted lifecycle process blocks (no-reply / no-decision) where a solid navy block would be too strong.
 
 ### Secondary
 
-- **Saffron Signal:** A sparse highlight for active underlines and lifecycle branches that require attention without implying failure.
-- **Saffron Wash:** Cautionary or action-oriented lifecycle outcomes on light surfaces.
+- **Saffron Signal:** A sparse highlight for active underlines, keyboard-hot lifecycle hits, and complaint-branch strokes. It never becomes a general fill.
+- **Saffron Wash:** Complaint nodes and complaint next-chips on a light field.
 
 ### Tertiary
 
 - **Confirmation Green:** Ready, allowed, satisfied, and citizen-confirmed states. Pair color with explicit text or an icon; never rely on color alone.
-- **Refusal Red:** Exemption refusals, errors, and `NOT_SUBMITTED` receipt status. Red is semantic, not promotional.
+- **Refusal Red:** Exemption refusals, errors, `NOT_SUBMITTED` receipt status, and not-satisfied lifecycle outcomes. Red is semantic, not promotional.
 - **Caution Amber:** Local fallback, uncertainty, and operational caution states.
+- **Appeal Teal:** First and second appeal blocks on the official lifecycle map, and appeal next-chips. Teal is a process-kind signal, never a page accent.
 
 ### Neutral
 
 - **Paper Ground:** The slightly warm page background that separates the service from stark portal white.
-- **Surface:** Primary workspace, content, field, and navigation-action surfaces.
+- **Surface:** Primary workspace, content, field, navigation-action surfaces, and white lifecycle process blocks.
 - **Soft Surface:** Toolbars, inactive tabs, and quiet grouped regions.
 - **Ink / Soft Ink / Faint Ink:** Three levels for primary content, supporting explanation, and metadata.
 - **Rule / Strong Rule:** One-pixel dividers and form boundaries; use the stronger rule for controls that need a clearer affordance.
 
 ### Named Rules
 
-**The Navy Owns Action Rule.** Navy is the only general-purpose interactive color. Saffron, green, amber, and red stay semantic.
+**The Navy Owns Action Rule.** Navy is the only general-purpose interactive color. Saffron, green, amber, red, and teal stay semantic.
 
 **The Signal, Not Decoration Rule.** Tricolour hues appear in the four-pixel top rule and selected lifecycle or state cues; they never become large decorative fields.
 
@@ -192,7 +194,7 @@ The public surface uses a centered 1240px container with 28px desktop gutters, 2
 
 Major sections breathe on an 88–140px vertical rhythm. Information inside workspaces is denser: toolbars are about 46px high, fields and action groups use 8–18px gaps, and card padding typically sits between 22px and 30px. The system uses borders and whitespace to group content before reaching for cards.
 
-Ordered processes use visible connectors on wide screens and a vertical reading path below 860px. Two-column safeguards collapse to one column at the same breakpoint. Below 640px, the transformation stacks transcript, directional connector, and draft; actions become full width where useful; the lifecycle panel may run edge-to-edge while preserving its internal padding; and all primary targets remain at least 44px tall.
+Ordered processes use visible connectors on wide screens and a vertical reading path below 860px. Two-column safeguards collapse to one column at the same breakpoint. Below 640px, the transformation stacks transcript, directional connector, and draft; actions become full width where useful; the lifecycle map drops its side borders and radius, pulls −22px to the viewport edge, and pans horizontally with the opening view pinned on RTI REQUEST; and all primary targets remain at least 44px tall.
 
 Viewport reveals are progressive enhancement. Sections rise, wipe, or focus once at approximately 12% intersection with a lower root margin; content already near the first viewport is shown immediately. The record-to-request sequence may animate in order, but page reading order and task state must remain clear without motion.
 
@@ -222,7 +224,7 @@ This is a flat-by-default system. Navy mastheads, white work surfaces, soft neut
 
 Corners are compact and functional. Use 6px for tabs and tight controls, 7–8px for buttons and small icon fields, and 10–12px for inputs and task papers. The 14px transformation shell is the single softer signature container. Circular geometry is reserved for microphones, numbered markers, step icons, and small state dots.
 
-Borders are one pixel and neutral by default. State changes may shift a border to navy, green, saffron, amber, or red, always with text or an icon. Full pills are limited to compact status or internal utility chips; primary calls to action stay rectangular.
+Borders are one pixel and neutral by default. State changes may shift a border to navy, green, saffron, amber, or red, always with text or an icon. Full pills are limited to compact status or internal utility chips — including lifecycle time capsules; primary calls to action stay rectangular.
 
 ### Named Rules
 
@@ -271,7 +273,15 @@ This is the signature pattern. A quiet toolbar labels the draft workspace and re
 
 ### Lifecycle and Process
 
-Use semantic ordered lists and CSS connectors rather than decorative diagrams. Navy carries structure, green confirms a satisfactory branch, saffron marks attention, and soft navy indicates a neutral route. Published source material is linked and visually separated from the accessible interpretation.
+The official RTI Online lifecycle is an interactive four-lane map — PIO, Applicant, FAA, CIC/SIC — redrawn for this desk. It is not a static illustration and not a government thumbnail. Lane washes stay quiet; numbered lane labels sit in tracked operational type. Connectors are 1.7px ink paths that thicken to 2.5px navy when live.
+
+Semantic node kinds are fixed: navy capsules for statutory time limits; white navy-stroked rectangles for process; navy-wash rectangles for silence or default process; green for satisfied/closed; red for not satisfied; teal for appeal; saffron-wash with a saffron stroke for Section 18 complaint. Pair every color with a label. Hover, tap, or keyboard focus lights the active block and the next connected stages — one hop when the node branches, two hops on a linear path, so two or three neighbors come up with the active step. Unrelated nodes, edges, and annotations dim to about 18% opacity. A dock under the map names the lit step, explains it in plain language, and shows next-step chips; with nothing selected it invites the citizen to trace a request.
+
+Every node is a tabbable button. Focus lights the same path, draws the saffron focus stroke on the hit target, and scrolls the node into view. Enter or Space pins; Escape clears the pin. A details list restates the same sequence for linear reading. The original RTI Online flowchart is cited as a text link in the source line, never as an embedded image. On viewports below 640px the chart bleeds to the page edge, the SVG keeps a 980px minimum and pans horizontally, and the first scroll position is centered on RTI REQUEST.
+
+**The Lit Path Rule.** Lighting a lifecycle node highlights that node and the next connected stages only. Dim the rest; never flood the whole map.
+
+**The Source Is Text Rule.** Cite the official flowchart as a text link. Do not embed a thumbnail of the government image.
 
 ### Preparation Receipt
 
@@ -279,7 +289,7 @@ Receipts summarize the citizen's work only. The status `NOT_SUBMITTED` is red an
 
 ### Motion
 
-Controls transition in roughly 150–200ms. Request lines reveal over 650ms with 160ms staggering; application-stage content enters over 360ms; and viewport sections reveal over 720–820ms with the emphasized ease `cubic-bezier(0.16, 1, 0.3, 1)`. `prefers-reduced-motion` reduces animation and transition durations to effectively zero and disables smooth scrolling.
+Controls transition in roughly 150–200ms. Request lines reveal over 650ms with 160ms staggering; application-stage content enters over 360ms; and viewport sections reveal over 720–820ms with the emphasized ease `cubic-bezier(0.16, 1, 0.3, 1)`. Lifecycle path lighting uses the same 180ms opacity shift; the hot node lifts one pixel. `prefers-reduced-motion` reduces animation and transition durations to effectively zero and disables smooth scrolling.
 
 ## Do's and Don'ts
 

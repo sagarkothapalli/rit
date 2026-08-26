@@ -3,10 +3,13 @@ import type { z } from "zod";
 import { ExplainRequest, ExplainSchema, explainFallback, type GateResult } from "@/lib/cage/schemas";
 import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { explainPrompt } from "@/lib/cage/prompts";
-import { DIRECTORY, DIRECTORY_SNAPSHOT, searchDirectory } from "@/lib/retrieval";
+import { DIRECTORY, DIRECTORY_SNAPSHOT, PORTAL_TOTAL, shortlistDirectory } from "@/lib/retrieval";
+import { routingQuery } from "@/lib/intake";
 import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
 
 export const dynamic = "force-dynamic";
+
+const POOL = 16;
 
 export async function POST(req: Request) {
   const rl = rateLimit(clientKey(req, "explain"));
@@ -21,22 +24,25 @@ export async function POST(req: Request) {
   }
   const parsed = ExplainRequest.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
-  const notes = parsed.data.notes;
+  const { notes, transcript, draft } = parsed.data;
 
-  // Retrieval is pure code. The model never chooses candidates.
-  const query = [
-    ...notes.records_sought,
-    notes.body_hint ?? "",
-    notes.place ?? "",
-  ].join(" ");
-  const { results, reviewRequired } = searchDirectory(query, 3);
+  const query = routingQuery({ transcript, notes, draft });
+  const { results, reviewRequired } = shortlistDirectory(query, POOL);
 
-  if (reviewRequired || results.length === 0) {
+  const directoryMeta = {
+    snapshot: DIRECTORY_SNAPSHOT,
+    count: DIRECTORY.length,
+    portal_total: PORTAL_TOTAL,
+    shortlist: Math.min(POOL, results.length),
+  };
+
+  if (results.length === 0) {
     return NextResponse.json({
       mode: "SIMULATED" as const,
-      directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length },
+      directory: directoryMeta,
       review_required: true,
-      candidates: [],
+      retrieved: [],
+      data: { candidates: [] },
     });
   }
 
@@ -46,38 +52,61 @@ export async function POST(req: Request) {
     ministry: r.pa.ministry,
     matched: r.matched.slice(0, 6),
     score: Math.round(r.score * 100) / 100,
+    keywords: r.pa.keywords.slice(0, 8),
   }));
 
   const cfg = await getModelConfig();
+  const fallback = explainFallback(retrieved);
   if (!cfg) {
-    const result: GateResult<z.infer<typeof ExplainSchema>> = {
-      mode: "SIMULATED",
-      data: explainFallback(retrieved),
-    };
-    return NextResponse.json({ ...result, directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length }, review_required: false, retrieved });
+    const result: GateResult<z.infer<typeof ExplainSchema>> = { mode: "SIMULATED", data: fallback };
+    return NextResponse.json({
+      ...result,
+      directory: directoryMeta,
+      review_required: reviewRequired,
+      retrieved: retrieved.slice(0, 3),
+    });
   }
 
   const shape = `{
-  "candidates": [ { "id": string, "why": string, "caveat": string } ]  // same order, same ids as input, max 3
+  "candidates": [ { "id": string, "why": string, "caveat": string } ]  // exactly 3, best first, ids from the shortlist only
 }`;
 
   const { system, user } = explainPrompt(JSON.stringify(notes), JSON.stringify(retrieved), shape);
-  const res = await callModelJSON({ cfg, model: cfg.fast, system, user, maxTokens: 500 }, (x) =>
+  const res = await callModelJSON({ cfg, model: cfg.fast, system, user, maxTokens: 700 }, (x) =>
     ExplainSchema.parse(x)
   );
 
-  // Union by id — the model can only annotate retrieved candidates, never add one.
-  let explanations: z.infer<typeof ExplainSchema>["candidates"] = explainFallback(retrieved).candidates;
+  const byId = new Map(retrieved.map((r) => [r.id, r]));
+  let ranked = fallback.candidates;
   if (res.ok) {
-    const byId = new Map(retrieved.map((r) => [r.id, r]));
-    const valid = res.data.candidates.filter((c) => byId.has(c.id)).slice(0, 3);
-    if (valid.length === retrieved.length) explanations = valid;
+    const valid = res.data.candidates.filter((c) => byId.has(c.id));
+    const seen = new Set(valid.map((c) => c.id));
+    const padded = [...valid];
+    for (const item of retrieved) {
+      if (padded.length >= 3) break;
+      if (seen.has(item.id)) continue;
+      const extra = fallback.candidates.find((c) => c.id === item.id);
+      padded.push(extra ?? { id: item.id, why: `Directory match for ${item.name}.`, caveat: "Confirm this authority holds the records before filing." });
+      seen.add(item.id);
+    }
+    if (padded.length) ranked = padded.slice(0, 3);
   }
+
+  const rankedIds = new Set(ranked.map((c) => c.id));
+  const rankedRetrieved = [
+    ...ranked.map((c) => byId.get(c.id)!).filter(Boolean),
+    ...retrieved.filter((r) => !rankedIds.has(r.id)),
+  ].slice(0, 3);
 
   const result: GateResult<z.infer<typeof ExplainSchema>> = {
     mode: res.ok ? "LIVE" : "SIMULATED",
     model: res.ok ? res.model : undefined,
-    data: { candidates: explanations },
+    data: { candidates: ranked },
   };
-  return NextResponse.json({ ...result, directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length }, review_required: false, retrieved });
+  return NextResponse.json({
+    ...result,
+    directory: directoryMeta,
+    review_required: reviewRequired && ranked.length === 0,
+    retrieved: rankedRetrieved,
+  });
 }

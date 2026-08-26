@@ -1,14 +1,30 @@
-import directory from "@/data/mock-directory.json";
+import directoryFile from "@/data/rti-authorities.json";
 
 export interface PublicAuthority {
   pa_code: string;
   name: string;
   ministry: string;
   keywords: string[];
+  level?: number;
+  boost?: boolean;
 }
 
-export const DIRECTORY_SNAPSHOT = "2026-08-26";
-export const DIRECTORY: PublicAuthority[] = directory;
+interface DirectoryFile {
+  snapshot: string;
+  source: string;
+  portal_total: number;
+  count: number;
+  label: string;
+  authorities: PublicAuthority[];
+}
+
+const FILE = directoryFile as DirectoryFile;
+
+export const DIRECTORY_SNAPSHOT = FILE.snapshot;
+export const DIRECTORY_SOURCE = FILE.source;
+export const PORTAL_TOTAL = FILE.portal_total;
+export const DIRECTORY: PublicAuthority[] = FILE.authorities;
+export const DIRECTORY_LABEL = FILE.label;
 
 /** Hints that the subject is a State/State-body matter — the Central portal cannot take it. */
 const STATE_HINTS = [
@@ -32,6 +48,8 @@ const STOP = new Set([
   "was", "were", "my", "our", "i", "we", "you", "it", "this", "that", "with",
   "please", "provide", "give", "want", "need", "about", "from", "by", "be",
   "hai", "hain", "ka", "ki", "ke", "ko", "me", "mein", "se", "par", "bhai",
+  "certified", "copies", "copy", "records", "record", "relating", "described",
+  "official", "matter", "file",
 ]);
 
 function tokenize(text: string): string[] {
@@ -43,7 +61,33 @@ function tokenize(text: string): string[] {
     .filter((t) => t.length > 1 && !STOP.has(t));
 }
 
-interface ScoredDoc {
+const FIELD_OFFICE = /\b(piu[- ]|regional office|field (unit|office)|circle office|division office|branch office|sub[- ]division|project implementation)\b/i;
+
+function isFieldOffice(pa: PublicAuthority): boolean {
+  return (pa.level ?? 0) >= 2 || FIELD_OFFICE.test(pa.name);
+}
+
+interface IndexedDoc {
+  pa: PublicAuthority;
+  kw: string[];
+  text: string[];
+  rawName: string;
+}
+
+const INDEX: IndexedDoc[] = DIRECTORY.map((pa) => {
+  const kw = pa.keywords.map((k) => k.toLowerCase());
+  return {
+    pa,
+    kw,
+    text: tokenize(`${pa.name} ${pa.ministry} ${kw.join(" ")}`),
+    rawName: `${pa.name} ${pa.ministry}`.toLowerCase(),
+  };
+});
+
+const N = INDEX.length;
+const AVG_LEN = INDEX.reduce((s, d) => s + d.text.length, 0) / Math.max(N, 1);
+
+export interface ScoredDoc {
   pa: PublicAuthority;
   score: number;
   matched: string[];
@@ -51,31 +95,22 @@ interface ScoredDoc {
 
 /**
  * BM25 over (name + ministry + keywords) with an exact-keyword hit bonus.
- * Pure code — the LLM never selects candidates, it only explains them.
+ * Field offices are down-ranked unless the query names them. Curated topic
+ * overlays (boost) are up-ranked. The LLM never invents an authority: it only
+ * ranks a shortlist this function already retrieved.
  */
 export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]; reviewRequired: boolean } {
   const qTokens = tokenize(query);
-  const docs = DIRECTORY.map((pa) => {
-    const kw = pa.keywords.map((k) => k.toLowerCase());
-    return {
-      pa,
-      kw,
-      text: tokenize(`${pa.name} ${pa.ministry} ${kw.join(" ")}`),
-      rawName: `${pa.name} ${pa.ministry}`.toLowerCase(),
-      rawKw: kw.join(" | "),
-    };
-  });
+  if (qTokens.length === 0) return { results: [], reviewRequired: true };
 
-  const N = docs.length;
-  const avgLen = docs.reduce((s, d) => s + d.text.length, 0) / N;
   const df = new Map<string, number>();
   for (const t of new Set(qTokens)) {
-    df.set(t, docs.filter((d) => d.text.includes(t)).length);
+    df.set(t, INDEX.filter((d) => d.text.includes(t)).length);
   }
 
   const k1 = 1.5;
   const b = 0.75;
-  const scored: ScoredDoc[] = docs.map((d) => {
+  const scored: ScoredDoc[] = INDEX.map((d) => {
     let score = 0;
     const matched = new Set<string>();
     for (const t of qTokens) {
@@ -83,27 +118,48 @@ export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]
       if (f === 0) continue;
       matched.add(t);
       const idf = Math.log(1 + (N - (df.get(t) ?? 0) + 0.5) / ((df.get(t) ?? 0) + 0.5));
-      score += idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (d.text.length / avgLen))));
+      score += idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (d.text.length / AVG_LEN))));
     }
-    // Exact multi-word keyword hits are strong evidence.
     for (const kw of d.kw) {
       if (kw.includes(" ") && qTokens.join(" ").includes(kw)) {
         score += 4;
         kw.split(" ").forEach((w) => matched.add(w));
       }
     }
-    // Direct name mention is stronger still.
     for (const t of qTokens) {
       if (d.rawName.includes(t) && t.length > 3) {
         score += 1.5;
         matched.add(t);
       }
     }
+    if (d.pa.boost) score *= 1.4;
+    if (isFieldOffice(d.pa)) {
+      const named = qTokens.some((t) => t.length > 3 && d.rawName.includes(t) && !["india", "national", "authority"].includes(t));
+      if (!named) score *= 0.32;
+    }
     return { pa: d.pa, score, matched: [...matched] };
   });
 
   scored.sort((a, b2) => b2.score - a.score);
-  const results = scored.filter((s) => s.score > 0).slice(0, topK);
-  const reviewRequired = !results.length || results[0].score < 1.2;
+  const positive = scored.filter((s) => s.score > 0);
+  const results = positive.slice(0, topK);
+  const reviewRequired = !results.length || results[0].score < 0.9;
+  return { results, reviewRequired };
+}
+
+/** Retrieve a pool of up to `pool` authorities, then keep enough for three predictions. */
+export function shortlistDirectory(query: string, pool = 16): { results: ScoredDoc[]; reviewRequired: boolean } {
+  const { results, reviewRequired } = searchDirectory(query, pool);
+  if (results.length >= 3 || results.length === 0) return { results, reviewRequired };
+
+  const ministry = results[0].pa.ministry;
+  const have = new Set(results.map((r) => r.pa.pa_code));
+  for (const doc of INDEX) {
+    if (results.length >= 3) break;
+    if (have.has(doc.pa.pa_code)) continue;
+    if (doc.pa.ministry !== ministry && !doc.pa.boost) continue;
+    results.push({ pa: doc.pa, score: 0.15, matched: [] });
+    have.add(doc.pa.pa_code);
+  }
   return { results, reviewRequired };
 }

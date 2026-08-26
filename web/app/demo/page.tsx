@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import SiteMasthead from "@/components/SiteMasthead";
 import { useSpeech } from "@/hooks/useSpeech";
-import { searchDirectory, DIRECTORY, DIRECTORY_SNAPSHOT, type PublicAuthority } from "@/lib/retrieval";
+import { searchDirectory, shortlistDirectory, DIRECTORY, DIRECTORY_SNAPSHOT, PORTAL_TOTAL, type PublicAuthority } from "@/lib/retrieval";
 import {
   draftFallback,
   explainFallback,
@@ -13,6 +13,7 @@ import {
   type Guard,
   type Draft,
 } from "@/lib/cage/schemas";
+import { normalizeNotes, routingQuery } from "@/lib/intake";
 
 /* ============================================================
    Drafting workspace. Live microphone through Web Speech and
@@ -58,21 +59,18 @@ const LANGUAGES = [
   { code: "ur-IN", label: "اردو Urdu" },
 ];
 
-const MISSING_QUESTIONS: Record<string, string> = {
-  records_sought: "What record or document do you want? (for example: work order, budget, inspection report)",
-  date_range: "What period should the records cover? (say \"don't know\" to skip)",
-  place: "Which place or locality is this about?",
-  body_hint: "Do you know which office or department holds these records? (say \"don't know\" to skip)",
-  format: "Do you want certified copies, inspection, or electronic copies?",
-};
-
 type Mode = "LIVE" | "SIMULATED";
 const gateModes: Partial<Record<"notes" | "guard" | "draft" | "explain", Mode>> = {};
+
+function spokenTranscript(finalText: string, interimText: string) {
+  return [finalText, interimText].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+}
 
 function localFallback(url: string, body: unknown): unknown {
   if (url.endsWith("/notes")) {
     const request = body as { transcript?: string };
-    return { mode: "SIMULATED", data: notesFallback(request.transcript ?? "") };
+    const transcript = request.transcript ?? "";
+    return { mode: "SIMULATED", data: normalizeNotes(transcript, notesFallback(transcript)) };
   }
   if (url.endsWith("/guard")) return { mode: "SIMULATED", data: guardFallback };
   if (url.endsWith("/draft")) {
@@ -80,14 +78,14 @@ function localFallback(url: string, body: unknown): unknown {
     return { mode: "SIMULATED", data: draftFallback(request.notes) };
   }
   if (url.endsWith("/explain")) {
-    const request = body as { notes: Notes };
-    const query = [
-      ...request.notes.records_sought,
-      request.notes.body_hint ?? "",
-      request.notes.place ?? "",
-    ].join(" ");
-    const { results, reviewRequired } = searchDirectory(query, 3);
-    const retrieved = results.map((result) => ({
+    const request = body as { notes: Notes; transcript?: string; draft?: Draft };
+    const query = routingQuery({
+      transcript: request.transcript,
+      notes: request.notes,
+      draft: request.draft,
+    });
+    const { results, reviewRequired } = shortlistDirectory(query, 16);
+    const retrieved = results.slice(0, 3).map((result) => ({
       id: result.pa.pa_code,
       name: result.pa.name,
       ministry: result.pa.ministry,
@@ -97,7 +95,7 @@ function localFallback(url: string, body: unknown): unknown {
     return {
       mode: "SIMULATED",
       data: explainFallback(retrieved),
-      directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length },
+      directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length, portal_total: PORTAL_TOTAL },
       review_required: reviewRequired || retrieved.length === 0,
       retrieved,
     };
@@ -138,11 +136,10 @@ export default function DraftingPage() {
   const [stage, setStage] = useState<Stage>("setup");
   const [lang, setLang] = useState("en-IN");
   const [manualText, setManualText] = useState("");
+  const [userCorrected, setUserCorrected] = useState(false);
+  const [correctOpen, setCorrectOpen] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [notes, setNotes] = useState<Notes | null>(null);
-  const [missingIdx, setMissingIdx] = useState(0);
-  const [missingAnswer, setMissingAnswer] = useState("");
-  const [rounds, setRounds] = useState(0);
   const [guard, setGuard] = useState<Guard | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [candidates, setCandidates] = useState<ExplainCandidate[]>([]);
@@ -154,11 +151,15 @@ export default function DraftingPage() {
   const [reference] = useState(() => `PRTI 2026 ${Math.floor(100000 + Math.random() * 899999)}`);
   const [pressed, setPressed] = useState(false);
   const [busy, setBusy] = useState<null | "notes" | "guard" | "draft" | "explain">(null);
+  const [predicting, setPredicting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [anySimulated, setAnySimulated] = useState(false);
 
   const speech = useSpeech(lang);
   const micMode = speech.supported ? "Web Speech" : "Text only";
+  const spokenText = spokenTranscript(speech.finalText, speech.interimText);
+  const correction = userCorrected ? manualText : spokenText || manualText;
+  const listening = speech.status === "listening";
 
   const liveModel = !anySimulated && Object.values(gateModes).some((m) => m === "LIVE");
 
@@ -177,12 +178,43 @@ export default function DraftingPage() {
   function goSetup() {
     setStage("record");
     speech.reset();
+    setManualText("");
+    setUserCorrected(false);
+    setCorrectOpen(false);
+    setErr(null);
+  }
+
+  function takeOverCorrection(next = spokenText || manualText) {
+    if (!userCorrected) {
+      setManualText(next);
+      setUserCorrected(true);
+    }
+  }
+
+  function startListening() {
+    if (userCorrected) {
+      speech.setFinalText(manualText.trim());
+      setUserCorrected(false);
+    }
+    setErr(null);
+    speech.start();
+  }
+
+  function stopListening() {
+    speech.stop();
+    if (!userCorrected) {
+      const snapshot = spokenText || manualText;
+      if (snapshot) {
+        setManualText(snapshot);
+        setUserCorrected(true);
+      }
+    }
+    if (spokenText || manualText) setCorrectOpen(true);
   }
 
   function finishRecording() {
     speech.stop();
-    const text = [speech.finalText, speech.interimText].filter(Boolean).join(" ").trim();
-    const final = text || manualText.trim();
+    const final = correction.trim();
     if (!final) {
       setErr("Nothing recorded yet. Speak or type your concern below.");
       return;
@@ -199,7 +231,8 @@ export default function DraftingPage() {
       const r = await postJSON<NotesResp>("/api/agent/notes", { transcript: text, lang });
       recordMode("notes", r.mode);
       setNotes(r.data);
-      setMissingIdx(0);
+      setCandidates([]);
+      setRetrieved([]);
       setStage("notes");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not reach the agent.");
@@ -208,20 +241,34 @@ export default function DraftingPage() {
     }
   }
 
-  function notesComplete(n: Notes): boolean {
-    return n.missing_essentials.length === 0 || rounds >= 3;
+  async function applyExplain(r: ExplainResp) {
+    recordMode("explain", r.mode ?? "SIMULATED");
+    setRetrieved(r.retrieved ?? []);
+    setReviewRequired(Boolean(r.review_required) && (r.data?.candidates.length ?? 0) === 0);
+    setCandidates(r.data?.candidates ?? []);
+    setPicked(null);
   }
 
-  async function answerMissing() {
-    if (!notes) return;
-    const key = notes.missing_essentials[missingIdx];
-    const ans = missingAnswer.trim();
-    const appended = ans && !/^(don'?t know|no|skip)$/i.test(ans)
-      ? `${transcript}\n[Answer] ${MISSING_QUESTIONS[key]} ${ans}`
-      : transcript;
-    setMissingAnswer("");
-    setRounds((r) => r + 1);
-    await runNotes(appended);
+  async function runExplain(n: Notes, d?: Draft | null) {
+    const r = await postJSON<ExplainResp>("/api/agent/explain", {
+      notes: n,
+      transcript,
+      draft: d ?? undefined,
+    });
+    applyExplain(r);
+    return r;
+  }
+
+  async function prefetchExplain(n: Notes, d: Draft) {
+    setPredicting(true);
+    setErr(null);
+    try {
+      await runExplain(n, d);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Routing failed.");
+    } finally {
+      setPredicting(false);
+    }
   }
 
   async function confirmNotes() {
@@ -248,7 +295,10 @@ export default function DraftingPage() {
       const r = await postJSON<DraftResp>("/api/agent/draft", { notes });
       recordMode("draft", r.mode);
       setDraft(r.data);
+      setCandidates([]);
+      setRetrieved([]);
       setStage("draft");
+      void prefetchExplain(notes, r.data);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Drafting failed.");
     } finally {
@@ -258,15 +308,14 @@ export default function DraftingPage() {
 
   async function explainRoute() {
     if (!notes) return;
+    if (candidates.length > 0) {
+      setStage("departments");
+      return;
+    }
     setBusy("explain");
     setErr(null);
     try {
-      const r = await postJSON<ExplainResp>("/api/agent/explain", { notes });
-      recordMode("explain", r.mode ?? "SIMULATED");
-      setRetrieved(r.retrieved ?? []);
-      setReviewRequired(Boolean(r.review_required) || (r.data?.candidates.length ?? 0) === 0);
-      setCandidates(r.data?.candidates ?? []);
-      setPicked(null);
+      await runExplain(notes, draft);
       setStage("departments");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Routing failed.");
@@ -317,7 +366,7 @@ export default function DraftingPage() {
           Processing: {liveModel ? "Live service" : anySimulated ? "Local fallback" : "Ready"}
         </span>
         <span className="inline-flex items-center rounded-md border border-[var(--line)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)]">
-          Directory: {DIRECTORY_SNAPSHOT}
+          Directory: {DIRECTORY.length} / {PORTAL_TOTAL} · {DIRECTORY_SNAPSHOT}
         </span>
       </div>
 
@@ -395,7 +444,7 @@ export default function DraftingPage() {
               {stage === "record" && (
                 <div>
                   <h1 className="font-display text-[28px] md:text-[32px] font-medium leading-[1.1] tracking-tight mb-2">
-                    {speech.status === "listening" ? "Listening. Speak naturally..." : "Ready when you are."}
+                    {listening ? "Listening. Speak naturally..." : "Ready when you are."}
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
                     Language: <span className="font-medium text-[var(--fg)]">{LANGUAGES.find((l) => l.code === lang)?.label}</span>
@@ -405,13 +454,13 @@ export default function DraftingPage() {
                   <div className="flex items-center gap-5 mb-6">
                     <button
                       type="button"
-                      onClick={speech.status === "listening" ? speech.stop : speech.start}
+                      onClick={listening ? stopListening : startListening}
                       disabled={!speech.supported}
-                      aria-label={speech.status === "listening" ? "Stop listening" : "Start listening"}
-                      className={`brass size-[76px] grid place-items-center rounded-full transition-all duration-200 ${speech.status === "listening" ? "scale-105 shadow-[0_0_0_8px_rgba(8,47,91,0.10)]" : ""} ${!speech.supported ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.04] active:scale-[0.97]"}`}
+                      aria-label={listening ? "Stop listening" : "Start listening"}
+                      className={`brass size-[76px] grid place-items-center rounded-full transition-all duration-200 ${listening ? "scale-105 shadow-[0_0_0_8px_rgba(8,47,91,0.10)]" : ""} ${!speech.supported ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.04] active:scale-[0.97]"}`}
                     >
                       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                        {speech.status === "listening" ? (
+                        {listening ? (
                           <rect x="6" y="6" width="12" height="12" rx="2" />
                         ) : (
                           <>
@@ -423,7 +472,7 @@ export default function DraftingPage() {
                       </svg>
                     </button>
                     <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--fg-faint)]">
-                      {speech.status === "listening" ? "Recording. Tap to stop" : speech.supported ? "Tap the mic to talk" : "Speech unsupported. Type below"}
+                      {listening ? "Recording. Tap to stop" : speech.supported ? "Tap the mic to talk" : "Speech unsupported. Type below"}
                     </div>
                   </div>
 
@@ -434,14 +483,16 @@ export default function DraftingPage() {
                   )}
 
                   {/* Live transcript */}
-                  <div className="rounded-xl border border-[var(--line)] bg-[var(--glass-faint)] px-5 py-4 min-h-[110px] mb-5">
-                    {speech.finalText || speech.interimText || manualText ? (
-                      <>
-                        <p className="text-[15px] leading-[1.65] text-[var(--fg)]">
-                          {speech.finalText}
-                          {speech.interimText && <span className="text-[var(--fg-faint)]"> {speech.interimText}</span>}
-                        </p>
-                      </>
+                  <div className="rounded-xl border border-[var(--line)] bg-[var(--glass-faint)] px-5 py-4 min-h-[110px] mb-5" aria-live="polite">
+                    {listening && (speech.finalText || speech.interimText) ? (
+                      <p className="text-[15px] leading-[1.65] text-[var(--fg)]">
+                        {speech.finalText}
+                        {speech.interimText ? (
+                          <span className="text-[var(--fg-faint)]"> {speech.interimText}</span>
+                        ) : null}
+                      </p>
+                    ) : correction ? (
+                      <p className="text-[15px] leading-[1.65] text-[var(--fg)]">{correction}</p>
                     ) : (
                       <p className="text-[15px] italic text-[var(--fg-faint)]">
                         Recognised words will appear here…
@@ -449,14 +500,29 @@ export default function DraftingPage() {
                     )}
                   </div>
 
-                  {/* Manual text */}
-                  <details className="mb-6 group" open={!speech.supported}>
+                  {/* Editable copy of the live transcript */}
+                  <details
+                    className="mb-6 group"
+                    open={correctOpen || !speech.supported}
+                    onToggle={(e) => setCorrectOpen((e.currentTarget as HTMLDetailsElement).open)}
+                  >
                     <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)] select-none">
-                      {speech.supported ? "Type or correct instead ▾" : "Type your complaint ▾"}
+                      {speech.supported
+                        ? correction
+                          ? "Correct the transcript ▾"
+                          : "Type or correct instead ▾"
+                        : "Type your complaint ▾"}
                     </summary>
                     <textarea
-                      value={manualText}
-                      onChange={(e) => setManualText(e.target.value)}
+                      value={correction}
+                      onChange={(e) => {
+                        setUserCorrected(true);
+                        setManualText(e.target.value);
+                      }}
+                      onFocus={() => {
+                        if (listening) stopListening();
+                        else takeOverCorrection();
+                      }}
                       rows={4}
                       placeholder="Type in any language…"
                       className="mt-3 w-full rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 text-[15px] leading-relaxed outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
@@ -483,6 +549,7 @@ export default function DraftingPage() {
                     Here is what I understood.
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
+                    Your rant was turned into the records an RTI can actually ask for. Nothing extra was asked of you.
                     Correct anything before the console drafts your application.
                   </p>
 
@@ -494,33 +561,9 @@ export default function DraftingPage() {
                     />
                     <NoteChip label="Period" values={notes.date_range ? [notes.date_range] : []} empty="Not stated" />
                     <NoteChip label="Place" values={notes.place ? [notes.place] : []} empty="Not stated" />
-                    <NoteChip label="Authority mentioned" values={notes.body_hint ? [notes.body_hint] : []} empty="None named" />
+                    <NoteChip label="Likely authority" values={notes.body_hint ? [notes.body_hint] : []} empty="To be predicted next" />
                     <NoteChip label="Format" values={[notes.format]} empty="" />
                   </div>
-
-                  {/* Missing-detail loop */}
-                  {!notesComplete(notes) && (
-                    <div className="rounded-xl border border-[var(--iris)]/25 bg-[var(--iris-tint)] px-5 py-4 mb-6">
-                      <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--iris)] mb-2">
-                        One question ({rounds + 1}/3)
-                      </div>
-                      <p className="text-[14.5px] text-[var(--fg)] mb-3">
-                        {MISSING_QUESTIONS[notes.missing_essentials[missingIdx] ?? notes.missing_essentials[0]]}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <input
-                          value={missingAnswer}
-                          onChange={(e) => setMissingAnswer(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && answerMissing()}
-                          placeholder="Type your answer…"
-                          className="flex-1 min-w-[200px] rounded-lg border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-2 text-[14px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
-                        />
-                        <button type="button" onClick={answerMissing} disabled={busy === "notes"} className="brass-plate px-4 py-2 font-mono text-[11px] uppercase tracking-[0.16em]">
-                          {busy === "notes" ? "…" : "Answer"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {err && <p className="mb-4 text-[13.5px] text-[var(--red)]">{err}</p>}
 
@@ -623,14 +666,29 @@ export default function DraftingPage() {
                     </span>
                   </div>
 
+                  {(predicting || retrieved.length > 0) && (
+                    <div className="rounded-xl border border-[var(--line)] bg-[var(--glass-faint)] px-5 py-4 mb-6">
+                      <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-faint)] mb-2">
+                        Predicted desks
+                      </div>
+                      {predicting && retrieved.length === 0 ? (
+                        <p className="text-[13.5px] text-[var(--fg-soft)]">Comparing your draft with the RTI directory…</p>
+                      ) : (
+                        <p className="text-[13.5px] leading-relaxed text-[var(--fg)]">
+                          {retrieved.slice(0, 3).map((item) => item.name).join(" · ") || "Still matching…"}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
                       onClick={explainRoute}
-                      disabled={busy === "explain" || draftCharCount > 3000}
-                      className={`brass-plate px-5 py-2.5 font-mono text-[12px] uppercase tracking-[0.16em] ${busy === "explain" || draftCharCount > 3000 ? "opacity-60" : ""}`}
+                      disabled={busy === "explain" || predicting || draftCharCount > 3000}
+                      className={`brass-plate px-5 py-2.5 font-mono text-[12px] uppercase tracking-[0.16em] ${busy === "explain" || predicting || draftCharCount > 3000 ? "opacity-60" : ""}`}
                     >
-                      {busy === "explain" ? "Finding the right desk…" : "Find the right department →"}
+                      {busy === "explain" || predicting ? "Finding the right desk…" : "Review predicted departments →"}
                     </button>
                     <button type="button" onClick={() => setStage("notes")} className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]">
                       ← Edit notes
@@ -643,12 +701,23 @@ export default function DraftingPage() {
               {stage === "departments" && (
                 <div>
                   <h1 className="font-display text-[28px] md:text-[32px] font-medium leading-[1.1] tracking-tight mb-2">
-                    {reviewRequired ? "No confident match in the directory." : "Three explained departments."}
+                    {candidates.length > 0 ? "Three predicted departments." : "No confident match in the directory."}
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
-                    Retrieved from a dated reference directory of {DIRECTORY.length} Central
-                    public authorities. The model explains each result and never chooses for you.
+                    Compared against a dated snapshot of the RTI Online listing ({PORTAL_TOTAL} public
+                    authorities; {DIRECTORY.length} in this file). A local search shortlists 16; the model
+                    ranks the three best. You still choose.
                   </p>
+
+                  {notes?.is_state_matter && (
+                    <div className="rounded-xl border border-[var(--amber)]/30 bg-[var(--amber)]/[0.06] px-5 py-4 mb-6">
+                      <p className="text-[14px] text-[var(--fg-soft)]">
+                        This looks like a State or local-body matter{notes.state_name ? ` (${notes.state_name})` : ""}.
+                        The Central RTI Online portal does not take State RTIs. The three desks below are Central
+                        matches only.
+                      </p>
+                    </div>
+                  )}
 
                   {reviewRequired && (
                     <div className="rounded-xl border border-[var(--amber)]/30 bg-[var(--amber)]/[0.06] px-5 py-4 mb-6">
@@ -671,7 +740,7 @@ export default function DraftingPage() {
                           <div className="flex items-baseline justify-between gap-3 mb-1">
                             <span className="font-display text-[16px] font-medium text-[var(--fg)]">{nameOf(c.id)}</span>
                             <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--fg-faint)] shrink-0">
-                              {i + 1} · {Math.min(100, Math.round((retrieved.find((r) => r.id === c.id)?.score ?? 0) * 12))}% directory match
+                              {i === 0 ? "1st" : i === 1 ? "2nd" : "3rd"} prediction
                             </span>
                           </div>
                           <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--fg-faint)] mb-2">
@@ -862,9 +931,11 @@ export default function DraftingPage() {
                       setCandidates([]);
                       setRetrieved([]);
                       setPicked(null);
-                      setRounds(0);
+                      setPredicting(false);
                       setOtp("");
                       setManualText("");
+                      setUserCorrected(false);
+                      setCorrectOpen(false);
                       setAnySimulated(false);
                       Object.keys(gateModes).forEach((k) => delete gateModes[k as keyof typeof gateModes]);
                     }}
@@ -884,9 +955,10 @@ export default function DraftingPage() {
                 How this works
               </div>
               <p className="text-[13.5px] leading-relaxed text-[var(--fg-soft)]">
-                Your speech is recognised in the browser. Only your edited transcript text is analysed
-                by a model locked to four strict JSON jobs (notes, exemption check, drafting, explaining).
-                It cannot invent departments: those come from a local dated directory by code.
+                Your speech is recognised in the browser. Only the edited transcript is sent to four
+                locked JSON jobs (notes, exemption check, drafting, explaining). Records, format, and a
+                likely authority are inferred from the rant. Departments are ranked from a dated snapshot
+                of the RTI Online listing — never invented.
               </p>
             </div>
 

@@ -47,7 +47,11 @@ export type Explain = z.infer<typeof ExplainSchema>;
 export const NotesRequest = z.object({ transcript: z.string().min(4).max(6000), lang: z.string().max(20) });
 export const GuardRequest = z.object({ notes: NotesSchema });
 export const DraftRequest = z.object({ notes: NotesSchema });
-export const ExplainRequest = z.object({ notes: NotesSchema });
+export const ExplainRequest = z.object({
+  notes: NotesSchema,
+  transcript: z.string().max(6000).optional(),
+  draft: DraftSchema.optional(),
+});
 
 export interface GateResult<T> {
   mode: "LIVE" | "SIMULATED";
@@ -61,12 +65,34 @@ export function notesFallback(transcript: string): Notes {
   const t = transcript.toLowerCase();
   const state = /\b(municipal|nagar|ward|panchayat|bijli|electricity board|safai|sewer|jal board|tehsil|patwari|land record)\b/.test(t);
   const records: string[] = [];
-  if (/(budget|fund|paisa|पैसा|बजट|kharch|खर्च)/.test(t)) records.push("the sanctioned budget and expenditure records for the work described");
+  if (/(highway|nhai|nh-?\d|expressway|pothole|राजमार्ग|हाईवे)/.test(t)) {
+    records.push(
+      "sanctioned budget and year-wise expenditure for the highway work described",
+      "work order, contractor name, and agreement for the stretch described",
+      "quality inspection reports and delay-penalty records for the work"
+    );
+  }
+  if (/(budget|fund|paisa|पैसा|बजट|kharch|खर्च|money)/.test(t) && !records.some((r) => /budget/i.test(r))) {
+    records.push("the sanctioned budget and expenditure records for the work described");
+  }
   if (/(contract|theka|ठेका|contractor|ठेकेदार)/.test(t)) records.push("the work order and contractor agreement for the work described");
   if (/(inspection|quality|जांच|जाँच|gati)/.test(t)) records.push("quality inspection reports submitted for the work described");
-  if (records.length === 0) records.push("the official records relating to the matter described");
+  if (/(road|sadak|सड़क|सडक)/.test(t) && records.length === 0) {
+    records.push(
+      "sanctioned budget and expenditure records for the road work described",
+      "work order and contractor agreement for the road described",
+      "quality inspection reports submitted for the work"
+    );
+  }
+  if (records.length === 0) {
+    records.push(
+      "file notings and official correspondence relating to the matter described",
+      "names and designations of the officials responsible for the matter described",
+      "rules, guidelines, or orders on file that govern the matter described"
+    );
+  }
   return {
-    records_sought: records.slice(0, 4),
+    records_sought: records.slice(0, 6),
     date_range: /(month|mahine|महीने|साल|year|saal)/.test(t) ? "the period mentioned by the citizen" : null,
     place: null,
     body_hint: state ? "State/local body indicated by the narrative" : null,
