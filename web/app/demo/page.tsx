@@ -15,6 +15,7 @@ import {
 } from "@/lib/cage/schemas";
 import { normalizeNotes, routingQuery } from "@/lib/intake";
 import { hostedGate } from "@/lib/cage/hosted";
+import { buildReport, downloadText, formatReportText, reportFilename } from "@/lib/report";
 
 /* ============================================================
    Drafting workspace. Live microphone through Web Speech and
@@ -104,16 +105,29 @@ function localFallback(url: string, body: unknown): unknown {
   throw new Error("This service is temporarily unavailable.");
 }
 
+function onStaticHost(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host.endsWith(".here.now") || host === "here.now";
+}
+
+function looksLikeJson(res: Response): boolean {
+  const type = res.headers.get("content-type") ?? "";
+  return type.includes("application/json") || type.includes("+json");
+}
+
 async function postJSON<T>(url: string, body: unknown): Promise<T> {
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) return (await res.json()) as T;
-  } catch {
-    // Next.js route handlers are absent on the static host.
+  if (!onStaticHost()) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok && looksLikeJson(res)) return (await res.json()) as T;
+    } catch {
+      // Fall through to the hosted Gemini proxy, then to local fallbacks.
+    }
   }
   try {
     return (await hostedGate(url, body)) as T;
@@ -159,6 +173,7 @@ export default function DraftingPage() {
   const [predicting, setPredicting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [anySimulated, setAnySimulated] = useState(false);
+  const [copied, setCopied] = useState<"txt" | "json" | null>(null);
 
   const speech = useSpeech(lang);
   const micMode = speech.supported ? "Web Speech" : "Text only";
@@ -341,6 +356,35 @@ export default function DraftingPage() {
 
   const nameOf = (id: string) => retrieved.find((r) => r.id === id)?.name ?? id;
   const ministryOf = (id: string) => retrieved.find((r) => r.id === id)?.ministry ?? "";
+
+  const report = buildReport({
+    reference,
+    transcript,
+    notes,
+    draft,
+    authorityName: picked ? nameOf(picked) : "Not selected",
+    ministry: picked ? ministryOf(picked) : "",
+  });
+  const reportText = formatReportText(report);
+
+  async function copyReport(kind: "txt" | "json") {
+    const payload = kind === "json" ? JSON.stringify(report, null, 2) : reportText;
+    try {
+      await navigator.clipboard.writeText(payload);
+      setCopied(kind);
+      window.setTimeout(() => setCopied(null), 2000);
+    } catch {
+      setErr("Could not copy. Download the report instead.");
+    }
+  }
+
+  function saveReport(kind: "txt" | "json") {
+    if (kind === "json") {
+      downloadText(reportFilename(reference, "json"), JSON.stringify(report, null, 2), "application/json");
+      return;
+    }
+    downloadText(reportFilename(reference, "txt"), reportText, "text/plain;charset=utf-8");
+  }
 
   return (
     <main className="relative min-h-screen flex flex-col bg-[var(--bg)]">
@@ -695,6 +739,12 @@ export default function DraftingPage() {
                     >
                       {busy === "explain" || predicting ? "Finding the right desk…" : "Review predicted departments →"}
                     </button>
+                    <button type="button" onClick={() => copyReport("txt")} className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]">
+                      {copied === "txt" ? "Copied requests" : "Copy requests"}
+                    </button>
+                    <button type="button" onClick={() => saveReport("txt")} className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]">
+                      Download .txt
+                    </button>
                     <button type="button" onClick={() => setStage("notes")} className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]">
                       ← Edit notes
                     </button>
@@ -922,6 +972,34 @@ export default function DraftingPage() {
                         <dd className="text-[var(--red)] font-medium">NOT_SUBMITTED</dd>
                       </div>
                     </dl>
+                    {draft && draft.requests.length > 0 && (
+                      <ol className="mt-5 border-t border-[var(--line)] pt-4 space-y-2.5">
+                        <li className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-faint)] list-none">
+                          {draft.title}
+                        </li>
+                        {draft.requests.map((item, i) => (
+                          <li key={i} className="text-[13.5px] leading-relaxed text-[var(--fg)] pl-1">
+                            <span className="font-display text-[var(--fg-faint)] mr-2">{i + 1}.</span>
+                            {item}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <button type="button" onClick={() => copyReport("txt")} className="brass-plate px-5 py-2.5 font-mono text-[12px] uppercase tracking-[0.16em]">
+                      {copied === "txt" ? "Copied" : "Copy requests"}
+                    </button>
+                    <button type="button" onClick={() => saveReport("txt")} className="brass-plate px-5 py-2.5 font-mono text-[12px] uppercase tracking-[0.16em]">
+                      Download .txt
+                    </button>
+                    <button type="button" onClick={() => saveReport("json")} className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]">
+                      Download JSON
+                    </button>
+                    <button type="button" onClick={() => copyReport("json")} className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]">
+                      {copied === "json" ? "JSON copied" : "Copy JSON"}
+                    </button>
                   </div>
 
                   <button
@@ -944,7 +1022,7 @@ export default function DraftingPage() {
                       setAnySimulated(false);
                       Object.keys(gateModes).forEach((k) => delete gateModes[k as keyof typeof gateModes]);
                     }}
-                    className="brass-plate px-5 py-2.5 font-mono text-[12px] uppercase tracking-[0.16em]"
+                    className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]"
                   >
                     Prepare another →
                   </button>

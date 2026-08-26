@@ -1,11 +1,12 @@
 {
   "proxies": {
     "/api/llm": {
-      "upstream": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "upstream": "https://api.deepseek.com/chat/completions",
       "method": "POST",
       "headers": {
-        "Authorization": "Bearer ${GEMINI_API_KEY}"
-      }
+        "Authorization": "Bearer ${LLM_API_KEY}"
+      },
+      "rateLimit": "240/hour/ip"
     }
   }
 }

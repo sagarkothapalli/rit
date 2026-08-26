@@ -1,4 +1,4 @@
-import { chatBodyExtras, GEMINI_BASE_URL } from "@/lib/cage/models";
+import { chatBodyExtras, DEEPSEEK_BASE_URL } from "@/lib/cage/models";
 import {
   notesPrompt,
   wrapUntrusted,
@@ -25,7 +25,7 @@ import {
   PORTAL_TOTAL,
 } from "@/lib/retrieval";
 
-const HOSTED_MODEL = "gemini-3.5-flash-lite";
+const HOSTED_MODEL = "deepseek-v4-flash";
 const LLM_PATH = "/api/llm";
 
 function extractJson(text: string): unknown {
@@ -60,7 +60,7 @@ async function callHostedJSON<T>(
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      ...chatBodyExtras(HOSTED_MODEL, GEMINI_BASE_URL),
+      ...chatBodyExtras(HOSTED_MODEL, DEEPSEEK_BASE_URL),
     }),
   });
   if (!res.ok) throw new Error(`LLM HTTP ${res.status}`);

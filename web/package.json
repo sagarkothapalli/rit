@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:hosted": "node scripts/build-static.mjs",
+    "publish:hosted": "npm run build:hosted && node scripts/publish-herenow.mjs",
     "start": "next start",
     "lint": "eslint"
   },
