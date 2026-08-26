@@ -49,7 +49,10 @@ const STOP = new Set([
   "please", "provide", "give", "want", "need", "about", "from", "by", "be",
   "hai", "hain", "ka", "ki", "ke", "ko", "me", "mein", "se", "par", "bhai",
   "certified", "copies", "copy", "records", "record", "relating", "described",
-  "official", "matter", "file",
+  "official", "matter", "file", "files", "processing", "application", "pending",
+  "status", "office", "reports", "report", "details", "related", "regarding",
+  "delay", "delays", "monitoring", "section", "without", "including", "listed",
+  "notings", "correspondence", "responsible", "officials", "names", "designations",
 ]);
 
 function tokenize(text: string): string[] {
@@ -61,7 +64,7 @@ function tokenize(text: string): string[] {
     .filter((t) => t.length > 1 && !STOP.has(t));
 }
 
-const FIELD_OFFICE = /\b(piu[- ]|regional office|field (unit|office)|circle office|division office|branch office|sub[- ]division|project implementation)\b/i;
+const FIELD_OFFICE = /\b(piu[- ]|e\/i\b|embassy|high commission|consulate|regional office|field (unit|office)|circle office|division office|branch office|sub[- ]division|project implementation)\b/i;
 
 function isFieldOffice(pa: PublicAuthority): boolean {
   return (pa.level ?? 0) >= 2 || FIELD_OFFICE.test(pa.name);
@@ -149,17 +152,47 @@ export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]
 
 /** Retrieve a pool of up to `pool` authorities, then keep enough for three predictions. */
 export function shortlistDirectory(query: string, pool = 16): { results: ScoredDoc[]; reviewRequired: boolean } {
-  const { results, reviewRequired } = searchDirectory(query, pool);
-  if (results.length >= 3 || results.length === 0) return { results, reviewRequired };
+  const { results: ranked, reviewRequired } = searchDirectory(query, Math.max(pool * 2, 32));
+  if (ranked.length === 0) return { results: [], reviewRequired: true };
 
-  const ministry = results[0].pa.ministry;
-  const have = new Set(results.map((r) => r.pa.pa_code));
-  for (const doc of INDEX) {
-    if (results.length >= 3) break;
-    if (have.has(doc.pa.pa_code)) continue;
-    if (doc.pa.ministry !== ministry && !doc.pa.boost) continue;
-    results.push({ pa: doc.pa, score: 0.15, matched: [] });
-    have.add(doc.pa.pa_code);
+  const top = ranked[0];
+  let results = ranked;
+  if (top.score >= 3) {
+    const ministry = top.pa.ministry;
+    const same = ranked
+      .filter((r) => r.pa.ministry === ministry)
+      .sort((a, b2) => Number(isFieldOffice(a.pa)) - Number(isFieldOffice(b2.pa)) || b2.score - a.score);
+    const otherStrong = ranked.filter((r) => r.pa.ministry !== ministry && (r.pa.boost || r.score >= top.score * 0.2));
+    const merged: ScoredDoc[] = [];
+    const have = new Set<string>();
+    for (const item of [...same, ...otherStrong, ...ranked]) {
+      if (have.has(item.pa.pa_code)) continue;
+      have.add(item.pa.pa_code);
+      merged.push(item);
+      if (merged.length >= pool) break;
+    }
+    results = merged;
+  } else {
+    results = ranked.slice(0, pool);
   }
-  return { results, reviewRequired };
+
+  const parent = INDEX.find(
+    (d) => d.pa.level === 0 && d.pa.name === results[0].pa.ministry && d.pa.pa_code !== results[0].pa.pa_code
+  );
+  if (parent && !results.some((r) => r.pa.pa_code === parent.pa.pa_code)) {
+    results = [results[0], { pa: parent.pa, score: Math.max(results[0].score * 0.35, 1), matched: [] }, ...results.slice(1)];
+  }
+
+  if (results.length < 3) {
+    const ministry = results[0].pa.ministry;
+    const have = new Set(results.map((r) => r.pa.pa_code));
+    for (const doc of INDEX) {
+      if (results.length >= 3) break;
+      if (have.has(doc.pa.pa_code)) continue;
+      if (doc.pa.ministry !== ministry && !doc.pa.boost) continue;
+      results.push({ pa: doc.pa, score: 0.15, matched: [] });
+      have.add(doc.pa.pa_code);
+    }
+  }
+  return { results: results.slice(0, pool), reviewRequired };
 }

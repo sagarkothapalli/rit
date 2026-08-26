@@ -52,7 +52,6 @@ export async function POST(req: Request) {
     ministry: r.pa.ministry,
     matched: r.matched.slice(0, 6),
     score: Math.round(r.score * 100) / 100,
-    keywords: r.pa.keywords.slice(0, 8),
   }));
 
   const cfg = await getModelConfig();

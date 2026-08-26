@@ -203,7 +203,7 @@ export function inferBodyHint(transcript: string): string | null {
 
 export function inferDateRange(transcript: string): string | null {
   const span = transcript.match(
-    /\b((?:last|past|previous|since|from|for)\s+(?:the\s+)?(?:\d+\s+)?(?:month|months|mahine|महीने|year|years|saal|साल|week|weeks|day|days|din|दिन)s?(?:\s+\d+)?|\d+\s+(?:month|months|mahine|महीने|year|years|saal|साल)s?)\b/i
+    /\b((?:last|past|previous|since|from|for)\s+(?:the\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|a few)?\s*(?:month|months|mahine|महीने|year|years|saal|साल|week|weeks|day|days|din|दिन)s?|\d+\s+(?:month|months|mahine|महीने|year|years|saal|साल)s?)\b/i
   );
   if (span) return span[1].replace(/\s+/g, " ").trim();
   if (/\b(20\d{2})\b/.test(transcript)) {
