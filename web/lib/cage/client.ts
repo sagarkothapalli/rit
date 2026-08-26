@@ -46,6 +46,9 @@ async function rawCall({ cfg, model, system, user, maxTokens }: CallArgs): Promi
           { role: "user", content: user },
         ],
         response_format: { type: "json_object" },
+        // DeepSeek V4 thinks by default; thinking burns the token cap and
+        // can leave content empty. JSON gates need the object, not a CoT.
+        thinking: { type: "disabled" },
       }),
       signal: controller.signal,
     });

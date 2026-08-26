@@ -64,6 +64,7 @@
   --lane-2: #f6f3ec;
   --lane-3: #eff5f5;
   --lane-4: #f6f2ea;
+  --chart-process: #ffffff;
 
   --iris: var(--navy);
   --iris-deep: var(--navy-deep);
@@ -153,6 +154,7 @@ html[data-theme="dark"] {
   --lane-2: #1e2a36;
   --lane-3: #18262e;
   --lane-4: #1d2a34;
+  --chart-process: #2a3b4d;
   --iris: var(--accent);
   --iris-deep: var(--accent);
   --iris-tint: var(--navy-soft);
@@ -1200,6 +1202,7 @@ html[data-theme="dark"] .a11y-theme-on-dark {
   border-bottom: 1px solid var(--line);
   border-top: 1px solid var(--line);
   padding-block: clamp(88px, 10vw, 140px);
+  scroll-margin-top: 24px;
 }
 
 .rti-chart {
@@ -1315,7 +1318,7 @@ html[data-theme="dark"] .a11y-theme-on-dark {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.7;
-  transition: opacity 180ms ease, stroke-width 180ms ease, stroke 180ms ease;
+  transition: opacity 180ms ease, stroke 180ms ease;
 }
 
 .rti-split-dot {
@@ -1349,6 +1352,7 @@ html[data-theme="dark"] .a11y-theme-on-dark {
 
 .rti-hit {
   fill: transparent;
+  pointer-events: all;
   stroke: transparent;
   stroke-width: 3;
 }
@@ -1358,7 +1362,7 @@ html[data-theme="dark"] .a11y-theme-on-dark {
 }
 
 .rti-shape {
-  transition: filter 180ms ease, stroke-width 180ms ease;
+  transition: filter 180ms ease;
 }
 
 .rti-node-start .rti-shape,
@@ -1367,7 +1371,7 @@ html[data-theme="dark"] .a11y-theme-on-dark {
 }
 
 .rti-node-process .rti-shape {
-  fill: var(--surface);
+  fill: var(--chart-process);
   stroke: var(--navy);
   stroke-width: 1.8;
 }

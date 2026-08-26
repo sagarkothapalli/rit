@@ -41,6 +41,7 @@ export default function AccessibilityControls() {
           min="0"
           ref={sliderRef}
           step="1"
+          suppressHydrationWarning
           type="range"
         />
         <span className="a11y-zoom-max" aria-hidden="true">A</span>
@@ -50,6 +51,7 @@ export default function AccessibilityControls() {
         aria-label="Switch to dark appearance"
         aria-pressed="false"
         className="a11y-theme"
+        suppressHydrationWarning
         type="button"
       >
         <svg aria-hidden="true" className="theme-ico" fill="none" viewBox="0 0 24 24">
@@ -67,7 +69,7 @@ export default function AccessibilityControls() {
         <span className="a11y-theme-label a11y-theme-on-dark">Light</span>
       </button>
 
-      <span className="sr-only" aria-live="polite" />
+      <span className="sr-only" aria-live="polite" suppressHydrationWarning />
     </div>
   );
 }

@@ -22,6 +22,7 @@ async function ping(baseUrl: string, apiKey: string, model: string): Promise<str
         model,
         max_tokens: 16,
         messages: [{ role: "user", content: 'Reply with exactly: {"ok":true}' }],
+        thinking: { type: "disabled" },
       }),
       signal: controller.signal,
     });

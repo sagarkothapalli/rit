@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
-import { createHash } from "crypto";
-import { ADMIN_COOKIE, verifyPin } from "@/lib/cage/admin";
+import { ADMIN_COOKIE, cookieSecure, sessionCookieValue, verifyPin } from "@/lib/cage/admin";
 
 export const dynamic = "force-dynamic";
-
-function cookieValue(): string {
-  const pin = process.env.ADMIN_PIN || "123456";
-  return createHash("sha256").update(`${pin}|praja-admin-v1`).digest("hex");
-}
 
 export async function POST(req: Request) {
   let body: { pin?: unknown };
@@ -20,11 +14,15 @@ export async function POST(req: Request) {
   if (!verifyPin(pin)) {
     return NextResponse.json({ error: "WRONG_PIN" }, { status: 401 });
   }
+  const token = sessionCookieValue();
+  if (!token) {
+    return NextResponse.json({ error: "PIN_NOT_CONFIGURED" }, { status: 500 });
+  }
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(ADMIN_COOKIE, cookieValue(), {
+  res.cookies.set(ADMIN_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(req),
     maxAge: 60 * 60 * 8,
     path: "/",
   });

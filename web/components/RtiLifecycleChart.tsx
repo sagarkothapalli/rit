@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   ANNOTS,
   EDGES,
@@ -9,6 +9,7 @@ import {
   LIST_SUMMARY,
   NODES,
   NODE_BY_ID,
+  SPLIT_Y,
   VIEW,
   lightFrom,
   nodeAnnouncement,
@@ -76,22 +77,59 @@ function NodeGraphic({ node }: { node: FlowNode }) {
   );
 }
 
+function nodeIdFromTarget(target: EventTarget | null): string | null {
+  const el = target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
+  return el?.closest("[data-node]")?.getAttribute("data-node") ?? null;
+}
+
 export default function RtiLifecycleChart() {
   const [hovered, setHovered] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const activeId = hovered ?? pinned;
   const lit = useMemo(() => (activeId ? lightFrom(activeId) : null), [activeId]);
   const active = activeId ? NODE_BY_ID[activeId] : null;
   const nextNodes = lit ? lit.next.map((id) => NODE_BY_ID[id]).filter(Boolean) : [];
 
-  function selectNode(id: string) {
-    setPinned((current) => (current === id ? null : id));
-  }
+  useEffect(() => {
+    const root = viewportRef.current;
+    if (!root) return;
+    root.dataset.interactive = "true";
+
+    function onMove(event: PointerEvent | MouseEvent) {
+      if ("pointerType" in event && event.pointerType === "touch") return;
+      const id = nodeIdFromTarget(event.target);
+      setHovered((current) => (current === id ? current : id));
+    }
+
+    function onLeave() {
+      setHovered(null);
+    }
+
+    function onClick(event: MouseEvent) {
+      const id = nodeIdFromTarget(event.target);
+      if (id) setPinned((current) => (current === id ? null : id));
+      else setPinned(null);
+    }
+
+    root.addEventListener("pointermove", onMove);
+    root.addEventListener("mousemove", onMove);
+    root.addEventListener("pointerleave", onLeave);
+    root.addEventListener("mouseleave", onLeave);
+    root.addEventListener("click", onClick);
+    return () => {
+      root.removeEventListener("pointermove", onMove);
+      root.removeEventListener("mousemove", onMove);
+      root.removeEventListener("pointerleave", onLeave);
+      root.removeEventListener("mouseleave", onLeave);
+      root.removeEventListener("click", onClick);
+    };
+  }, []);
 
   function handleKey(event: KeyboardEvent<SVGGElement>, id: string) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      selectNode(id);
+      setPinned((current) => (current === id ? null : id));
     }
     if (event.key === "Escape") {
       setPinned(null);
@@ -100,7 +138,7 @@ export default function RtiLifecycleChart() {
   }
 
   return (
-    <figure className={`rti-chart${lit ? " is-tracing" : ""}`}>
+    <div className={`rti-chart${lit ? " is-tracing" : ""}`}>
       <div className="rti-chart-toolbar">
         <p className="rti-chart-hint">On a phone, swipe the map and tap a step to pin its path.</p>
         <ul className="rti-legend">
@@ -113,19 +151,14 @@ export default function RtiLifecycleChart() {
         </ul>
       </div>
 
-      <div className="rti-chart-viewport">
+      <div className="rti-chart-viewport" ref={viewportRef}>
         <svg
           aria-describedby="rti-chart-dock"
+          aria-label="Interactive RTI request lifecycle. Hover or focus a step to light that block and the next connected stages."
           fontFamily="inherit"
-          onPointerLeave={() => setHovered(null)}
           role="group"
           viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
         >
-          <title>Interactive RTI request lifecycle</title>
-          <desc>
-            Hover or focus a step to light that block and the next two or three connected stages. The diagram follows
-            the RTI Online lifecycle from filing through first appeal, second appeal, and a Section 18 complaint.
-          </desc>
           <defs>
             <marker id="rti-arrow" markerHeight="11" markerWidth="11" orient="auto" refX="10" refY="6" viewBox="0 0 12 12">
               <path d="M1 1.6 L11 6 L1 10.4 Z" fill="var(--chart-line)" />
@@ -166,7 +199,7 @@ export default function RtiLifecycleChart() {
                     : ""
               }`}
               cx={NODE_BY_ID.decision.x}
-              cy={708}
+              cy={SPLIT_Y}
               r="5.5"
             />
           </g>
@@ -198,18 +231,15 @@ export default function RtiLifecycleChart() {
                 aria-label={nodeAnnouncement(node.id)}
                 aria-pressed={pinned === node.id}
                 className={`${nodeClass(node.kind)} is-${state}`}
+                data-node={node.id}
                 key={node.id}
                 onBlur={() => setHovered((current) => (current === node.id ? null : current))}
-                onClick={() => selectNode(node.id)}
                 onFocus={() => setHovered(node.id)}
                 onKeyDown={(event) => handleKey(event, node.id)}
-                onPointerEnter={(event) => {
-                  if (event.pointerType === "touch") return;
-                  setHovered(node.id);
-                }}
                 role="button"
                 tabIndex={0}
               >
+                <NodeGraphic node={node} />
                 <rect
                   className="rti-hit"
                   height={node.h + hitPad * 2}
@@ -218,14 +248,13 @@ export default function RtiLifecycleChart() {
                   x={node.x - node.w / 2 - hitPad}
                   y={node.y - node.h / 2 - hitPad}
                 />
-                <NodeGraphic node={node} />
               </g>
             );
           })}
         </svg>
       </div>
 
-      <figcaption className="rti-chart-dock" id="rti-chart-dock">
+      <div className="rti-chart-dock" id="rti-chart-dock" role="status">
         {active ? (
           <>
             <strong>{active.kind === "time" ? `${active.label} days` : active.label}</strong>
@@ -252,7 +281,7 @@ export default function RtiLifecycleChart() {
         <span className="sr-only" aria-live="polite">
           {active ? nodeAnnouncement(active.id) : "No step selected."}
         </span>
-      </figcaption>
+      </div>
 
       <details className="rti-chart-list">
         <summary>Read the lifecycle as a list</summary>
@@ -274,6 +303,6 @@ export default function RtiLifecycleChart() {
         </a>
         .
       </p>
-    </figure>
+    </div>
   );
 }

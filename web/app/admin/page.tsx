@@ -18,6 +18,60 @@ interface Status {
   } | null;
 }
 
+function EyeIcon({ off }: { off?: boolean }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.4 12S5.8 5.5 12 5.5 21.6 12 21.6 12 18.2 18.5 12 18.5 2.4 12 2.4 12Z" />
+      <circle cx="12" cy="12" r="2.7" />
+      {off ? <path d="M4 4l16 16" /> : null}
+    </svg>
+  );
+}
+
+function SecretField({
+  value,
+  onChange,
+  placeholder,
+  autoFocus,
+  revealLabel,
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  autoFocus?: boolean;
+  revealLabel: string;
+  className?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className={`relative ${className ?? ""}`}>
+      <input
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        autoComplete="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        name={`secret-${revealLabel.toLowerCase().replace(/\s+/g, "-")}`}
+        className="w-full rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 pr-12 font-mono text-[15px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
+      />
+      <button
+        type="button"
+        aria-label={show ? `Hide ${revealLabel}` : `Show ${revealLabel}`}
+        aria-pressed={show}
+        onClick={() => setShow((v) => !v)}
+        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[var(--fg-faint)] hover:text-[var(--fg)]"
+      >
+        <EyeIcon off={show} />
+      </button>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [unlocked, setUnlocked] = useState(false);
   const [pin, setPin] = useState("");
@@ -28,22 +82,23 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  async function loadStatus() {
-    const res = await fetch("/api/admin/config", { cache: "no-store" });
+  async function loadStatus(): Promise<boolean> {
+    const res = await fetch("/api/admin/config", { cache: "no-store", credentials: "include" });
     if (res.status === 401) {
       setUnlocked(false);
-      return;
+      return false;
     }
     const data = (await res.json()) as Status;
     setStatus(data);
-    if (!baseUrl) setBaseUrl(data.meta?.baseUrl || data.defaults.baseUrl);
-    if (!model) setModel(data.meta?.modelFast || data.defaults.model);
+    setBaseUrl((v) => v || data.meta?.baseUrl || data.defaults.baseUrl);
+    setModel((v) => v || data.meta?.modelFast || data.defaults.model);
     setUnlocked(true);
+    return true;
   }
 
   useEffect(() => {
     let on = true;
-    fetch("/api/admin/config", { cache: "no-store" })
+    fetch("/api/admin/config", { cache: "no-store", credentials: "include" })
       .then(async (res) => (res.status === 401 ? null : ((await res.json()) as Status)))
       .then((data) => {
         if (!on || !data) return;
@@ -66,11 +121,16 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin }),
+        credentials: "include",
+        body: JSON.stringify({ pin: pin.trim() }),
       });
-      if (!res.ok) throw new Error("Wrong PIN");
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error === "WRONG_PIN" ? "Wrong PIN" : data.error || "Unlock failed");
+      const ok = await loadStatus();
+      if (!ok) {
+        throw new Error("PIN accepted, but the session cookie did not stick. Open http://localhost:3000/admin and try again.");
+      }
       setPin("");
-      await loadStatus();
     } catch (err) {
       setMsg({ kind: "err", text: err instanceof Error ? err.message : "Unlock failed" });
     } finally {
@@ -86,6 +146,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ action: "save", apiKey, baseUrl, model }),
       });
       const data = await res.json();
@@ -107,6 +168,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ action: action === "pause" ? "set-live" : action, ...(action === "pause" ? { live: false } : {}) }),
       });
       const data = await res.json();
@@ -145,9 +207,10 @@ export default function AdminPage() {
       <div className="mx-auto max-w-3xl w-full px-6 py-12 space-y-6">
         <h1 className="font-display text-4xl font-medium tracking-tight">Gateway control</h1>
         <p className="text-[15px] text-[var(--fg-soft)] -mt-3">
-          Paste your GMI Cloud gateway key once. Every gate on the console then runs LIVE on
-          <span className="font-mono text-[13px] mx-1 px-1.5 py-0.5 rounded bg-[var(--iris-tint)] text-[var(--iris)]">{model || "minimax/minimax-m3"}</span>
-          through the gateway for all visitors.
+          Paste your DeepSeek API key once. After speech, notes, exemption check, draft, and
+          department explanation then run live on
+          <span className="font-mono text-[13px] mx-1 px-1.5 py-0.5 rounded bg-[var(--iris-tint)] text-[var(--iris)]">{model || "deepseek-v4-flash"}</span>
+          for every visitor.
         </p>
 
         {!unlocked ? (
@@ -156,15 +219,15 @@ export default function AdminPage() {
               Admin PIN
             </label>
             <div className="flex gap-2.5">
-              <input
-                type="password"
+              <SecretField
                 value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="service pin: 123456"
+                onChange={setPin}
+                placeholder="Admin PIN"
                 autoFocus
-                className="flex-1 rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 text-[15px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
+                revealLabel="PIN"
+                className="flex-1"
               />
-              <button type="submit" disabled={busy || !pin} className="brass-plate px-5 py-3 text-[14px] font-medium disabled:opacity-40">
+              <button type="submit" disabled={busy || !pin.trim()} className="brass-plate px-5 py-3 text-[14px] font-medium disabled:opacity-40">
                 Unlock
               </button>
             </div>
@@ -185,10 +248,18 @@ export default function AdminPage() {
               )}
               {status?.meta && (
                 <div className="mt-4 flex gap-2.5">
-                  <button onClick={() => act(status.meta?.live ? "pause" : "resume")} disabled={busy} className="btn-chip">
+                  <button
+                    onClick={() => act(status.meta?.live ? "pause" : "resume")}
+                    disabled={busy}
+                    className="rounded-full border border-[var(--line-strong)] bg-[var(--glass-strong)] px-3.5 py-1.5 text-[13px] text-[var(--fg-soft)] transition hover:text-[var(--fg)] hover:border-[color-mix(in_srgb,var(--iris)_45%,transparent)] disabled:opacity-40"
+                  >
                     {status.meta.live ? "Pause and use local fallback" : "Resume"}
                   </button>
-                  <button onClick={() => act("clear")} disabled={busy} className="btn-chip btn-danger">
+                  <button
+                    onClick={() => act("clear")}
+                    disabled={busy}
+                    className="rounded-full border border-[var(--line-strong)] bg-[var(--glass-strong)] px-3.5 py-1.5 text-[13px] text-[var(--fg-soft)] transition hover:text-[var(--red)] hover:border-[color-mix(in_srgb,var(--red)_45%,transparent)] disabled:opacity-40"
+                  >
                     Clear key
                   </button>
                 </div>
@@ -198,16 +269,9 @@ export default function AdminPage() {
             <form onSubmit={save} className="paper p-7 space-y-5">
               <div>
                 <label className="block font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] mb-2">
-                  GMI Cloud API key
+                  DeepSeek API key
                 </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="vck_… or gateway key"
-                  autoComplete="off"
-                  className="w-full rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 font-mono text-[14px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
-                />
+                <SecretField value={apiKey} onChange={setApiKey} placeholder="sk-…" revealLabel="API key" />
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -220,11 +284,14 @@ export default function AdminPage() {
                 </div>
               </div>
               <button type="submit" disabled={busy || !apiKey} className="brass-plate w-full py-3 text-[15px] font-medium disabled:opacity-40">
-                {busy ? "Testing against the gateway…" : "Test & save key"}
+                {busy ? "Testing against DeepSeek…" : "Test & save key"}
               </button>
             </form>
 
-            <button onClick={() => fetch("/api/admin/session", { method: "DELETE" }).then(() => setUnlocked(false))} className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors">
+            <button
+              onClick={() => fetch("/api/admin/session", { method: "DELETE", credentials: "include" }).then(() => setUnlocked(false))}
+              className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors"
+            >
               Lock panel
             </button>
           </>
@@ -242,20 +309,6 @@ export default function AdminPage() {
           </p>
         )}
       </div>
-
-      <style jsx global>{`
-        .btn-chip {
-          border-radius: 999px;
-          border: 1px solid var(--line-strong);
-          background: var(--glass-strong);
-          padding: 6px 14px;
-          font-size: 13px;
-          color: var(--fg-soft);
-          transition: all 150ms ease;
-        }
-        .btn-chip:hover:not(:disabled) { color: var(--fg); border-color: color-mix(in srgb, var(--iris) 45%, transparent); }
-        .btn-danger:hover:not(:disabled) { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
-      `}</style>
     </main>
   );
 }

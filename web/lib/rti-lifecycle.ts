@@ -43,30 +43,30 @@ export type FlowAnnot = {
   edgeIds?: string[];
 };
 
-export const VIEW = { w: 1240, h: 920 };
+export const VIEW = { w: 1240, h: 956 };
 
 export const LANES = [
-  { id: "pio", label: "01  PIO", y: 0, h: 244 },
-  { id: "applicant", label: "02  APPLICANT", y: 244, h: 304 },
-  { id: "faa", label: "03  FAA", y: 548, h: 150 },
-  { id: "cic", label: "04  CIC / SIC", y: 698, h: 222 },
+  { id: "pio", label: "01  PIO", y: 0, h: 256 },
+  { id: "applicant", label: "02  APPLICANT", y: 256, h: 308 },
+  { id: "faa", label: "03  FAA", y: 564, h: 150 },
+  { id: "cic", label: "04  CIC / SIC", y: 714, h: 242 },
 ] as const;
 
-const X = { A: 178, BL: 418, MID: 620, BR: 828, C: 1068, AND: 948 };
+const X = { A: 178, BL: 412, MID: 620, BR: 812, C: 1072, AND: 972 };
 const Y = {
-  start: 52,
-  t1: 140,
-  p1: 200,
-  t2: 276,
-  p2: 334,
-  notSat: 392,
-  tAppeal: 450,
-  outcomes: 516,
-  t45: 590,
-  faa: 648,
-  faaOut: 752,
-  t90: 808,
-  second: 864,
+  start: 50,
+  t1: 154,
+  p1: 216,
+  t2: 292,
+  p2: 350,
+  notSat: 412,
+  tAppeal: 472,
+  outcomes: 536,
+  t45: 616,
+  faa: 674,
+  faaOut: 780,
+  t90: 838,
+  second: 896,
 };
 
 const TIME = { w: 110, h: 38 };
@@ -411,8 +411,9 @@ function edge(id: string, from: string, to: string, points: [number, number][], 
 }
 
 const n = NODE_BY_ID;
-const busY = bottom(n.start)[1] + 16;
-const splitY = 708;
+const busY = bottom(n.start)[1] + 18;
+export const SPLIT_Y = 736;
+const splitY = SPLIT_Y;
 
 export const EDGES: FlowEdge[] = [
   edge("e-start-t30a", "start", "t30a", [bottom(n.start), [n.start.x, busY], [n.t30a.x, busY], top(n.t30a)]),
@@ -520,9 +521,9 @@ export const OUTGOING: Record<string, FlowEdge[]> = EDGES.reduce<Record<string, 
 }, {});
 
 export const ANNOTS: FlowAnnot[] = [
-  { id: "a-branch-a", x: X.A, y: 108, text: "A  ·  REPLY RECEIVED", fill: "navy", tracking: "0.10em" },
-  { id: "a-branch-b", x: X.MID, y: 108, text: "B  ·  TRANSFERRED", fill: "navy", tracking: "0.10em" },
-  { id: "a-branch-c", x: X.C, y: 108, text: "C  ·  NO REPLY", fill: "navy", tracking: "0.10em" },
+  { id: "a-branch-a", x: X.A, y: 122, text: "A  ·  REPLY RECEIVED", fill: "navy", tracking: "0.10em" },
+  { id: "a-branch-b", x: X.MID, y: 122, text: "B  ·  TRANSFERRED", fill: "navy", tracking: "0.10em" },
+  { id: "a-branch-c", x: X.C, y: 122, text: "C  ·  NO REPLY", fill: "navy", tracking: "0.10em" },
   { id: "a-cite-t30a", x: X.A + 64, y: Y.t1 + 4, text: "§7(1)", fill: "muted", anchor: "start", size: 11 },
   { id: "a-cite-t5b", x: X.MID + 64, y: Y.t1 + 4, text: "§6(3)", fill: "muted", anchor: "start", size: 11 },
   { id: "a-cite-t30c", x: X.C + 64, y: Y.t1 + 4, text: "§7(1)", fill: "muted", anchor: "start", size: 11 },
@@ -536,8 +537,8 @@ export const ANNOTS: FlowAnnot[] = [
   { id: "a-cite-t90none", x: X.BR + 64, y: Y.t90 + 4, text: "§19(3)", fill: "muted", anchor: "start", size: 11 },
   {
     id: "a-if-sat-a",
-    x: X.A - 86,
-    y: 470,
+    x: X.A - 88,
+    y: 490,
     text: "If satisfied",
     fill: "green",
     anchor: "end",
@@ -546,8 +547,8 @@ export const ANNOTS: FlowAnnot[] = [
   },
   {
     id: "a-if-unsat-a",
-    x: (X.A + X.BL) / 2,
-    y: Y.notSat - 16,
+    x: (X.A + X.BL) / 2 - 12,
+    y: Y.notSat - 28,
     text: "If not satisfied",
     fill: "red",
     size: 11,
@@ -555,8 +556,8 @@ export const ANNOTS: FlowAnnot[] = [
   },
   {
     id: "a-either",
-    x: X.AND,
-    y: Y.p2 - 36,
+    x: X.AND + 48,
+    y: Y.p2 - 20,
     text: "Either no-reply path",
     fill: "muted",
     size: 11,
@@ -595,7 +596,7 @@ export const ANNOTS: FlowAnnot[] = [
   {
     id: "a-second-note",
     x: X.MID,
-    y: 902,
+    y: 938,
     text: "Within 90 days of the FAA decision or default",
     fill: "muted",
     size: 11,
