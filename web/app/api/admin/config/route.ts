@@ -3,17 +3,19 @@ import { authedReq } from "@/lib/cage/admin";
 import {
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
+  MODEL_CATALOG,
   clearRuntimeConfig,
   getRuntimeModelConfig,
   saveRuntimeConfig,
   setRuntimeLive,
 } from "@/lib/cage/config";
+import { chatBodyExtras, findModel } from "@/lib/cage/models";
 
 export const dynamic = "force-dynamic";
 
 async function ping(baseUrl: string, apiKey: string, model: string): Promise<string> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
+  const timer = setTimeout(() => controller.abort(), 20_000);
   try {
     const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
       method: "POST",
@@ -22,7 +24,7 @@ async function ping(baseUrl: string, apiKey: string, model: string): Promise<str
         model,
         max_tokens: 16,
         messages: [{ role: "user", content: 'Reply with exactly: {"ok":true}' }],
-        thinking: { type: "disabled" },
+        ...chatBodyExtras(model, baseUrl),
       }),
       signal: controller.signal,
     });
@@ -46,6 +48,7 @@ export async function GET(req: Request) {
     source: meta?.live ? "admin" : cfg ? "env" : null,
     envFallback: Boolean(process.env.LLM_API_KEY),
     defaults: { baseUrl: DEFAULT_BASE_URL, model: DEFAULT_MODEL },
+    models: MODEL_CATALOG,
     meta,
   });
 }
@@ -76,14 +79,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
+    const { cfg } = await getRuntimeModelConfig();
+    const pasted = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
+    const apiKey = pasted || cfg?.apiKey || "";
     if (!apiKey) return NextResponse.json({ error: "MISSING_KEY" }, { status: 400 });
+
+    const model =
+      typeof body.model === "string" && body.model.trim() ? body.model.trim() : DEFAULT_MODEL;
+    const listed = findModel(model);
     const baseUrl =
       typeof body.baseUrl === "string" && body.baseUrl.trim()
         ? body.baseUrl.trim().replace(/\/+$/, "")
-        : DEFAULT_BASE_URL;
-    const model =
-      typeof body.model === "string" && body.model.trim() ? body.model.trim() : DEFAULT_MODEL;
+        : listed?.baseUrl || DEFAULT_BASE_URL;
 
     const testReply = await ping(baseUrl, apiKey, model);
     await saveRuntimeConfig({ apiKey, baseUrl, modelFast: model, modelStrong: model });

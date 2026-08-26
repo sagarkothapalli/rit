@@ -1,13 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AccessibilityControls from "@/components/AccessibilityControls";
+import { DEFAULT_MODEL, MODEL_CATALOG, findModel, type ModelOption } from "@/lib/cage/models";
 
 interface Status {
   configured: boolean;
   source: "admin" | "env" | null;
   envFallback: boolean;
   defaults: { baseUrl: string; model: string };
+  models?: ModelOption[];
   meta: {
     live: boolean;
     baseUrl: string;
@@ -81,6 +83,10 @@ export default function AdminPage() {
   const [model, setModel] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const catalog = status?.models?.length ? status.models : MODEL_CATALOG;
+  const selected = useMemo(() => findModel(model) ?? catalog.find((m) => m.id === model), [catalog, model]);
+  const savedProvider = findModel(status?.meta?.modelFast)?.provider;
+  const canReuseKey = Boolean(status?.configured && selected && savedProvider === selected.provider);
 
   async function loadStatus(): Promise<boolean> {
     const res = await fetch("/api/admin/config", { cache: "no-store", credentials: "include" });
@@ -207,10 +213,13 @@ export default function AdminPage() {
       <div className="mx-auto max-w-3xl w-full px-6 py-12 space-y-6">
         <h1 className="font-display text-4xl font-medium tracking-tight">Gateway control</h1>
         <p className="text-[15px] text-[var(--fg-soft)] -mt-3">
-          Paste your DeepSeek API key once. After speech, notes, exemption check, draft, and
-          department explanation then run live on
-          <span className="font-mono text-[13px] mx-1 px-1.5 py-0.5 rounded bg-[var(--iris-tint)] text-[var(--iris)]">{model || "deepseek-v4-flash"}</span>
+          Choose the After Speech model, then paste the matching API key. Notes, exemption check,
+          draft, and department explanation run live on
+          <span className="font-mono text-[13px] mx-1 px-1.5 py-0.5 rounded bg-[var(--iris-tint)] text-[var(--iris)]">{selected?.label || model || "DeepSeek V4 Flash"}</span>
           for every visitor.
+        </p>
+        <p className="text-[13px] text-[var(--fg-faint)] -mt-3">
+          Available: DeepSeek V4 Flash, Gemini 3.7, Gemini 3.6, Gemini 3.5, and Gemini 3.5 Flash Lite.
         </p>
 
         {!unlocked ? (
@@ -268,23 +277,58 @@ export default function AdminPage() {
 
             <form onSubmit={save} className="paper p-7 space-y-5">
               <div>
+                <label className="block font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] mb-2">Model</label>
+                <select
+                  value={model || DEFAULT_MODEL}
+                  onChange={(e) => {
+                    const next = findModel(e.target.value);
+                    setModel(e.target.value);
+                    if (next) setBaseUrl(next.baseUrl);
+                  }}
+                  className="w-full rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 text-[15px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
+                >
+                  <optgroup label="DeepSeek">
+                    {catalog.filter((m) => m.provider === "deepseek").map((m) => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Google Gemini">
+                    {catalog.filter((m) => m.provider === "gemini").map((m) => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
+                    ))}
+                  </optgroup>
+                  {model && !catalog.some((m) => m.id === model) ? <option value={model}>{model}</option> : null}
+                </select>
+                {selected?.hint ? (
+                  <p className="mt-2 text-[12.5px] text-[var(--fg-faint)]">{selected.hint} · <span className="font-mono">{selected.id}</span></p>
+                ) : null}
+              </div>
+              <div>
                 <label className="block font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] mb-2">
-                  DeepSeek API key
+                  {selected?.provider === "gemini" ? "Gemini API key" : "DeepSeek API key"}
                 </label>
-                <SecretField value={apiKey} onChange={setApiKey} placeholder="sk-…" revealLabel="API key" />
+                <SecretField
+                  value={apiKey}
+                  onChange={setApiKey}
+                  placeholder={selected?.provider === "gemini" ? "AIza…" : "sk-…"}
+                  revealLabel="API key"
+                />
+                {canReuseKey && !apiKey ? (
+                  <p className="mt-2 text-[12.5px] text-[var(--fg-faint)]">
+                    Leave blank to keep the saved key and only switch the model.
+                  </p>
+                ) : selected?.provider === "gemini" ? (
+                  <p className="mt-2 text-[12.5px] text-[var(--fg-faint)]">
+                    Get a Gemini key from Google AI Studio. A DeepSeek key will not work here.
+                  </p>
+                ) : null}
               </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] mb-2">Model</label>
-                  <input value={model} onChange={(e) => setModel(e.target.value)} className="w-full rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 font-mono text-[13px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10" />
-                </div>
-                <div>
-                  <label className="block font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] mb-2">Base URL</label>
-                  <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className="w-full rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 font-mono text-[13px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10" />
-                </div>
+              <div>
+                <label className="block font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] mb-2">Base URL</label>
+                <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className="w-full rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 font-mono text-[13px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10" />
               </div>
-              <button type="submit" disabled={busy || !apiKey} className="brass-plate w-full py-3 text-[15px] font-medium disabled:opacity-40">
-                {busy ? "Testing against DeepSeek…" : "Test & save key"}
+              <button type="submit" disabled={busy || (!apiKey && !canReuseKey)} className="brass-plate w-full py-3 text-[15px] font-medium disabled:opacity-40">
+                {busy ? `Testing ${selected?.label || "the model"}…` : canReuseKey && !apiKey ? "Test & switch model" : "Test & save key"}
               </button>
             </form>
 

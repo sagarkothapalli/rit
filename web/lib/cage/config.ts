@@ -7,10 +7,10 @@
 import { promises as fs } from "fs";
 import path from "path";
 import type { ModelConfig } from "./client";
+import { DEFAULT_MODEL } from "./models";
 import { Pool } from "pg";
 
-export const DEFAULT_BASE_URL = "https://api.deepseek.com";
-export const DEFAULT_MODEL = "deepseek-v4-flash";
+export { DEFAULT_BASE_URL, DEFAULT_MODEL, MODEL_CATALOG } from "./models";
 
 interface Row {
   api_key: string;
