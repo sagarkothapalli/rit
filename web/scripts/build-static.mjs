@@ -12,7 +12,7 @@
    Produces: out/ (+ out/.herenow/proxy.json from hosting/proxy.json)
    ============================================================ */
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, renameSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -27,6 +27,10 @@ if (existsSync(apiDir)) {
   renameSync(apiDir, stashDir);
   stashed = true;
 }
+// Stale `next dev` generated validators pin app/api route module paths,
+// which do not exist while the directory is stashed. Type checking of
+// real sources still runs; the dev artifacts are regenerated later.
+rmSync(path.join(root, ".next", "dev", "types"), { recursive: true, force: true });
 
 try {
   const res = spawnSync("npx", ["next", "build"], {
