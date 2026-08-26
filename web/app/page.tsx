@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import Emblem from "@/components/Emblem";
 import HeroDraftActions from "@/components/HeroDraftActions";
+import RtiLifecycleChart from "@/components/RtiLifecycleChart";
 import SiteMasthead from "@/components/SiteMasthead";
 
 const serviceSteps = [
@@ -250,77 +250,13 @@ export default function Page() {
 
       <section className="lifecycle-section reveal reveal-fade" id="rti-lifecycle">
         <div className="site-container">
-          <div className="section-intro lifecycle-intro">
-            <div>
-              <h2>Understand the official RTI lifecycle</h2>
-              <p>This simplified view follows the lifecycle published by RTI Online and keeps the main reply, transfer, appeal, and complaint branches readable.</p>
-            </div>
-            <a href="https://rtionline.gov.in/images/rti_lifecycle.jpg" rel="noreferrer" target="_blank">
-              View the original flowchart
-              <ArrowIcon />
-            </a>
+          <div className="section-intro">
+            <h2>Understand the official RTI lifecycle</h2>
+            <p>
+              Hover or tap any block to light that step and the next two or three connected stages — reply, transfer, appeal, or complaint.
+            </p>
           </div>
-
-          <div className="lifecycle-flow" aria-label="RTI lifecycle adapted from RTI Online">
-            <div className="life-node life-start">
-              <small>Application</small>
-              <strong>RTI request submitted</strong>
-            </div>
-
-            <div className="life-branches">
-              <article>
-                <span className="time-chip">30 days</span>
-                <h3>Reply received</h3>
-                <p>If the response is complete, the process can close. If it is incomplete, a first appeal may follow.</p>
-                <div className="life-outcomes">
-                  <span className="outcome-good">Satisfied</span>
-                  <span className="outcome-action">First appeal</span>
-                </div>
-              </article>
-
-              <article>
-                <span className="time-chip">5 days</span>
-                <h3>Request transferred</h3>
-                <p>The receiving public authority then follows the applicable response period.</p>
-                <div className="life-outcomes">
-                  <span className="outcome-neutral">Reply</span>
-                  <span className="outcome-action">First appeal if needed</span>
-                </div>
-              </article>
-
-              <article>
-                <span className="time-chip">30 days</span>
-                <h3>No reply received</h3>
-                <p>No response within the period can lead to a first appeal or a Section 18 complaint.</p>
-                <div className="life-outcomes">
-                  <span className="outcome-action">First appeal</span>
-                  <span className="outcome-neutral">Complaint to CIC</span>
-                </div>
-              </article>
-            </div>
-
-            <div className="appeal-track">
-              <div>
-                <span className="time-chip">30 to 45 days</span>
-                <strong>First appellate decision</strong>
-                <p>The appellate authority may decide within 30 days, or record reasons for extending up to 45 days.</p>
-              </div>
-              <ArrowIcon />
-              <div>
-                <span className="time-chip">Within 90 days</span>
-                <strong>Second appeal</strong>
-                <p>If the citizen remains unsatisfied, a second appeal may be made to the CIC or SIC as applicable.</p>
-              </div>
-            </div>
-          </div>
-
-          <figure className="source-reference">
-            <Image alt="Original RTI lifecycle flowchart published by RTI Online" height={543} src="/rti-lifecycle.jpg" width={571} />
-            <figcaption>
-              <strong>Source reference</strong>
-              Original lifecycle chart published on RTI Online. The accessible flow above is a simplified interpretation for orientation and is not legal advice.
-            </figcaption>
-          </figure>
+          <RtiLifecycleChart />
         </div>
       </section>
 
@@ -392,7 +328,7 @@ export default function Page() {
           <div>
             <strong>Accessibility</strong>
             <span>Dark and light appearance</span>
-            <span>Text size controls in the top bar</span>
+            <span>Text size slider in the top bar</span>
             <span>Keyboard and reduced motion supported</span>
           </div>
         </div>

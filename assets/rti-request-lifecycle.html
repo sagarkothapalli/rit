@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>RTI Request Lifecycle</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 2480px;
+      min-height: 1736px;
+      overflow: visible;
+      background: #F5F2EB;
+      color: #17202D;
+      font-family: "Avenir Next", "Helvetica Neue", "Noto Sans", ui-sans-serif, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    body { display: flex; flex-direction: column; }
+    .toprule {
+      height: 4px;
+      flex: 0 0 auto;
+      background: linear-gradient(90deg, #D97706 0 34%, #FFFFFF 34% 66%, #2F7D3F 66% 100%);
+    }
+    header {
+      height: 132px;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 48px 0 52px;
+      border-bottom: 1px solid #E4DED3;
+      background: #F5F2EB;
+    }
+    .brand { display: flex; flex-direction: column; gap: 5px; }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: #D97706;
+    }
+    h1 {
+      font-size: 34px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      color: #082F5B;
+      line-height: 1;
+    }
+    .sub { font-size: 14px; color: #4B596A; font-weight: 500; }
+    .legend { display: flex; gap: 20px; align-items: center; }
+    .leg {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 650;
+      color: #4B596A;
+    }
+    .swatch {
+      width: 18px;
+      height: 12px;
+      border-radius: 3px;
+      border: 1px solid rgba(8,47,91,0.12);
+    }
+    .swatch.time { background: #082F5B; border: 0; border-radius: 8px; width: 22px; }
+    .swatch.step { background: #FFFFFF; border: 1.5px solid #082F5B; }
+    .swatch.ok { background: #2F7D3F; border: 0; }
+    .swatch.bad { background: #B42318; border: 0; }
+    .swatch.appeal { background: #0E5C6B; border: 0; }
+    .swatch.alt { background: #FFF5E8; border: 1.5px solid #D97706; }
+    .diagram { height: 1600px; width: 2480px; flex: 0 0 auto; }
+    .diagram svg {
+      display: block;
+      overflow: visible;
+      font-family: "Avenir Next", "Helvetica Neue", "Noto Sans", ui-sans-serif, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div class="toprule"></div>
+  <header>
+    <div class="brand">
+      <div class="eyebrow">RIGHT TO INFORMATION ACT, 2005</div>
+      <h1>RTI Request Lifecycle</h1>
+      <div class="sub">Statutory timelines from filing through first appeal, second appeal, and a Section 18 complaint.</div>
+    </div>
+    <div class="legend">
+      <div class="leg"><span class="swatch time"></span>Time limit</div>
+      <div class="leg"><span class="swatch step"></span>Process</div>
+      <div class="leg"><span class="swatch ok"></span>Closed</div>
+      <div class="leg"><span class="swatch bad"></span>Not satisfied</div>
+      <div class="leg"><span class="swatch appeal"></span>Appeal</div>
+      <div class="leg"><span class="swatch alt"></span>Complaint</div>
+    </div>
+  </header>
+  <div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" width="2480" height="1600" viewBox="0 0 2480 1600" role="img" aria-label="RTI request lifecycle flowchart">
+  <defs>
+    <linearGradient id="navyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0C3D73"/>
+      <stop offset="100%" stop-color="#082F5B"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.2" flood-color="#082F5B" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 14 14" refX="12.5" refY="7" markerWidth="13" markerHeight="13" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1.5 L 13 7 L 1 12.5 z" fill="#3E4C5C"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="2480" height="500" fill="#F1F5F8"/><text x="40" y="32" fill="#082F5B" fill-opacity="0.5" font-size="13" font-weight="700" letter-spacing="0.16em">01  PIO</text><rect x="0" y="500" width="2480" height="430" fill="#F6F3EC"/><text x="40" y="532" fill="#082F5B" fill-opacity="0.5" font-size="13" font-weight="700" letter-spacing="0.16em">02  APPLICANT</text><rect x="0" y="930" width="2480" height="250" fill="#EFF5F5"/><text x="40" y="962" fill="#082F5B" fill-opacity="0.5" font-size="13" font-weight="700" letter-spacing="0.16em">03  FAA</text><rect x="0" y="1180" width="2480" height="420" fill="#F6F2EA"/><text x="40" y="1212" fill="#082F5B" fill-opacity="0.5" font-size="13" font-weight="700" letter-spacing="0.16em">04  CIC / SIC</text>
+  <g class="wires"><path d="M 1240.0 141.0 L 1240.0 157.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1240.0 157.0 L 440.0 157.0 Q 430.0 157.0 430.0 167.0 L 430.0 221.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1240.0 157.0 L 1240.0 221.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1240.0 157.0 L 2210.0 157.0 Q 2220.0 157.0 2220.0 167.0 L 2220.0 221.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 430.0 275.0 L 430.0 318.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1240.0 275.0 L 1240.0 318.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 2220.0 275.0 L 2220.0 318.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1240.0 386.0 L 1240.0 402.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1240.0 402.0 L 910.0 402.0 Q 900.0 402.0 900.0 412.0 L 900.0 429.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1240.0 402.0 L 1630.0 402.0 Q 1640.0 402.0 1640.0 412.0 L 1640.0 429.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 900.0 483.0 L 900.0 526.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1640.0 483.0 L 1640.0 526.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 430.0 386.0 L 430.0 850.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 430.0 668.0 L 780.0 668.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 900.0 594.0 L 900.0 634.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1760.0 560.0 L 1898.0 560.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 2220.0 386.0 L 2220.0 550.0 Q 2220.0 560.0 2210.0 560.0 L 1962.0 560.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1930.0 592.0 L 1930.0 608.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1930.0 608.0 L 1650.0 608.0 Q 1640.0 608.0 1640.0 618.0 L 1640.0 745.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1930.0 608.0 L 2210.0 608.0 Q 2220.0 608.0 2220.0 618.0 L 2220.0 738.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 900.0 702.0 L 900.0 745.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 900.0 799.0 L 900.0 815.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1640.0 799.0 L 1640.0 815.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 900.0 815.0 L 1640.0 815.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1240.0 815.0 L 1240.0 850.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 2220.0 806.0 L 2220.0 845.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1240.0 918.0 L 1240.0 934.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1240.0 934.0 L 910.0 934.0 Q 900.0 934.0 900.0 944.0 L 900.0 963.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1240.0 934.0 L 1630.0 934.0 Q 1640.0 934.0 1640.0 944.0 L 1640.0 963.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 900.0 1017.0 L 900.0 1060.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1640.0 1017.0 L 1640.0 1060.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 900.0 1128.0 L 900.0 1148.0 Q 900.0 1158.0 890.0 1158.0 L 690.0 1158.0 Q 680.0 1158.0 680.0 1168.0 L 680.0 1199.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 665.0 1214.0 L 550.0 1214.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 695.0 1214.0 L 780.0 1214.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 1640.0 1128.0 L 1640.0 1291.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 900.0 1248.0 L 900.0 1291.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M 900.0 1345.0 L 900.0 1361.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1640.0 1345.0 L 1640.0 1361.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 900.0 1361.0 L 1640.0 1361.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M 1320.0 1361.0 L 1320.0 1386.0" fill="none" stroke="#3E4C5C" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+  <g class="annots"><text x="520.0" y="253" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§7(1)</text><text x="1330.0" y="253" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§6(3)</text><text x="2310.0" y="253" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§7(1)</text><text x="990.0" y="461" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§7(1)</text><text x="1730.0" y="461" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§7(1)</text><text x="990.0" y="777" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§19(1)</text><text x="1730.0" y="777" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§19(1)</text><text x="990.0" y="995" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§19(6)</text><text x="1730.0" y="995" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§19(6)</text><text x="990.0" y="1323" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§19(3)</text><text x="1730.0" y="1323" text-anchor="start" fill="#6E7B8A" font-size="15" font-weight="650" letter-spacing="0.04em">§19(3)</text><text x="1320" y="1468" text-anchor="middle" fill="#6E7B8A" font-size="14" font-weight="500" letter-spacing="0.02em">Within 90 days of the FAA decision or default</text><text x="430" y="204" text-anchor="middle" fill="#082F5B" font-size="14" font-weight="700" letter-spacing="0.10em">A  ·  REPLY RECEIVED</text><text x="1240" y="204" text-anchor="middle" fill="#082F5B" font-size="14" font-weight="700" letter-spacing="0.10em">B  ·  TRANSFERRED</text><text x="2220" y="204" text-anchor="middle" fill="#082F5B" font-size="14" font-weight="700" letter-spacing="0.10em">C  ·  NO REPLY</text><text x="410" y="832" text-anchor="end" fill="#2F7D3F" font-size="14" font-weight="650" letter-spacing="0.02em">If satisfied</text><text x="520" y="650" text-anchor="middle" fill="#B42318" font-size="14" font-weight="650" letter-spacing="0.02em">If not satisfied</text><text x="1930" y="514" text-anchor="middle" fill="#6E7B8A" font-size="14" font-weight="650" letter-spacing="0.04em">Either no-reply path</text><text x="2220" y="728" text-anchor="middle" fill="#D97706" font-size="14" font-weight="700" letter-spacing="0.08em">Parallel remedy</text><text x="600" y="1174" text-anchor="middle" fill="#2F7D3F" font-size="14" font-weight="650" letter-spacing="0.02em">If satisfied</text><text x="770" y="1174" text-anchor="middle" fill="#B42318" font-size="14" font-weight="650" letter-spacing="0.02em">If not satisfied</text></g>
+  <g class="nodes">
+            <g class="node" transform="translate(1240,100)">
+              <rect x="-224.0" y="-41.0" width="448" height="82" rx="14" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="-8" text-anchor="middle" fill="#FFFFFF" font-size="22" font-weight="650" letter-spacing="0.12em">RTI REQUEST</text><text y="18" text-anchor="middle" fill="#FFFFFF" opacity="0.82" font-size="13" font-weight="600" letter-spacing="0.08em">SECTION 6 · APPLICATION FILED</text>
+            </g>
+            <g class="node" transform="translate(430,248)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">30</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(1240,248)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">5</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(2220,248)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">30</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(430,352)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#FFFFFF" stroke="#082F5B" stroke-width="2.6" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">REPLY</tspan></text>
+            </g>
+            <g class="node" transform="translate(1240,352)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#FFFFFF" stroke="#082F5B" stroke-width="2.6" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">TRANSFER</tspan></text>
+            </g>
+            <g class="node" transform="translate(2220,352)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#EAF0F6" stroke="#082F5B" stroke-width="2.6" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">NO REPLY</tspan></text>
+            </g>
+            <g class="node" transform="translate(900,456)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">30</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(1640,456)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">30</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(900,560)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#FFFFFF" stroke="#082F5B" stroke-width="2.6" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">REPLY</tspan></text>
+            </g>
+            <g class="node" transform="translate(1640,560)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#EAF0F6" stroke="#082F5B" stroke-width="2.6" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">NO REPLY</tspan></text>
+            </g>
+            <g class="node" transform="translate(1930,560)">
+              <polygon points="0,-32 32,0 0,32 -32,0" fill="#052444" filter="url(#shadow)"/>
+              <text y="5" text-anchor="middle" fill="#FFFFFF" font-size="13" font-weight="700" letter-spacing="0.14em">AND</text>
+            </g>
+            <g class="node" transform="translate(900,668)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#B42318" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">NOT SATISFIED</tspan></text>
+            </g>
+            <g class="node" transform="translate(900,772)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">30</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(1640,772)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">30</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(2220,772)">
+              <rect x="-110.0" y="-34.0" width="220" height="68" rx="12" fill="#FFFFFF" stroke="#3E4C5C" stroke-width="2.6" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">NO TIME LIMIT</tspan></text>
+            </g>
+            <g class="node" transform="translate(430,884)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#2F7D3F" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">SATISFIED</tspan></text>
+            </g>
+            <g class="node" transform="translate(1240,884)">
+              <rect x="-150.0" y="-34.0" width="300" height="68" rx="12" fill="#0E5C6B" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">FIRST APPEAL</tspan></text>
+            </g>
+            <g class="node" transform="translate(2220,884)">
+              <rect x="-140.0" y="-39.0" width="280" height="78" rx="12" fill="#FFF5E8" stroke="#D97706" stroke-width="2.8" filter="url(#shadow)"/>
+              <text y="-4" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">SECTION 18</tspan><tspan x="0" dy="20">COMPLAINT TO CIC</tspan></text>
+            </g>
+            <g class="node" transform="translate(900,990)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">45</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(1640,990)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">45</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(900,1094)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#FFFFFF" stroke="#082F5B" stroke-width="2.6" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">DECISION</tspan></text>
+            </g>
+            <g class="node" transform="translate(1640,1094)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#EAF0F6" stroke="#082F5B" stroke-width="2.6" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#082F5B" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">NO DECISION</tspan></text>
+            </g>
+            <g class="node" transform="translate(430,1214)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#2F7D3F" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">SATISFIED</tspan></text>
+            </g>
+            <g class="node" transform="translate(680,1214)">
+              <circle r="15" fill="#082F5B" filter="url(#shadow)"/>
+            </g>
+            <g class="node" transform="translate(900,1214)">
+              <rect x="-120.0" y="-34.0" width="240" height="68" rx="12" fill="#B42318" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">NOT SATISFIED</tspan></text>
+            </g>
+            <g class="node" transform="translate(900,1318)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">90</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(1640,1318)">
+              <rect x="-78.0" y="-27.0" width="156" height="54" rx="27.0" fill="url(#navyGrad)" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF">
+                <tspan font-size="22" font-weight="700">90</tspan>
+                <tspan font-size="12" font-weight="700" dx="7" letter-spacing="0.14em">DAYS</tspan>
+              </text>
+            </g>
+            <g class="node" transform="translate(1320,1420)">
+              <rect x="-260.0" y="-34.0" width="520" height="68" rx="12" fill="#0E5C6B" filter="url(#shadow)"/>
+              <text y="6" text-anchor="middle" fill="#FFFFFF" font-size="17" font-weight="650" letter-spacing="0.06em"><tspan x="0" dy="0">SECOND APPEAL TO CIC / SIC</tspan></text>
+            </g></g>
+  <rect x="0" y="1530" width="2480" height="70" fill="#EFEBE3"/>
+  <line x1="0" y1="1530" x2="2480" y2="1530" stroke="#D9D3C8" stroke-width="1"/>
+  <text x="52" y="1570" fill="#082F5B" font-size="14" font-weight="650">Replica of the RTI Online lifecycle diagram, redrawn for clarity. Section cites refer to the RTI Act, 2005.</text>
+  <text x="2428" y="1570" text-anchor="end" fill="#4B596A" font-size="14">Not a government publication · For orientation only · Not legal advice</text>
+</svg></div>
+</body>
+</html>

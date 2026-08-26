@@ -32,7 +32,7 @@ export default function SiteMasthead({
         <div className="site-container utility-inner">
           <span className="utility-notice">{notice}</span>
           <div className="utility-end">
-            {links ? <div className="utility-links">{links}</div> : null}
+            {links ? <nav className="utility-links" aria-label="Utility links">{links}</nav> : null}
             <AccessibilityControls />
           </div>
         </div>
@@ -47,7 +47,7 @@ export default function SiteMasthead({
               width={compact ? 38 : 47}
             />
             <span className="brand-rule" aria-hidden="true" />
-            <span>
+            <span className="brand-name">
               <strong>Praja RTI</strong>
               <small lang="hi">प्रजा आरटीआई</small>
             </span>
