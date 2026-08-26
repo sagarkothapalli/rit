@@ -1,0 +1,283 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Praja-RTI — light glass editor design system
+   Ivory ground, pastel aurora wash, frosted-glass panels,
+   editorial serif display, one calm indigo signal.
+   React Bits: Aurora · BlurText · SpotlightCard · CountUp
+   ============================================================ */
+
+:root {
+  /* Ground */
+  --bg: #f7f5f0;
+  --bg-raise: #ffffff;
+
+  /* Ink */
+  --fg: #16181d;
+  --fg-soft: #4d525c;
+  --fg-faint: #6f747e;
+
+  /* Hairlines */
+  --line: rgba(22, 24, 29, 0.08);
+  --line-strong: rgba(22, 24, 29, 0.16);
+
+  /* Signal */
+  --iris: #4f46e5;
+  --iris-deep: #4338ca;
+  --iris-tint: rgba(79, 70, 229, 0.08);
+  --violet-pastel: #c4b5fd;
+  --sky-pastel: #bae6fd;
+  --rose-pastel: #fbcfe8;
+
+  /* Status (dark enough for ivory) */
+  --red: #b91c1c;
+  --green: #047857;
+  --amber: #92400e;
+
+  /* Glass */
+  --glass: rgba(255, 255, 255, 0.65);
+  --glass-strong: rgba(255, 255, 255, 0.82);
+  --glass-soft: rgba(255, 255, 255, 0.55);
+  --glass-faint: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 1px 2px rgba(20, 20, 30, 0.04), 0 16px 40px -16px rgba(20, 20, 30, 0.14);
+
+  /* Legacy aliases (/demo tokens) */
+  --linen: var(--bg);
+  --linen-deep: #efece4;
+  --linen-edge: var(--line);
+  --walnut: #e9e6de;
+  --walnut-deep: #1c1e24;
+  --leather: rgba(79, 70, 229, 0.05);
+  --leather-deep: rgba(79, 70, 229, 0.1);
+  --leather-edge: var(--line);
+  --leather-stitch: var(--iris);
+  --paper: var(--glass-strong);
+  --paper-warm: rgba(255, 255, 255, 0.5);
+  --paper-edge: var(--line);
+  --ink: var(--fg);
+  --ink-soft: var(--fg-soft);
+  --ink-faint: var(--fg-faint);
+  --brass: var(--iris);
+  --brass-deep: var(--iris-deep);
+  --wax: var(--red);
+  --wax-deep: #991b1b;
+  --ok: var(--green);
+  --warn: var(--amber);
+  --danger: var(--red);
+}
+
+/* ============================================================
+   Night desk — same room, lamp off. Warm charcoal ground,
+   glass goes smoke, indigo lifts to periwinkle, status inks
+   brighten for contrast. Pastel aurora reads as window glow.
+   ============================================================ */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Ground */
+  --bg: #131417;
+  --bg-raise: #1b1d22;
+
+  /* Ink */
+  --fg: #ece9e2;
+  --fg-soft: #a7aab2;
+  --fg-faint: #7c8089;
+
+  /* Hairlines */
+  --line: rgba(236, 233, 226, 0.1);
+  --line-strong: rgba(236, 233, 226, 0.18);
+
+  /* Signal — indigo lifts, hover brightens instead of deepens */
+  --iris: #818cf8;
+  --iris-deep: #a5b4fc;
+  --iris-tint: rgba(129, 140, 248, 0.14);
+
+  /* Status — brighter inks for charcoal */
+  --red: #f87171;
+  --green: #34d399;
+  --amber: #fbbf24;
+
+  /* Glass — smoked */
+  --glass: rgba(27, 29, 34, 0.55);
+  --glass-strong: rgba(27, 29, 34, 0.78);
+  --glass-soft: rgba(24, 26, 31, 0.55);
+  --glass-faint: rgba(27, 29, 34, 0.4);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 16px 40px -16px rgba(0, 0, 0, 0.5);
+
+  /* Legacy aliases with baked-in light values */
+  --linen-deep: #191b20;
+  --walnut: #20232a;
+  --paper-warm: rgba(27, 29, 34, 0.45);
+  --wax-deep: #fca5a5;
+}
+
+html { color-scheme: light; }
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-muted: var(--fg-soft);
+  --color-accent: var(--iris);
+  --color-danger: var(--red);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.02em;
+}
+.font-body { font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif; }
+.font-mono { font-family: var(--font-mono), ui-monospace, monospace; }
+
+/* ---------- Glass panel (was .paper) ---------- */
+.paper {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  color: var(--fg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.paper-curl::after { content: none; }
+
+/* ---------- Tinted band (was .leather) ---------- */
+.leather {
+  background: var(--leather);
+  border-bottom: 1px solid var(--line);
+  color: var(--fg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.stitched-top { border-top: 1px solid var(--line); }
+.stitched-bottom { border-bottom: 1px solid var(--line); }
+.stitched-left { border-left: 1px solid var(--line); }
+.stitched-right { border-right: 1px solid var(--line); }
+
+/* ---------- Type treatments ---------- */
+.embossed { color: var(--fg); text-shadow: none; letter-spacing: -0.02em; }
+
+/* ---------- Buttons ---------- */
+.brass {
+  background: linear-gradient(180deg, #6366f1, var(--iris) 55%, var(--iris-deep));
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 10px 24px -10px rgba(79, 70, 229, 0.5);
+}
+.brass-plate {
+  background: var(--iris);
+  border: 1px solid var(--iris-deep);
+  color: #ffffff;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 8px 20px -10px rgba(79, 70, 229, 0.5);
+}
+.brass-plate:hover { background: var(--iris-deep); }
+
+/* ---------- Status chip (was .wax) ---------- */
+.wax {
+  background: color-mix(in srgb, var(--red) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
+  color: var(--red);
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+/* ---------- Tabs (step indicator) ---------- */
+.tab {
+  background: var(--glass-soft);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  color: var(--fg-soft);
+  padding: 8px 14px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: none;
+}
+.tab-active {
+  background: var(--iris-tint);
+  border-color: rgba(79, 70, 229, 0.3);
+  color: var(--iris);
+}
+
+/* ---------- Section divider ---------- */
+.section-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong) 20%, var(--line-strong) 80%, transparent);
+}
+
+/* ---------- Motion (kept — /demo depends on these) ---------- */
+@keyframes pageTurn {
+  0%   { transform: perspective(1400px) rotateY(0deg);    transform-origin: left center; }
+  100% { transform: perspective(1400px) rotateY(-92deg);  transform-origin: left center; }
+}
+@keyframes pageTurnIn {
+  0%   { transform: perspective(1400px) rotateY(92deg);   transform-origin: left center; opacity: 0; }
+  100% { transform: perspective(1400px) rotateY(0deg);    transform-origin: left center; opacity: 1; }
+}
+.page-turn-out { animation: pageTurn 360ms ease-in forwards; }
+.page-turn-in  { animation: pageTurnIn 360ms ease-out forwards; }
+
+@keyframes stampPress {
+  0%   { transform: rotate(0deg) scale(1); }
+  35%  { transform: rotate(-3deg) scale(0.94) translateY(2px); }
+  100% { transform: rotate(0deg) scale(1) translateY(0); }
+}
+.stamp-press { animation: stampPress 420ms cubic-bezier(0.4, 0, 0.2, 1) 1; }
+
+/* ---------- Hero aurora stage ---------- */
+.hero-aurora { opacity: 0.7; transition: opacity 400ms ease; }
+html[data-theme="dark"] .hero-aurora { opacity: 0.38; }
+
+/* ---------- Theme bloom ---------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+.theme-ico { width: 17px; height: 17px; overflow: visible; display: block; }
+.theme-ico .sun-g,
+.theme-ico .moon-g {
+  transform-origin: 50% 50%;
+  transform-box: view-box;
+  transition:
+    transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 300ms ease;
+}
+.theme-ico .sun-g { opacity: 1; transform: rotate(0deg) scale(1); }
+.theme-ico .moon-g { opacity: 0; transform: rotate(-90deg) scale(0.35); }
+.theme-ico.is-dark .sun-g { opacity: 0; transform: rotate(90deg) scale(0.35); }
+.theme-ico.is-dark .moon-g { opacity: 1; transform: rotate(0deg) scale(1); }
+
+/* ---------- Focus / selection ---------- */
+*:focus-visible {
+  outline: 2px solid var(--iris);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+::selection { background: rgba(79, 70, 229, 0.16); color: var(--fg); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

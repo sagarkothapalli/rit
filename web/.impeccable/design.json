@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-26T17:20:00Z",
+  "title": "Design System: Praja-RTI",
+  "extensions": {
+    "colorMeta": {
+      "bg":            { "role": "neutral-bg",   "displayName": "Ivory",         "canonical": "#f7f5f0" },
+      "fg":            { "role": "text",         "displayName": "Ink",           "canonical": "#16181d" },
+      "fg-soft":       { "role": "text-soft",    "displayName": "Ink Soft",      "canonical": "#4d525c" },
+      "fg-faint":      { "role": "text-faint",   "displayName": "Ink Faint",     "canonical": "#6f747e" },
+      "line":          { "role": "border",       "displayName": "Hairline",      "canonical": "rgba(22,24,29,0.08)" },
+      "iris":          { "role": "primary",      "displayName": "Iris",          "canonical": "#4f46e5" },
+      "iris-deep":     { "role": "primary-deep", "displayName": "Iris Deep",     "canonical": "#4338ca" },
+      "violet-pastel": { "role": "atmosphere",   "displayName": "Violet Pastel", "canonical": "#c4b5fd" },
+      "sky-pastel":    { "role": "atmosphere",   "displayName": "Sky Pastel",    "canonical": "#bae6fd" },
+      "rose-pastel":   { "role": "atmosphere",   "displayName": "Rose Pastel",   "canonical": "#fbcfe8" },
+      "red":           { "role": "status-danger","displayName": "Guard Red",     "canonical": "#b91c1c" },
+      "green":         { "role": "status-ok",    "displayName": "Confirm Green", "canonical": "#047857" },
+      "amber":         { "role": "status-warn",  "displayName": "Notice Amber",  "canonical": "#92400e" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Fraunces editorial headlines; italic light accent lines." },
+      "body":    { "displayName": "Body",    "purpose": "Inter prose, 14-16.5px, 55-65ch." },
+      "mono":    { "displayName": "Readout", "purpose": "JetBrains Mono uppercase labels and tags." }
+    },
+    "shadows": [
+      { "name": "glass",       "value": "0 1px 2px rgba(20,20,30,0.04), 0 16px 40px -16px rgba(20,20,30,0.14)", "purpose": "Frosted panel depth." },
+      { "name": "iris-soft",   "value": "0 12px 28px -10px rgba(79,70,229,0.55)", "purpose": "Primary button hover presence." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default state easing." },
+      { "name": "page-turn",     "value": "pageTurnIn 360ms ease-out",    "purpose": "/demo step transition." },
+      { "name": "stamp-press",   "value": "stampPress 420ms",             "purpose": "Confirm press feedback." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Iris pill, white text; deepens on hover with soft coloured shadow.",
+      "html": "<a class=\"ds-btn\" href=\"/demo\">Launch the console →</a>",
+      "css": ".ds-btn { display: inline-block; padding: 12px 28px; border-radius: 9999px; background: #4f46e5; color: #fff; font-size: 15px; font-weight: 500; text-decoration: none; transition: all 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn:hover { background: #4338ca; box-shadow: 0 12px 28px -10px rgba(79,70,229,0.55); transform: scale(1.02); } .ds-btn:active { transform: scale(0.99); }"
+    },
+    {
+      "name": "Glass Panel",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Frosted glass card: white 65%, blur 16px, hairline border, soft layered shadow.",
+      "html": "<div class=\"ds-glass\"><div class=\"ds-tag\">Step 1</div><h3>Title</h3><p>Body text on frosted glass.</p></div>",
+      "css": ".ds-glass { position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(22,24,29,0.08); background: rgba(255,255,255,0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 1px 2px rgba(20,20,30,0.04), 0 16px 40px -16px rgba(20,20,30,0.14); padding: 24px; color: #16181d; } .ds-tag { font-family: var(--font-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #4f46e5; margin-bottom: 12px; } .ds-glass h3 { font-family: var(--font-display), Georgia, serif; font-size: 20px; font-weight: 500; margin: 0 0 8px; } .ds-glass p { font-size: 14px; line-height: 1.6; color: #4d525c; margin: 0; }"
+    },
+    {
+      "name": "Ribbon",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Independent-demo notice: white/60 blur band, amber dot, mono tag.",
+      "html": "<div class=\"ds-ribbon\"><span class=\"ds-dot\"></span><span class=\"ds-tag\">Independent</span><span>Praja-RTI is a hackathon demo — nothing is filed with any government system.</span></div>",
+      "css": ".ds-ribbon { display: flex; align-items: center; gap: 10px; padding: 8px 24px; font-size: 13px; color: #4d525c; border-bottom: 1px solid rgba(22,24,29,0.08); background: rgba(255,255,255,0.6); backdrop-filter: blur(4px); } .ds-dot { width: 6px; height: 6px; border-radius: 9999px; background: #92400e; } .ds-tag { font-family: var(--font-mono), ui-monospace, monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #92400e; }"
+    },
+    {
+      "name": "Step Tab",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Glass step chip; active = iris tint + iris text.",
+      "html": "<span class=\"ds-tab ds-tab-active\">01 · Speak</span> <span class=\"ds-tab\">02 · Draft</span>",
+      "css": ".ds-tab { display: inline-block; padding: 8px 14px 10px; border-radius: 12px 12px 0 0; border: 1px solid rgba(22,24,29,0.08); border-bottom: 0; background: rgba(255,255,255,0.55); backdrop-filter: blur(10px); color: #4d525c; font-family: var(--font-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; } .ds-tab-active { background: rgba(79,70,229,0.08); border-color: rgba(79,70,229,0.3); color: #4f46e5; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A quiet editorial desk by a window",
+    "overview": "Ivory paper ground, pastel light moving through frosted glass, one calm indigo signal. The surface refuses the dark-instrument console, the neon demo aesthetic, and every government-portal habit. Fraunces carries the editorial voice — including a light italic second line in the headline. React Bits motion: a pastel Aurora wash behind the hero, BlurText assembling the headline, a soft indigo spotlight following the pointer across glass panels, CountUp instruments for the real portal numbers.",
+    "keyCharacteristics": [
+      "Indigo is the only interactive colour; pastels are atmosphere; status colours are darkened for ivory contrast.",
+      "Panels are frosted glass — white 65%, 16px blur, hairline border, layered soft shadow, 20px radius.",
+      "Fraunces display with an italic light accent line; Inter body; JetBrains Mono uppercase readouts.",
+      "The independent-demo ribbon sits above every page on a white/60 blur band.",
+      "Depth is soft and layered — never neon, never hard offsets."
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Indigo is the only colour that invites a click.", "section": "colors" },
+      { "name": "The Darkened Status Rule", "body": "Status colours are darkened for 4.5:1 on ivory; never bright status hues on light ground.", "section": "colors" },
+      { "name": "The Glass Rule", "body": "Panels blur what is behind them; never opaque white cards, never dark glass on light ground.", "section": "elevation" },
+      { "name": "The Italic Accent Rule", "body": "The headline's second line is Fraunces italic light in iris.", "section": "typography" }
+    ],
+    "dos": [
+      "Keep indigo as the only click-inviting colour.",
+      "Use Fraunces italic for editorial accent lines.",
+      "Carry the ribbon on every page.",
+      "Darken status colours for ivory contrast."
+    ],
+    "donts": [
+      "Use dark panels or neon on this ground.",
+      "Use bright status hues on ivory.",
+      "Claim filing, acceptance, or government status anywhere.",
+      "Replace glass with opaque flat cards."
+    ]
+  }
+}
