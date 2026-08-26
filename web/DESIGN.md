@@ -1,129 +1,302 @@
 ---
-name: Praja-RTI
-description: Voice-first RTI drafting, calmly done — light glass editor design system
+name: Praja RTI
+description: An independent civic workspace that turns citizen speech into reviewable records requests
 colors:
-  bg: "#f7f5f0"
-  bg-raise: "#ffffff"
-  fg: "#16181d"
-  fg-soft: "#4d525c"
-  fg-faint: "#6f747e"
-  line: "rgba(22,24,29,0.08)"
-  line-strong: "rgba(22,24,29,0.16)"
-  iris: "#4f46e5"
-  iris-deep: "#4338ca"
-  violet-pastel: "#c4b5fd"
-  sky-pastel: "#bae6fd"
-  rose-pastel: "#fbcfe8"
-  red: "#b91c1c"
-  green: "#047857"
-  amber: "#92400e"
+  paper-ground: "#f7f7f4"
+  surface: "#ffffff"
+  surface-soft: "#f5f7f9"
+  ink: "#17202d"
+  ink-soft: "#4b596a"
+  ink-faint: "#687486"
+  rule: "#d8dde4"
+  rule-strong: "#b9c2cf"
+  civic-navy: "#082f5b"
+  civic-navy-deep: "#052444"
+  civic-navy-soft: "#eaf0f6"
+  saffron: "#d97706"
+  saffron-soft: "#fff5e8"
+  confirmation-green: "#2f7d3f"
+  confirmation-green-soft: "#edf7ef"
+  refusal-red: "#b42318"
+  caution-amber: "#8a5b00"
 typography:
   display:
-    fontFamily: "Fraunces, Georgia, serif"
-    fontWeight: 500
-    letterSpacing: "-0.02em"
-    fontVariation: "opsz, SOFT"
+    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(2.65rem, 4.5vw, 4.05rem)"
+    fontWeight: 630
+    lineHeight: 1.02
+    letterSpacing: "-0.04em"
+  headline:
+    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(2rem, 3.7vw, 3.25rem)"
+    fontWeight: 630
+    lineHeight: 1.1
+    letterSpacing: "-0.035em"
   body:
-    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "16px"
     fontWeight: 400
-  mono:
-    fontFamily: "JetBrains Mono, ui-monospace, monospace"
-    textTransform: "uppercase"
-    letterSpacing: "0.14-0.2em"
+    lineHeight: 1.55
+  label:
+    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 700
+    lineHeight: 1.45
+    letterSpacing: "0.05em"
+  devanagari:
+    fontFamily: "Noto Sans Devanagari, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.9rem"
+    fontWeight: 400
+    lineHeight: 1.45
 rounded:
-  card: "20px"
-  control: "9999px"
-  tab: "12px 12px 0 0"
+  compact: "6px"
+  action: "8px"
+  panel: "12px"
+  workspace: "14px"
+  circle: "50%"
+spacing:
+  xxs: "4px"
+  xs: "8px"
+  sm: "12px"
+  md: "18px"
+  lg: "28px"
+  xl: "52px"
 components:
+  masthead:
+    backgroundColor: "{colors.civic-navy}"
+    textColor: "{colors.surface}"
+    padding: "22px 28px"
   button-primary:
-    backgroundColor: "{colors.iris}"
-    textColor: "#ffffff"
-    rounded: "{rounded.control}"
-    padding: "12px 28px"
-  card:
-    backgroundColor: "rgba(255,255,255,0.65)"
-    textColor: "{colors.fg}"
-    borderColor: "{colors.line}"
-    rounded: "{rounded.card}"
+    backgroundColor: "{colors.civic-navy}"
+    textColor: "{colors.surface}"
+    rounded: "{rounded.action}"
+    padding: "12px 20px"
+  button-primary-hover:
+    backgroundColor: "{colors.civic-navy-deep}"
+    textColor: "{colors.surface}"
+    rounded: "{rounded.action}"
+    padding: "12px 20px"
+  button-light:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.civic-navy}"
+    rounded: "{rounded.action}"
+    padding: "12px 20px"
+  button-secondary:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.civic-navy}"
+    rounded: "7px"
+    padding: "8px 11px"
+  field:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.panel}"
+    padding: "12px 16px"
+  panel:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.panel}"
+    padding: "24px"
+  truth-strip:
+    backgroundColor: "#fff8eb"
+    textColor: "#5f4a20"
+    padding: "9px 28px"
 ---
 
-# Design System: Praja-RTI
+# Design System: Praja RTI
 
 ## Overview
 
-**Creative North Star: "A quiet editorial desk by a window."**
+**Creative North Star: "The Civic Records Desk"**
 
-Ivory paper ground, pastel light moving through frosted glass, one calm indigo signal. The surface refuses the dark-instrument console, the neon demo aesthetic, and every government-portal habit. Fraunces carries the editorial voice — including a light italic second line in the headline. React Bits motion: a pastel Aurora wash behind the hero, BlurText assembling the headline, a soft indigo spotlight following the pointer across glass panels, CountUp instruments for the real portal numbers.
+Praja RTI is a restrained public-service workspace where a citizen's natural words visibly become a precise request for records. India navy, warm off-white paper, thin neutral rules, sparse saffron and green signals, and measured Public Sans typography create civic gravity without imitating an official portal. The feeling is calm, legible, and quietly capable: closer to a well-run assistance desk than a campaign landing page.
 
-**Key Characteristics**
-- Indigo (#4f46e5) is the only interactive colour; pastels are atmosphere; red/green/amber are status-only and darkened for ivory contrast.
-- Panels are frosted glass: white 65%, 16px blur, hairline border, layered soft shadow, 20px radius.
-- Fraunces display (medium, tight) with an italic light accent line; Inter body; JetBrains Mono uppercase readouts.
-- The independent-demo ribbon (amber dot) sits above every page on a white/60 blur band.
-- Depth is soft and layered — never neon, never hard offsets.
+The visual system is flat and information-led. Solid regions establish hierarchy; the bilingual masthead establishes identity; authored line icons explain actions; and the speech-to-records transformation demonstrates the product in the first viewport. Generous section spacing is balanced by compact controls, labels, and corners so complex public information remains approachable rather than promotional.
+
+The service boundary is part of the design, not footer fine print. Praja RTI prepares, explains, and lets the citizen review; the official RTI Online portal is a separate destination for filing. Every consequential workspace surface must plainly state that Praja RTI is independent, is not a government portal, does not connect to a government system, and has not filed or submitted the citizen's request.
+
+**Key Characteristics:**
+
+- A solid India-navy civic masthead above an off-white service-paper ground.
+- One visible speech-to-numbered-records workspace as the signature product demonstration.
+- Public Sans throughout Latin text, with Noto Sans Devanagari for Hindi identity text.
+- Flat solid surfaces, one-pixel rules, rare soft shadows, and mostly 6–12px corners.
+- Saffron, green, amber, and red communicate emphasis or semantic state; navy owns action and structure.
+- Authored outline SVG icons, semantic lifecycle connectors, and one-time IntersectionObserver reveals.
+- Independent preparation and official filing are always presented as two distinct services.
 
 ## Colors
 
-### Signal
-- **Iris** (#4f46e5): every interactive element — links, active tab, primary button, focus ring, spotlight.
-- **Iris Deep** (#4338ca): hover state.
+The palette carries institutional clarity without claiming institutional authority: navy structures the experience, off-white and white hold the reading surfaces, and Indian civic colors appear only as restrained signals.
 
-### Atmosphere (never interactive)
-- **Violet Pastel** (#c4b5fd) / **Sky Pastel** (#bae6fd) / **Rose Pastel** (#fbcfe8): the Aurora stops.
+### Primary
 
-### Status (darkened for ivory)
-- **Red** (#b91c1c): Sec 8 guard, NOT-SUBMITTED.
-- **Green** (#047857): simulated success.
-- **Amber** (#92400e): the independent ribbon marker.
+- **Civic Navy:** The masthead, primary actions, active tabs, numbered request markers, key links, and structural icons. It is the system's dominant interactive and civic color.
+- **Deep Civic Navy:** Hovered primary actions, footer ground, and the strongest heading emphasis.
+- **Civic Navy Wash:** Selected choices, icon fields, and quiet informational emphasis where a solid navy block would be too strong.
+
+### Secondary
+
+- **Saffron Signal:** A sparse highlight for active underlines and lifecycle branches that require attention without implying failure.
+- **Saffron Wash:** Cautionary or action-oriented lifecycle outcomes on light surfaces.
+
+### Tertiary
+
+- **Confirmation Green:** Ready, allowed, satisfied, and citizen-confirmed states. Pair color with explicit text or an icon; never rely on color alone.
+- **Refusal Red:** Exemption refusals, errors, and `NOT_SUBMITTED` receipt status. Red is semantic, not promotional.
+- **Caution Amber:** Local fallback, uncertainty, and operational caution states.
 
 ### Neutral
-- **Ivory** (#f7f5f0) ground · **Ink** (#16181d / #4d525c / #6f747e) three-step text · **Hairline** (rgba(22,24,29,0.08)) borders.
+
+- **Paper Ground:** The slightly warm page background that separates the service from stark portal white.
+- **Surface:** Primary workspace, content, field, and navigation-action surfaces.
+- **Soft Surface:** Toolbars, inactive tabs, and quiet grouped regions.
+- **Ink / Soft Ink / Faint Ink:** Three levels for primary content, supporting explanation, and metadata.
+- **Rule / Strong Rule:** One-pixel dividers and form boundaries; use the stronger rule for controls that need a clearer affordance.
 
 ### Named Rules
-**The One Signal Rule.** Indigo is the only colour that invites a click.
-**The Darkened Status Rule.** Status colours are darkened for 4.5:1 on ivory; never use bright status hues on light ground.
-**The Glass Rule.** Panels blur what is behind them; they are never opaque white cards and never dark glass on light ground.
+
+**The Navy Owns Action Rule.** Navy is the only general-purpose interactive color. Saffron, green, amber, and red stay semantic.
+
+**The Signal, Not Decoration Rule.** Tricolour hues appear in the four-pixel top rule and selected lifecycle or state cues; they never become large decorative fields.
+
+**The Independent Service Rule.** Civic colors and the State Emblem may orient the citizen, but they must always be paired with the independent-assistance label and adjacent truth boundary. Never use them to imply government affiliation, connection, filing, or endorsement.
 
 ## Typography
 
-**Display:** Fraunces 500, -0.02em, opsz axis; italic light for accent lines.
-**Body:** Inter 400, 14–16.5px, 1.6 line-height, 55–65ch.
-**Mono:** JetBrains Mono uppercase, 10–11px, 0.18–0.2em tracking — readouts only.
+**Display Font:** Public Sans with system sans fallbacks
+
+**Body Font:** Public Sans with system sans fallbacks
+
+**Devanagari Font:** Noto Sans Devanagari with system sans fallbacks
+
+**Character:** One public-service sans family carries the entire Latin hierarchy, moving from broad, tightly tracked headings to compact operational labels without changing personality. Devanagari is a first-class identity script, not a decorative subtitle.
+
+### Hierarchy
+
+- **Display** (630, responsive 2.65–4.05rem, 1.02 line-height): First-viewport proposition only. Keep it modest in width and balance the lines; do not turn it into an oversized campaign slogan.
+- **Headline** (630, responsive 2–3.25rem, 1.1 line-height): Major public-information sections and closing calls to action.
+- **Workspace Title** (500, 1.75–2rem, 1.1 line-height): One task or decision per application stage.
+- **Body** (400, 1rem, 1.55–1.72 line-height): Explanations and instructional text, typically capped around 53–64 characters per line.
+- **Label** (680–750, 0.64–0.79rem, 0.03–0.2em tracking): Metadata, step numbers, statuses, and control labels. Uppercase is reserved for short operational readouts.
+- **Devanagari Identity** (400, 0.9rem, 1.45 line-height): The Hindi service name within the brand lockup.
 
 ### Named Rules
-**The Italic Accent Rule.** The headline's second line is Fraunces italic light in iris; it never repeats the roman weight.
+
+**The One Sans Rule.** Do not introduce a serif, display face, or code-style monospace. Public Sans creates hierarchy through size, weight, tracking, and case; `.font-mono` remains the same family with compact operational tracking.
+
+**The Bilingual Peer Rule.** Hindi and English identity text must read as coordinated peers with correct Noto Sans Devanagari shaping, never as ornamental script.
 
 ## Layout
 
-`max-w-6xl` container, 24px gutters. Aurora occupies the top 560px, masked to an ellipse from the top edge. Hero centred; sections separated by 80px rhythm and hairline gradient rules. Grids: 2-col panels, 4-col stats, 2-col guardrails; single column below md.
+The public surface uses a centered 1240px container with 28px desktop gutters, 22px tablet gutters below 860px, and 18px mobile gutters below 640px. The opening composition is a 40/60-style split: a concise proposition and primary action on the left, with the larger working speech-to-records transformation on the right. It becomes a single column below 1100px without changing reading order.
+
+Major sections breathe on an 88–140px vertical rhythm. Information inside workspaces is denser: toolbars are about 46px high, fields and action groups use 8–18px gaps, and card padding typically sits between 22px and 30px. The system uses borders and whitespace to group content before reaching for cards.
+
+Ordered processes use visible connectors on wide screens and a vertical reading path below 860px. Two-column safeguards collapse to one column at the same breakpoint. Below 640px, the transformation stacks transcript, directional connector, and draft; actions become full width where useful; the lifecycle panel may run edge-to-edge while preserving its internal padding; and all primary targets remain at least 44px tall.
+
+Viewport reveals are progressive enhancement. Sections rise, wipe, or focus once at approximately 12% intersection with a lower root margin; content already near the first viewport is shown immediately. The record-to-request sequence may animate in order, but page reading order and task state must remain clear without motion.
+
+### Named Rules
+
+**The Workspace Leads Rule.** Show the product mechanism as one coherent work surface; never replace it with a grid of feature cards or promotional statistics.
+
+**The Reading Order Rule.** Responsive layouts may stack or simplify, but transcript always precedes transformation and prepared records, and official filing always follows independent preparation.
 
 ## Elevation & Depth
 
-Glass shadow only: `0 1px 2px rgba(20,20,30,0.04), 0 16px 40px -16px rgba(20,20,30,0.14)`. Buttons add a coloured soft shadow on hover (`0 12px 28px -10px rgba(79,70,229,0.55)`). No glows at rest.
+This is a flat-by-default system. Navy mastheads, white work surfaces, soft neutral bands, and one-pixel rules create depth through tonal contrast. Shadows are reserved for the signature transformation, primary application papers, and slight action feedback; they never create floating glass layers.
+
+### Shadow Vocabulary
+
+- **Panel Shadow** (`0 22px 60px -38px rgba(23, 32, 45, 0.44)`): The first-viewport transformation workspace only, or an equally important composite work surface.
+- **Paper Shadow** (`0 18px 45px -32px rgba(8, 47, 91, 0.48)`): Main task papers in the drafting and administration workspaces.
+- **Action Shadow** (`0 10px 25px -18px rgba(8, 47, 91, 0.7)`): Subtle primary-action presence; deepen slightly on hover while moving no more than two pixels.
+
+### Named Rules
+
+**The Flat Civic Rule.** Solid fills and rules do the structural work. Do not use translucency, backdrop blur, gradients, colored glow, or ornamental floating layers.
+
+**The Rare Lift Rule.** A shadow identifies a major work object or interaction state, never an ordinary content block.
 
 ## Shapes
 
-Cards 20px, pills for all buttons/chips, tabs 12px top corners only. No 4px corners.
+Corners are compact and functional. Use 6px for tabs and tight controls, 7–8px for buttons and small icon fields, and 10–12px for inputs and task papers. The 14px transformation shell is the single softer signature container. Circular geometry is reserved for microphones, numbered markers, step icons, and small state dots.
+
+Borders are one pixel and neutral by default. State changes may shift a border to navy, green, saffron, amber, or red, always with text or an icon. Full pills are limited to compact status or internal utility chips; primary calls to action stay rectangular.
+
+### Named Rules
+
+**The Compact Corner Rule.** Most surfaces live between 6px and 12px. Do not reintroduce oversized 20px cards or pill-shaped primary actions.
+
+**The Circle Means Sequence Rule.** Circles denote voice input, ordered progress, or a compact state marker; they are not general decoration.
 
 ## Components
 
-- **Primary button:** iris pill, white text, deepens on hover with coloured soft shadow.
-- **Ghost button:** white/60 blur pill, hairline border, ink text.
-- **SpotlightCard:** glass panel; pointer-tracked radial (iris 0.06 / red 0.06 for the guard).
-- **Tab:** glass chip, active = iris tint + iris text.
-- **Stat instrument:** glass card, Fraunces CountUp figure, mono caption.
-- **Ribbon:** white/60 blur band, amber dot, mono "Independent" tag.
+The component family feels precise, calm, and reviewable. Every state explains itself in words, every icon is an authored SVG with a 1.5–1.7px outline, and no component implies an action the service did not perform.
+
+### Buttons
+
+- **Shape:** Rectangular with compact soft corners (usually 8px), a minimum 44px target, and 12px vertical padding for primary actions.
+- **Primary:** Solid civic navy with white text and an authored 18–20px SVG icon when the action benefits from one.
+- **Hover / Focus:** Deepen to navy-deep and lift one or two pixels. Keyboard focus is a three-pixel saffron outline with a three-pixel offset.
+- **Light:** White on navy for the masthead or closing action region; its hover moves toward a warm cream.
+- **Secondary:** White, one-pixel strong rule, navy label, and a subtle navy-wash hover. Text links use an underline rather than button chrome.
+
+### Chips
+
+- **Style:** Compact 5–8px corners, one-pixel border, 0.64–0.75rem label text, and restrained tracking.
+- **State:** Active choices use navy wash with navy border and text. Green means confirmed or live, amber means fallback or uncertain, and red means error or refusal. State text is mandatory.
+
+### Cards / Containers
+
+- **Corner Style:** Task papers use 12px; the transformation shell uses 14px; unboxed columns and ruled regions are preferred for ordinary content.
+- **Background:** White or the soft neutral surface, never translucent.
+- **Shadow Strategy:** Refer to the Rare Lift Rule; most containers use no shadow.
+- **Border:** One-pixel neutral rule when separation is not already provided by background or whitespace.
+- **Internal Padding:** Typically 22–30px for work areas and 16–20px for compact states.
+
+### Inputs / Fields
+
+- **Style:** White solid fill, strong one-pixel neutral border, 8–12px corners, and 14–15px body text.
+- **Focus:** Navy border with a quiet four-pixel navy wash ring; the global saffron focus outline remains visible for keyboard navigation.
+- **Error / Disabled:** Error copy and border use refusal red; disabled controls retain their label and reduce opacity without disappearing.
+
+### Navigation
+
+The four-pixel tricolour rule and light-gray utility bar precede the solid civic-navy masthead. The lockup combines the State Emblem, bilingual Praja RTI name, and an explicit “Independent Citizen Assistance” context label. Desktop navigation is plain light text with a saffron hover underline; it hides below 860px while the home or start action remains available. The masthead must be followed by the independent-service truth strip on citizen-facing routes.
+
+### Speech-to-Records Workspace
+
+This is the signature pattern. A quiet toolbar labels the draft workspace and review status. The left region holds an editable transcript and restrained green waveform; a bordered directional rail bridges to the right region, where numbered navy markers organize neutral requests for records. On mobile the rail rotates downward so the same transformation reads top to bottom. Copy and download controls are secondary and the output always retains a plain not-filed statement.
+
+### Lifecycle and Process
+
+Use semantic ordered lists and CSS connectors rather than decorative diagrams. Navy carries structure, green confirms a satisfactory branch, saffron marks attention, and soft navy indicates a neutral route. Published source material is linked and visually separated from the accessible interpretation.
+
+### Preparation Receipt
+
+Receipts summarize the citizen's work only. The status `NOT_SUBMITTED` is red and explicit; nearby copy must say that no payment was processed and nothing was sent to a government system. Never style the receipt as an official acknowledgement, government stamp, or filing confirmation.
+
+### Motion
+
+Controls transition in roughly 150–200ms. Request lines reveal over 650ms with 160ms staggering; application-stage content enters over 360ms; and viewport sections reveal over 720–820ms with the emphasized ease `cubic-bezier(0.16, 1, 0.3, 1)`. `prefers-reduced-motion` reduces animation and transition durations to effectively zero and disables smooth scrolling.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep indigo as the only click-inviting colour.
-- **Do** use Fraunces italic for editorial accent lines.
-- **Do** carry the ribbon on every page.
-- **Do** darken status colours for ivory contrast.
+
+- **Do** lead citizen-facing pages with the bilingual civic identity, explicit independent-assistance label, and adjacent truth strip.
+- **Do** show speech becoming numbered, records-focused requests in one visible workspace.
+- **Do** separate independent preparation from official filing in layout, labels, links, and receipt states.
+- **Do** use Public Sans, Noto Sans Devanagari, one-pixel rules, compact corners, and solid surfaces.
+- **Do** pair semantic color with plain-language status text and authored SVG icons.
+- **Do** preserve reading order, 44px targets, keyboard focus, scalable text, and reduced-motion behavior.
 
 ### Don't:
-- **Don't** use dark panels or neon on this ground.
-- **Don't** use bright status hues on ivory.
-- **Don't** claim filing, acceptance, or government status anywhere.
-- **Don't** replace glass with opaque flat cards.
+
+- **Don't** imply that Praja RTI is a government portal, connects to a government system, files an application, accepts a payment, or produces an official receipt.
+- **Don't** use the State Emblem as a product seal, watermark, success stamp, or substitute for the independent-service disclosure.
+- **Don't** use purple, gradients, glass effects, decorative glow, or a return to the discarded leather or editorial visual worlds.
+- **Don't** use public-facing “demo” wording, promote a statutory price, or make the service sound like a hackathon pitch.
+- **Don't** build promotional feature-card grids, oversized headlines, excessive rounded cards, pill-shaped primary actions, or decorative dash characters.
+- **Don't** introduce icon libraries when an authored, accessible inline SVG fits the civic line-icon grammar.

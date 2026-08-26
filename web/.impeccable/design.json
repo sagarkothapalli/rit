@@ -1,102 +1,349 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-26T17:20:00Z",
-  "title": "Design System: Praja-RTI",
+  "generatedAt": "2026-08-26T17:10:02Z",
+  "title": "Design System: Praja RTI",
   "extensions": {
     "colorMeta": {
-      "bg":            { "role": "neutral-bg",   "displayName": "Ivory",         "canonical": "#f7f5f0" },
-      "fg":            { "role": "text",         "displayName": "Ink",           "canonical": "#16181d" },
-      "fg-soft":       { "role": "text-soft",    "displayName": "Ink Soft",      "canonical": "#4d525c" },
-      "fg-faint":      { "role": "text-faint",   "displayName": "Ink Faint",     "canonical": "#6f747e" },
-      "line":          { "role": "border",       "displayName": "Hairline",      "canonical": "rgba(22,24,29,0.08)" },
-      "iris":          { "role": "primary",      "displayName": "Iris",          "canonical": "#4f46e5" },
-      "iris-deep":     { "role": "primary-deep", "displayName": "Iris Deep",     "canonical": "#4338ca" },
-      "violet-pastel": { "role": "atmosphere",   "displayName": "Violet Pastel", "canonical": "#c4b5fd" },
-      "sky-pastel":    { "role": "atmosphere",   "displayName": "Sky Pastel",    "canonical": "#bae6fd" },
-      "rose-pastel":   { "role": "atmosphere",   "displayName": "Rose Pastel",   "canonical": "#fbcfe8" },
-      "red":           { "role": "status-danger","displayName": "Guard Red",     "canonical": "#b91c1c" },
-      "green":         { "role": "status-ok",    "displayName": "Confirm Green", "canonical": "#047857" },
-      "amber":         { "role": "status-warn",  "displayName": "Notice Amber",  "canonical": "#92400e" }
+      "paper-ground": {
+        "role": "neutral-bg",
+        "displayName": "Paper Ground",
+        "canonical": "#f7f7f4",
+        "tonalRamp": ["#686866", "#a3a3a1", "#d9d9d7", "#f7f7f4", "#fafaf8", "#fbfbfa", "#fdfdfc", "#fefefe"]
+      },
+      "surface": {
+        "role": "neutral-surface",
+        "displayName": "Service White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#6b6b6b", "#a8a8a8", "#e0e0e0", "#ffffff", "#ffffff", "#ffffff", "#ffffff", "#ffffff"]
+      },
+      "surface-soft": {
+        "role": "neutral-surface-soft",
+        "displayName": "Quiet Surface",
+        "canonical": "#f5f7f9",
+        "tonalRamp": ["#676869", "#a2a3a4", "#d8d9db", "#f5f7f9", "#f8fafb", "#fbfbfc", "#fcfdfd", "#fefefe"]
+      },
+      "ink": {
+        "role": "neutral-text",
+        "displayName": "Civic Ink",
+        "canonical": "#17202d",
+        "tonalRamp": ["#0a0d13", "#0f151e", "#141c28", "#17202d", "#616770", "#979ba1", "#c3c5c8", "#e8e9ea"]
+      },
+      "ink-soft": {
+        "role": "neutral-text-soft",
+        "displayName": "Explanatory Ink",
+        "canonical": "#4b596a",
+        "tonalRamp": ["#20252d", "#323b46", "#424e5d", "#4b596a", "#858e9a", "#aeb4bc", "#d0d4d8", "#edeef0"]
+      },
+      "ink-faint": {
+        "role": "neutral-text-faint",
+        "displayName": "Metadata Ink",
+        "canonical": "#687486",
+        "tonalRamp": ["#2c3138", "#454d58", "#5c6676", "#687486", "#98a0ad", "#bbc0c9", "#d8dbe0", "#f0f1f3"]
+      },
+      "rule": {
+        "role": "neutral-border",
+        "displayName": "Civic Rule",
+        "canonical": "#d8dde4",
+        "tonalRamp": ["#5b5d60", "#8f9296", "#bec2c9", "#d8dde4", "#e4e8ed", "#edf0f3", "#f5f6f8", "#fbfcfc"]
+      },
+      "rule-strong": {
+        "role": "neutral-border-strong",
+        "displayName": "Control Rule",
+        "canonical": "#b9c2cf",
+        "tonalRamp": ["#4e5157", "#7a8089", "#a3abb6", "#b9c2cf", "#cfd6de", "#e0e4e9", "#edeff3", "#f8f9fa"]
+      },
+      "civic-navy": {
+        "role": "primary",
+        "displayName": "Civic Navy",
+        "canonical": "#082f5b",
+        "tonalRamp": ["#031426", "#051f3c", "#072950", "#082f5b", "#57728f", "#90a1b5", "#bfc9d4", "#e6eaef"]
+      },
+      "civic-navy-deep": {
+        "role": "primary-deep",
+        "displayName": "Deep Civic Navy",
+        "canonical": "#052444",
+        "tonalRamp": ["#020f1d", "#03182d", "#04203c", "#052444", "#556a80", "#8f9cab", "#bec6ce", "#e6e9ec"]
+      },
+      "civic-navy-soft": {
+        "role": "primary-soft",
+        "displayName": "Civic Navy Wash",
+        "canonical": "#eaf0f6",
+        "tonalRamp": ["#626567", "#9a9ea2", "#ced3d8", "#eaf0f6", "#f1f5f9", "#f6f8fb", "#fafbfd", "#fdfefe"]
+      },
+      "saffron": {
+        "role": "secondary",
+        "displayName": "Saffron Signal",
+        "canonical": "#d97706",
+        "tonalRamp": ["#5b3203", "#8f4f04", "#bf6905", "#d97706", "#e5a356", "#eec28f", "#f5dcbe", "#fbf1e6"]
+      },
+      "saffron-soft": {
+        "role": "secondary-soft",
+        "displayName": "Saffron Wash",
+        "canonical": "#fff5e8",
+        "tonalRamp": ["#6b6761", "#a8a299", "#e0d8cc", "#fff5e8", "#fff8ef", "#fffbf5", "#fffcf9", "#fffefd"]
+      },
+      "confirmation-green": {
+        "role": "tertiary-success",
+        "displayName": "Confirmation Green",
+        "canonical": "#2f7d3f",
+        "tonalRamp": ["#14351a", "#1f532a", "#296e37", "#2f7d3f", "#72a77c", "#a1c5a9", "#c9ddcd", "#eaf2ec"]
+      },
+      "confirmation-green-soft": {
+        "role": "tertiary-success-soft",
+        "displayName": "Confirmation Wash",
+        "canonical": "#edf7ef",
+        "tonalRamp": ["#646864", "#9ca39e", "#d1d9d2", "#edf7ef", "#f3faf4", "#f7fbf8", "#fafdfb", "#fdfefd"]
+      },
+      "refusal-red": {
+        "role": "tertiary-danger",
+        "displayName": "Refusal Red",
+        "canonical": "#b42318",
+        "tonalRamp": ["#4c0f0a", "#771710", "#9e1f15", "#b42318", "#cc6962", "#dd9c97", "#ecc6c3", "#f8e9e8"]
+      },
+      "caution-amber": {
+        "role": "tertiary-warning",
+        "displayName": "Caution Amber",
+        "canonical": "#8a5b00",
+        "tonalRamp": ["#3a2600", "#5b3c00", "#795000", "#8a5b00", "#af8f52", "#cab58c", "#e1d4bd", "#f3efe6"]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Fraunces editorial headlines; italic light accent lines." },
-      "body":    { "displayName": "Body",    "purpose": "Inter prose, 14-16.5px, 55-65ch." },
-      "mono":    { "displayName": "Readout", "purpose": "JetBrains Mono uppercase labels and tags." }
+      "display": {
+        "displayName": "Public Display",
+        "purpose": "The first-viewport proposition only; large, tightly tracked, and deliberately restrained."
+      },
+      "headline": {
+        "displayName": "Section Headline",
+        "purpose": "Major public-information sections and the final call to action."
+      },
+      "body": {
+        "displayName": "Citizen Body",
+        "purpose": "Plain-language instructions and explanations with generous leading."
+      },
+      "label": {
+        "displayName": "Operational Label",
+        "purpose": "Compact statuses, metadata, step numbers, and control labels."
+      },
+      "devanagari": {
+        "displayName": "Devanagari Identity",
+        "purpose": "Correctly shaped Hindi service identity within the bilingual masthead."
+      }
     },
     "shadows": [
-      { "name": "glass",       "value": "0 1px 2px rgba(20,20,30,0.04), 0 16px 40px -16px rgba(20,20,30,0.14)", "purpose": "Frosted panel depth." },
-      { "name": "iris-soft",   "value": "0 12px 28px -10px rgba(79,70,229,0.55)", "purpose": "Primary button hover presence." }
+      {
+        "name": "panel",
+        "value": "0 22px 60px -38px rgba(23, 32, 45, 0.44)",
+        "purpose": "The composite speech-to-records transformation workspace."
+      },
+      {
+        "name": "paper",
+        "value": "0 18px 45px -32px rgba(8, 47, 91, 0.48)",
+        "purpose": "The main task paper in drafting and administration workspaces."
+      },
+      {
+        "name": "action",
+        "value": "0 10px 25px -18px rgba(8, 47, 91, 0.7)",
+        "purpose": "Subtle primary-action presence and hover feedback."
+      }
     ],
     "motion": [
-      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default state easing." },
-      { "name": "page-turn",     "value": "pageTurnIn 360ms ease-out",    "purpose": "/demo step transition." },
-      { "name": "stamp-press",   "value": "stampPress 420ms",             "purpose": "Confirm press feedback." }
+      {
+        "name": "control-state",
+        "value": "180ms ease",
+        "purpose": "Button, link, border, and color state changes."
+      },
+      {
+        "name": "request-enter",
+        "value": "650ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Sequential reveal of numbered records requests with 160ms staggering."
+      },
+      {
+        "name": "page-turn-in",
+        "value": "360ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Task-stage content entering from the right."
+      },
+      {
+        "name": "viewport-reveal",
+        "value": "720ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "One-time IntersectionObserver rise and focus reveals."
+      },
+      {
+        "name": "viewport-wipe",
+        "value": "820ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "One-time IntersectionObserver section wipe."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.001ms",
+        "purpose": "Effectively removes animation, transitions, and smooth scrolling when reduced motion is requested."
+      }
     ],
     "breakpoints": [
-      { "name": "md", "value": "768px" }
+      {
+        "name": "mobile-stack",
+        "value": "640px"
+      },
+      {
+        "name": "workspace-grid",
+        "value": "768px"
+      },
+      {
+        "name": "navigation-and-process",
+        "value": "860px"
+      },
+      {
+        "name": "hero-stack",
+        "value": "1100px"
+      }
     ]
   },
   "components": [
     {
-      "name": "Primary Button",
+      "name": "Civic Masthead",
+      "kind": "nav",
+      "refersTo": "masthead",
+      "description": "Solid navy bilingual identity and navigation with the independent-service context kept in the lockup.",
+      "html": "<div class=\"ds-masthead\"><a class=\"ds-brand\" href=\"/\"><span class=\"ds-brand-mark\" aria-hidden=\"true\">PR</span><span class=\"ds-brand-name\"><strong>Praja RTI</strong><small lang=\"hi\">प्रजा आरटीआई</small></span><span class=\"ds-brand-context\">Independent<br>Citizen Assistance</span></a><nav class=\"ds-nav\" aria-label=\"Primary navigation\"><a href=\"#how-it-works\">How it works</a><a href=\"#safeguards\">Safeguards</a></nav><a class=\"ds-header-action\" href=\"/request\">Start drafting</a></div>",
+      "css": ".ds-masthead { min-height: 92px; padding: 18px 28px; display: flex; align-items: center; gap: 28px; background: var(--navy); color: #fff; font-family: var(--font-body), 'Public Sans', sans-serif; } .ds-brand { display: flex; align-items: center; gap: 13px; color: inherit; text-decoration: none; } .ds-brand-mark { width: 40px; height: 52px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.42); font-size: 11px; font-weight: 750; letter-spacing: .08em; } .ds-brand-name { display: grid; gap: 2px; } .ds-brand-name strong { font-size: 22px; line-height: 1.05; } .ds-brand-name small { color: #d9e4ef; font-family: var(--font-devanagari), sans-serif; font-size: 14px; } .ds-brand-context { padding-left: 16px; border-left: 1px solid rgba(255,255,255,.34); color: #d9e4ef; font-size: 11px; line-height: 1.45; } .ds-nav { display: flex; gap: 28px; margin-left: auto; } .ds-nav a { color: #e8eef5; font-size: 14px; text-decoration: none; } .ds-nav a:hover { color: #fff; text-decoration: underline; text-decoration-color: var(--saffron); text-underline-offset: 8px; } .ds-header-action { min-height: 44px; display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 8px; background: #fff; color: var(--navy); font-size: 14px; font-weight: 700; text-decoration: none; } .ds-header-action:hover { background: #f6e5ca; } .ds-header-action:focus-visible, .ds-nav a:focus-visible { outline: 3px solid #f0a14a; outline-offset: 3px; }"
+    },
+    {
+      "name": "Independent Service Strip",
+      "kind": "custom",
+      "refersTo": "truth-strip",
+      "description": "Mandatory citizen-facing boundary between Praja RTI preparation and government filing.",
+      "html": "<div class=\"ds-truth-strip\"><strong>Important:</strong> Praja RTI is independent citizen assistance. It is not a government portal and does not file an application on your behalf.</div>",
+      "css": ".ds-truth-strip { padding: 9px 28px; border-bottom: 1px solid #ead8b7; background: #fff8eb; color: #5f4a20; font-family: var(--font-body), 'Public Sans', sans-serif; font-size: 13px; line-height: 1.55; } .ds-truth-strip strong { margin-right: 4px; color: #4c3915; }"
+    },
+    {
+      "name": "Primary Voice Action",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Iris pill, white text; deepens on hover with soft coloured shadow.",
-      "html": "<a class=\"ds-btn\" href=\"/demo\">Launch the console →</a>",
-      "css": ".ds-btn { display: inline-block; padding: 12px 28px; border-radius: 9999px; background: #4f46e5; color: #fff; font-size: 15px; font-weight: 500; text-decoration: none; transition: all 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn:hover { background: #4338ca; box-shadow: 0 12px 28px -10px rgba(79,70,229,0.55); transform: scale(1.02); } .ds-btn:active { transform: scale(0.99); }"
+      "description": "Compact navy primary action with a purpose-built microphone icon.",
+      "html": "<a class=\"ds-button-primary\" href=\"/request\"><svg aria-hidden=\"true\" fill=\"none\" viewBox=\"0 0 24 24\"><rect height=\"10\" rx=\"4\" stroke=\"currentColor\" stroke-width=\"1.7\" width=\"7\" x=\"8.5\" y=\"3\"/><path d=\"M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.7\"/></svg>Start your request</a>",
+      "css": ".ds-button-primary { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 20px; border-radius: 8px; background: var(--navy); color: #fff; box-shadow: 0 10px 25px -18px rgba(8,47,91,.7); font-family: var(--font-body), 'Public Sans', sans-serif; font-size: 15px; font-weight: 700; text-decoration: none; transition: background 200ms ease, transform 200ms ease, box-shadow 200ms ease; } .ds-button-primary svg { width: 20px; height: 20px; } .ds-button-primary:hover { background: var(--navy-deep); box-shadow: 0 16px 30px -19px rgba(8,47,91,.9); transform: translateY(-2px); } .ds-button-primary:active { transform: translateY(0); } .ds-button-primary:focus-visible { outline: 3px solid #f0a14a; outline-offset: 3px; }"
     },
     {
-      "name": "Glass Panel",
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Solid white citizen input with a clear neutral boundary and a quiet navy focus ring.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-record\">Record or document sought</label><input class=\"ds-field\" id=\"ds-record\" type=\"text\" placeholder=\"For example: work order or inspection report\">",
+      "css": ".ds-field-label { display: block; margin-bottom: 8px; color: var(--fg-faint); font-family: var(--font-body), 'Public Sans', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; } .ds-field { width: 100%; padding: 12px 16px; border: 1px solid var(--line-strong); border-radius: 12px; background: #fff; color: var(--fg); font-family: var(--font-body), 'Public Sans', sans-serif; font-size: 15px; outline: none; } .ds-field::placeholder { color: var(--fg-faint); } .ds-field:focus { border-color: var(--navy); box-shadow: 0 0 0 4px rgba(8,47,91,.10); } .ds-field:focus-visible { outline: 3px solid #f0a14a; outline-offset: 3px; }"
+    },
+    {
+      "name": "Semantic Status Chips",
+      "kind": "chip",
+      "description": "Compact labeled states that combine words, border, and restrained color.",
+      "html": "<div class=\"ds-status-row\"><span class=\"ds-status ds-status-ready\">Ready for review</span><span class=\"ds-status ds-status-caution\">Local fallback</span><span class=\"ds-status ds-status-stop\">Not submitted</span></div>",
+      "css": ".ds-status-row { display: flex; flex-wrap: wrap; gap: 8px; font-family: var(--font-body), 'Public Sans', sans-serif; } .ds-status { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border: 1px solid; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; } .ds-status-ready { border-color: rgba(47,125,63,.3); background: #edf7ef; color: #2f7d3f; } .ds-status-caution { border-color: rgba(138,91,0,.3); background: #fff8eb; color: #8a5b00; } .ds-status-stop { border-color: rgba(180,35,24,.3); background: #fff1ef; color: #b42318; }"
+    },
+    {
+      "name": "Task Paper",
       "kind": "card",
-      "refersTo": "card",
-      "description": "Frosted glass card: white 65%, blur 16px, hairline border, soft layered shadow.",
-      "html": "<div class=\"ds-glass\"><div class=\"ds-tag\">Step 1</div><h3>Title</h3><p>Body text on frosted glass.</p></div>",
-      "css": ".ds-glass { position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(22,24,29,0.08); background: rgba(255,255,255,0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 1px 2px rgba(20,20,30,0.04), 0 16px 40px -16px rgba(20,20,30,0.14); padding: 24px; color: #16181d; } .ds-tag { font-family: var(--font-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #4f46e5; margin-bottom: 12px; } .ds-glass h3 { font-family: var(--font-display), Georgia, serif; font-size: 20px; font-weight: 500; margin: 0 0 8px; } .ds-glass p { font-size: 14px; line-height: 1.6; color: #4d525c; margin: 0; }"
+      "refersTo": "panel",
+      "description": "The main drafting work object: a solid ruled surface with rare soft lift.",
+      "html": "<article class=\"ds-paper\"><span class=\"ds-paper-label\">Step 03 · Draft</span><h3>Your RTI application, ready to edit.</h3><p>Every line is yours to change before you continue.</p></article>",
+      "css": ".ds-paper { padding: 28px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--fg); box-shadow: 0 18px 45px -32px rgba(8,47,91,.48); font-family: var(--font-body), 'Public Sans', sans-serif; } .ds-paper-label { color: var(--fg-faint); font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; } .ds-paper h3 { margin: 12px 0 8px; color: var(--navy-deep); font-size: 28px; font-weight: 500; line-height: 1.1; letter-spacing: -.025em; } .ds-paper p { margin: 0; max-width: 58ch; color: var(--fg-soft); font-size: 14px; line-height: 1.7; }"
     },
     {
-      "name": "Ribbon",
+      "name": "Speech-to-Records Workspace",
       "kind": "custom",
-      "refersTo": "card",
-      "description": "Independent-demo notice: white/60 blur band, amber dot, mono tag.",
-      "html": "<div class=\"ds-ribbon\"><span class=\"ds-dot\"></span><span class=\"ds-tag\">Independent</span><span>Praja-RTI is a hackathon demo — nothing is filed with any government system.</span></div>",
-      "css": ".ds-ribbon { display: flex; align-items: center; gap: 10px; padding: 8px 24px; font-size: 13px; color: #4d525c; border-bottom: 1px solid rgba(22,24,29,0.08); background: rgba(255,255,255,0.6); backdrop-filter: blur(4px); } .ds-dot { width: 6px; height: 6px; border-radius: 9999px; background: #92400e; } .ds-tag { font-family: var(--font-mono), ui-monospace, monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #92400e; }"
+      "description": "The signature split workspace that visibly converts citizen words into neutral numbered records requests.",
+      "html": "<section class=\"ds-transform\" aria-label=\"Example of speech becoming records requests\"><div class=\"ds-transform-toolbar\"><span>Draft workspace</span><span class=\"ds-ready\">● Ready for review</span></div><div class=\"ds-transform-grid\"><div class=\"ds-transcript\"><span class=\"ds-kicker\">Your words</span><strong>Editable transcript</strong><p>The road outside my house has been broken for months. I want to know what work was approved.</p></div><div class=\"ds-transform-arrow\" aria-hidden=\"true\"><svg fill=\"none\" viewBox=\"0 0 24 24\"><path d=\"M5 12h14M14 7l5 5-5 5\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\"/></svg></div><div class=\"ds-records\"><span class=\"ds-kicker\">Prepared output</span><strong>Records focused request</strong><ol><li>Certified copy of the work order and sanctioned budget.</li><li>Contractor details and the recorded completion date.</li><li>Copies of quality inspection reports.</li></ol></div></div></section>",
+      "css": ".ds-transform { overflow: hidden; border-radius: 14px; background: #fff; color: var(--fg); box-shadow: 0 22px 60px -38px rgba(23,32,45,.44); font-family: var(--font-body), 'Public Sans', sans-serif; } .ds-transform-toolbar { min-height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--line); background: #f2f4f6; color: #536071; font-size: 12px; } .ds-ready { color: var(--green); } .ds-transform-grid { min-height: 300px; display: grid; grid-template-columns: minmax(0,.85fr) 42px minmax(0,1.15fr); } .ds-transcript, .ds-records { padding: 28px 24px; } .ds-transcript { background: #fbfbf9; } .ds-kicker { display: block; margin-bottom: 2px; color: var(--fg-faint); font-size: 11px; letter-spacing: .035em; } .ds-transcript strong, .ds-records strong { color: var(--navy-deep); font-size: 14px; } .ds-transcript p { margin: 34px 0 0; color: #334052; font-size: 14px; line-height: 1.73; } .ds-transform-arrow { display: grid; place-items: center; border-left: 1px solid var(--line); border-right: 1px solid var(--line); background: #f7f8f9; color: var(--navy); } .ds-transform-arrow svg { width: 18px; height: 18px; } .ds-records ol { margin: 24px 0 0; padding-left: 24px; } .ds-records li { padding: 12px 0 12px 7px; border-top: 1px solid var(--line); color: #354254; font-size: 13px; line-height: 1.58; } .ds-records li::marker { color: var(--navy); font-weight: 700; }"
     },
     {
-      "name": "Step Tab",
+      "name": "Preparation Receipt",
       "kind": "custom",
-      "refersTo": "card",
-      "description": "Glass step chip; active = iris tint + iris text.",
-      "html": "<span class=\"ds-tab ds-tab-active\">01 · Speak</span> <span class=\"ds-tab\">02 · Draft</span>",
-      "css": ".ds-tab { display: inline-block; padding: 8px 14px 10px; border-radius: 12px 12px 0 0; border: 1px solid rgba(22,24,29,0.08); border-bottom: 0; background: rgba(255,255,255,0.55); backdrop-filter: blur(10px); color: #4d525c; font-family: var(--font-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; } .ds-tab-active { background: rgba(79,70,229,0.08); border-color: rgba(79,70,229,0.3); color: #4f46e5; }"
+      "description": "An internal preparation summary whose red status explicitly prevents a filing interpretation.",
+      "html": "<section class=\"ds-receipt\"><span class=\"ds-not-submitted\">Not submitted</span><div class=\"ds-receipt-kicker\">Praja RTI | independent preparation receipt</div><strong>PRTI 2026 482193</strong><dl><div><dt>Workspace</dt><dd>No payment processed</dd></div><div><dt>Submission</dt><dd class=\"ds-receipt-danger\">NOT_SUBMITTED</dd></div></dl><p>This work was not sent to a government system.</p></section>",
+      "css": ".ds-receipt { position: relative; padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--fg); font-family: var(--font-body), 'Public Sans', sans-serif; } .ds-not-submitted { position: absolute; top: -14px; right: 20px; padding: 6px 12px; border: 1px solid #f2b8b2; border-radius: 5px; background: #fff1ef; color: var(--red); font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; } .ds-receipt-kicker, .ds-receipt dt { color: var(--fg-faint); font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; } .ds-receipt > strong { display: block; margin: 8px 0 16px; font-size: 20px; font-weight: 500; } .ds-receipt dl { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .ds-receipt dd { margin: 4px 0 0; font-size: 14px; } .ds-receipt-danger { color: var(--red); font-weight: 700; } .ds-receipt p { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--fg-soft); font-size: 13px; }"
     }
   ],
   "narrative": {
-    "northStar": "A quiet editorial desk by a window",
-    "overview": "Ivory paper ground, pastel light moving through frosted glass, one calm indigo signal. The surface refuses the dark-instrument console, the neon demo aesthetic, and every government-portal habit. Fraunces carries the editorial voice — including a light italic second line in the headline. React Bits motion: a pastel Aurora wash behind the hero, BlurText assembling the headline, a soft indigo spotlight following the pointer across glass panels, CountUp instruments for the real portal numbers.",
+    "northStar": "The Civic Records Desk",
+    "overview": "Praja RTI is a restrained public-service workspace where a citizen's natural words visibly become a precise request for records. India navy, warm off-white paper, thin neutral rules, sparse saffron and green signals, and measured Public Sans typography create civic gravity without imitating an official portal. The feeling is calm, legible, and quietly capable: closer to a well-run assistance desk than a campaign landing page.\n\nThe visual system is flat and information-led. Solid regions establish hierarchy; the bilingual masthead establishes identity; authored line icons explain actions; and the speech-to-records transformation demonstrates the product in the first viewport. Generous section spacing is balanced by compact controls, labels, and corners so complex public information remains approachable rather than promotional.\n\nThe service boundary is part of the design, not footer fine print. Praja RTI prepares, explains, and lets the citizen review; the official RTI Online portal is a separate destination for filing. Every consequential workspace surface must plainly state that Praja RTI is independent, is not a government portal, does not connect to a government system, and has not filed or submitted the citizen's request.",
     "keyCharacteristics": [
-      "Indigo is the only interactive colour; pastels are atmosphere; status colours are darkened for ivory contrast.",
-      "Panels are frosted glass — white 65%, 16px blur, hairline border, layered soft shadow, 20px radius.",
-      "Fraunces display with an italic light accent line; Inter body; JetBrains Mono uppercase readouts.",
-      "The independent-demo ribbon sits above every page on a white/60 blur band.",
-      "Depth is soft and layered — never neon, never hard offsets."
+      "A solid India-navy civic masthead above an off-white service-paper ground.",
+      "One visible speech-to-numbered-records workspace as the signature product demonstration.",
+      "Public Sans throughout Latin text, with Noto Sans Devanagari for Hindi identity text.",
+      "Flat solid surfaces, one-pixel rules, rare soft shadows, and mostly 6–12px corners.",
+      "Saffron, green, amber, and red communicate emphasis or semantic state; navy owns action and structure.",
+      "Authored outline SVG icons, semantic lifecycle connectors, and one-time IntersectionObserver reveals.",
+      "Independent preparation and official filing are always presented as two distinct services."
     ],
     "rules": [
-      { "name": "The One Signal Rule", "body": "Indigo is the only colour that invites a click.", "section": "colors" },
-      { "name": "The Darkened Status Rule", "body": "Status colours are darkened for 4.5:1 on ivory; never bright status hues on light ground.", "section": "colors" },
-      { "name": "The Glass Rule", "body": "Panels blur what is behind them; never opaque white cards, never dark glass on light ground.", "section": "elevation" },
-      { "name": "The Italic Accent Rule", "body": "The headline's second line is Fraunces italic light in iris.", "section": "typography" }
+      {
+        "name": "The Navy Owns Action Rule",
+        "body": "Navy is the only general-purpose interactive color. Saffron, green, amber, and red stay semantic.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signal, Not Decoration Rule",
+        "body": "Tricolour hues appear in the four-pixel top rule and selected lifecycle or state cues; they never become large decorative fields.",
+        "section": "colors"
+      },
+      {
+        "name": "The Independent Service Rule",
+        "body": "Civic colors and the State Emblem may orient the citizen, but they must always be paired with the independent-assistance label and adjacent truth boundary. Never use them to imply government affiliation, connection, filing, or endorsement.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Sans Rule",
+        "body": "Do not introduce a serif, display face, or code-style monospace. Public Sans creates hierarchy through size, weight, tracking, and case; `.font-mono` remains the same family with compact operational tracking.",
+        "section": "typography"
+      },
+      {
+        "name": "The Bilingual Peer Rule",
+        "body": "Hindi and English identity text must read as coordinated peers with correct Noto Sans Devanagari shaping, never as ornamental script.",
+        "section": "typography"
+      },
+      {
+        "name": "The Workspace Leads Rule",
+        "body": "Show the product mechanism as one coherent work surface; never replace it with a grid of feature cards or promotional statistics.",
+        "section": "layout"
+      },
+      {
+        "name": "The Reading Order Rule",
+        "body": "Responsive layouts may stack or simplify, but transcript always precedes transformation and prepared records, and official filing always follows independent preparation.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Civic Rule",
+        "body": "Solid fills and rules do the structural work. Do not use translucency, backdrop blur, gradients, colored glow, or ornamental floating layers.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Rare Lift Rule",
+        "body": "A shadow identifies a major work object or interaction state, never an ordinary content block.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Compact Corner Rule",
+        "body": "Most surfaces live between 6px and 12px. Do not reintroduce oversized 20px cards or pill-shaped primary actions.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Circle Means Sequence Rule",
+        "body": "Circles denote voice input, ordered progress, or a compact state marker; they are not general decoration.",
+        "section": "shapes"
+      }
     ],
     "dos": [
-      "Keep indigo as the only click-inviting colour.",
-      "Use Fraunces italic for editorial accent lines.",
-      "Carry the ribbon on every page.",
-      "Darken status colours for ivory contrast."
+      "Do lead citizen-facing pages with the bilingual civic identity, explicit independent-assistance label, and adjacent truth strip.",
+      "Do show speech becoming numbered, records-focused requests in one visible workspace.",
+      "Do separate independent preparation from official filing in layout, labels, links, and receipt states.",
+      "Do use Public Sans, Noto Sans Devanagari, one-pixel rules, compact corners, and solid surfaces.",
+      "Do pair semantic color with plain-language status text and authored SVG icons.",
+      "Do preserve reading order, 44px targets, keyboard focus, scalable text, and reduced-motion behavior."
     ],
     "donts": [
-      "Use dark panels or neon on this ground.",
-      "Use bright status hues on ivory.",
-      "Claim filing, acceptance, or government status anywhere.",
-      "Replace glass with opaque flat cards."
+      "Don't imply that Praja RTI is a government portal, connects to a government system, files an application, accepts a payment, or produces an official receipt.",
+      "Don't use the State Emblem as a product seal, watermark, success stamp, or substitute for the independent-service disclosure.",
+      "Don't use purple, gradients, glass effects, decorative glow, or a return to the discarded leather or editorial visual worlds.",
+      "Don't use public-facing “demo” wording, promote a statutory price, or make the service sound like a hackathon pitch.",
+      "Don't build promotional feature-card grids, oversized headlines, excessive rounded cards, pill-shaped primary actions, or decorative dash characters.",
+      "Don't introduce icon libraries when an authored, accessible inline SVG fits the civic line-icon grammar."
     ]
   }
 }

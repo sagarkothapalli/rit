@@ -1,15 +1,23 @@
 "use client";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSpeech } from "@/hooks/useSpeech";
-import { searchDirectory, DIRECTORY_SNAPSHOT, type PublicAuthority } from "@/lib/retrieval";
-import type { Notes, Guard, Draft } from "@/lib/cage/schemas";
-import ThemeToggle from "@/components/ThemeToggle";
+import { searchDirectory, DIRECTORY, DIRECTORY_SNAPSHOT, type PublicAuthority } from "@/lib/retrieval";
+import {
+  draftFallback,
+  explainFallback,
+  guardFallback,
+  notesFallback,
+  type Notes,
+  type Guard,
+  type Draft,
+} from "@/lib/cage/schemas";
 
 /* ============================================================
-   /demo — the real console. Live microphone (Web Speech) and
-   four server-side model gates with deterministic fallbacks.
-   Every step labels its mode: LIVE or SIMULATED.
+   Drafting workspace. Live microphone through Web Speech and
+   four server side model gates with deterministic fallbacks.
+   Citizens remain in control at every consequential step.
    ============================================================ */
 
 type Stage =
@@ -61,17 +69,55 @@ const MISSING_QUESTIONS: Record<string, string> = {
 type Mode = "LIVE" | "SIMULATED";
 const gateModes: Partial<Record<"notes" | "guard" | "draft" | "explain", Mode>> = {};
 
-async function postJSON<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const j = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(j.error ?? `HTTP ${res.status}`);
+function localFallback(url: string, body: unknown): unknown {
+  if (url.endsWith("/notes")) {
+    const request = body as { transcript?: string };
+    return { mode: "SIMULATED", data: notesFallback(request.transcript ?? "") };
   }
-  return (await res.json()) as T;
+  if (url.endsWith("/guard")) return { mode: "SIMULATED", data: guardFallback };
+  if (url.endsWith("/draft")) {
+    const request = body as { notes: Notes };
+    return { mode: "SIMULATED", data: draftFallback(request.notes) };
+  }
+  if (url.endsWith("/explain")) {
+    const request = body as { notes: Notes };
+    const query = [
+      ...request.notes.records_sought,
+      request.notes.body_hint ?? "",
+      request.notes.place ?? "",
+    ].join(" ");
+    const { results, reviewRequired } = searchDirectory(query, 3);
+    const retrieved = results.map((result) => ({
+      id: result.pa.pa_code,
+      name: result.pa.name,
+      ministry: result.pa.ministry,
+      matched: result.matched.slice(0, 6),
+      score: Math.round(result.score * 100) / 100,
+    }));
+    return {
+      mode: "SIMULATED",
+      data: explainFallback(retrieved),
+      directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length },
+      review_required: reviewRequired || retrieved.length === 0,
+      retrieved,
+    };
+  }
+  throw new Error("This service is temporarily unavailable.");
+}
+
+async function postJSON<T>(url: string, body: unknown): Promise<T> {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return (await res.json()) as T;
+  } catch {
+    // A static host has no Next.js route handlers. Continue with the same
+    // deterministic local fallbacks used by the server when no model is set.
+  }
+  return localFallback(url, body) as T;
 }
 
 interface NotesResp { mode: Mode; model?: string; data: Notes }
@@ -88,7 +134,7 @@ interface ExplainResp {
   directory?: { snapshot: string; count: number };
 }
 
-export default function DemoPage() {
+export default function DraftingPage() {
   const [stage, setStage] = useState<Stage>("setup");
   const [lang, setLang] = useState("en-IN");
   const [manualText, setManualText] = useState("");
@@ -105,7 +151,7 @@ export default function DemoPage() {
   const [picked, setPicked] = useState<string | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [otp, setOtp] = useState("");
-  const [reference] = useState(() => `DEMO-RTI-2026-${Math.floor(100000 + Math.random() * 899999)}`);
+  const [reference] = useState(() => `PRTI 2026 ${Math.floor(100000 + Math.random() * 899999)}`);
   const [pressed, setPressed] = useState(false);
   const [busy, setBusy] = useState<null | "notes" | "guard" | "draft" | "explain">(null);
   const [err, setErr] = useState<string | null>(null);
@@ -138,7 +184,7 @@ export default function DemoPage() {
     const text = [speech.finalText, speech.interimText].filter(Boolean).join(" ").trim();
     const final = text || manualText.trim();
     if (!final) {
-      setErr("Nothing recorded yet — speak, or type your complaint below.");
+      setErr("Nothing recorded yet. Speak or type your concern below.");
       return;
     }
     setErr(null);
@@ -243,37 +289,54 @@ export default function DemoPage() {
   const ministryOf = (id: string) => retrieved.find((r) => r.id === id)?.ministry ?? "";
 
   return (
-    <main className="relative min-h-screen flex flex-col">
-      {/* Ribbon */}
-      <div className="w-full border-b border-[var(--line)] bg-[var(--glass)] backdrop-blur-sm">
-        <div className="mx-auto max-w-5xl px-6 py-2 flex items-center gap-2.5 text-[13px] text-[var(--fg-soft)]">
-          <span className="size-1.5 rounded-full bg-[var(--amber)]" aria-hidden />
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--amber)]">Demo</span>
-          <span className="truncate">
-            Only your edited transcript text is sent to the model — never audio. Nothing is filed with any government system.
-          </span>
-          <div className="ml-auto flex items-center gap-3">
-            <ThemeToggle />
-            <Link href="/admin" className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-faint)] hover:text-[var(--iris)] transition-colors shrink-0">
-              Admin
-            </Link>
-            <Link href="/" className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--iris)] hover:underline shrink-0">
-              ← Landing
-            </Link>
+    <main className="relative min-h-screen flex flex-col bg-[var(--bg)]">
+      <div className="tricolour" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <div className="utility-bar">
+        <div className="site-container utility-inner">
+          <span>Only edited transcript text is analysed. Audio is not sent.</span>
+          <div className="utility-links">
+            <Link href="/admin">Service settings</Link>
+            <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Official RTI portal</a>
           </div>
+        </div>
+      </div>
+
+      <header className="civic-header">
+        <div className="site-container header-inner !min-h-[92px]">
+          <Link className="brand" href="/" aria-label="Praja RTI home">
+            <Image alt="State Emblem of India" className="brand-emblem !h-[58px] !w-[40px]" height={58} priority src="/india-emblem-white.png" width={40} />
+            <span className="brand-rule !h-[46px]" aria-hidden="true" />
+            <span>
+              <strong>Praja RTI</strong>
+              <small lang="hi">प्रजा आरटीआई</small>
+            </span>
+            <span className="brand-context">Independent<br />Citizen Assistance</span>
+          </Link>
+          <Link href="/" className="header-action request-home-action ml-auto">Back to home</Link>
+        </div>
+      </header>
+
+      <div className="truth-strip">
+        <div className="site-container">
+          <strong>Important:</strong> This workspace prepares a draft. It does not file with or connect to a government system.
         </div>
       </div>
 
       {/* Mode badges */}
       <div className="mx-auto max-w-5xl px-6 pt-4 flex flex-wrap items-center gap-2">
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] ${speech.supported ? "border-[var(--iris)]/25 bg-[var(--iris-tint)] text-[var(--iris)]" : "border-[var(--line-strong)] text-[var(--fg-faint)]"}`}>
-          Mic · {micMode}
+        <span className={`inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] ${speech.supported ? "border-[var(--iris)]/25 bg-[var(--iris-tint)] text-[var(--iris)]" : "border-[var(--line-strong)] text-[var(--fg-faint)]"}`}>
+          Voice: {micMode}
         </span>
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] ${liveModel ? "border-[var(--green)]/30 bg-[var(--green)]/10 text-[var(--green)]" : "border-[var(--amber)]/30 bg-[var(--amber)]/10 text-[var(--amber)]"}`}>
-          Model · {liveModel ? "Live" : anySimulated ? "Simulated fallback" : "Ready (no key = simulated)"}
+        <span className={`inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] ${liveModel ? "border-[var(--green)]/30 bg-[var(--green)]/10 text-[var(--green)]" : "border-[var(--amber)]/30 bg-[var(--amber)]/10 text-[var(--amber)]"}`}>
+          Processing: {liveModel ? "Live service" : anySimulated ? "Local fallback" : "Ready"}
         </span>
-        <span className="inline-flex items-center rounded-full border border-[var(--line)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--fg-faint)]">
-          Directory · {DIRECTORY_SNAPSHOT}
+        <span className="inline-flex items-center rounded-md border border-[var(--line)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--fg-faint)]">
+          Directory: {DIRECTORY_SNAPSHOT}
         </span>
       </div>
 
@@ -308,7 +371,7 @@ export default function DemoPage() {
                     Speak in your language. The console takes notes.
                   </h1>
                   <p className="text-[15px] text-[var(--fg-soft)] leading-relaxed mb-7 max-w-[58ch]">
-                    Pick your language, allow the microphone, and just talk — a complaint, a rant, half a
+                    Pick your language, allow the microphone, and just talk. A complaint, a rant, or half a
                     thought. You will see every word recognised, and you can correct it before anything
                     is analysed.
                   </p>
@@ -323,7 +386,7 @@ export default function DemoPage() {
                           key={l.code}
                           type="button"
                           onClick={() => setLang(l.code)}
-                          className={`rounded-full border px-3.5 py-1.5 text-[13px] transition-all ${lang === l.code ? "border-[var(--iris)] bg-[var(--iris-tint)] text-[var(--iris)] font-medium" : "border-[var(--line-strong)] text-[var(--fg-soft)] hover:border-[var(--iris)]/40"}`}
+                          className={`rounded-lg border px-3.5 py-1.5 text-[13px] transition-all ${lang === l.code ? "border-[var(--iris)] bg-[var(--iris-tint)] text-[var(--iris)] font-medium" : "border-[var(--line-strong)] text-[var(--fg-soft)] hover:border-[var(--iris)]/40"}`}
                         >
                           {l.label}
                         </button>
@@ -332,7 +395,7 @@ export default function DemoPage() {
                     {!speech.supported && (
                       <p className="mt-3 text-[13px] text-[var(--amber)]">
                         This browser does not support live speech recognition. You can still type your
-                        complaint in the next step — everything else works.
+                        concern in the next step. Everything else still works.
                       </p>
                     )}
                   </div>
@@ -340,7 +403,7 @@ export default function DemoPage() {
                   <button
                     type="button"
                     onClick={goSetup}
-                    className="brass-plate px-6 py-3 font-mono text-[12px] uppercase tracking-[0.18em] transition-all hover:shadow-[0_12px_28px_-10px_rgba(79,70,229,0.55)]"
+                    className="brass-plate px-6 py-3 font-mono text-[12px] uppercase tracking-[0.08em] transition-all"
                   >
                     Allow mic &amp; continue
                   </button>
@@ -351,7 +414,7 @@ export default function DemoPage() {
               {stage === "record" && (
                 <div>
                   <h1 className="font-display text-[28px] md:text-[32px] font-medium leading-[1.1] tracking-tight mb-2">
-                    {speech.status === "listening" ? "Listening — speak naturally…" : "Ready when you are."}
+                    {speech.status === "listening" ? "Listening. Speak naturally..." : "Ready when you are."}
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
                     Language: <span className="font-medium text-[var(--fg)]">{LANGUAGES.find((l) => l.code === lang)?.label}</span>
@@ -364,7 +427,7 @@ export default function DemoPage() {
                       onClick={speech.status === "listening" ? speech.stop : speech.start}
                       disabled={!speech.supported}
                       aria-label={speech.status === "listening" ? "Stop listening" : "Start listening"}
-                      className={`brass size-[76px] grid place-items-center rounded-full transition-all duration-200 ${speech.status === "listening" ? "scale-105 shadow-[0_0_0_10px_rgba(79,70,229,0.12)]" : ""} ${!speech.supported ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.04] active:scale-[0.97]"}`}
+                      className={`brass size-[76px] grid place-items-center rounded-full transition-all duration-200 ${speech.status === "listening" ? "scale-105 shadow-[0_0_0_8px_rgba(8,47,91,0.10)]" : ""} ${!speech.supported ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.04] active:scale-[0.97]"}`}
                     >
                       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                         {speech.status === "listening" ? (
@@ -379,7 +442,7 @@ export default function DemoPage() {
                       </svg>
                     </button>
                     <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--fg-faint)]">
-                      {speech.status === "listening" ? "Recording — tap to stop" : speech.supported ? "Tap the mic to talk" : "Speech unsupported — type below"}
+                      {speech.status === "listening" ? "Recording. Tap to stop" : speech.supported ? "Tap the mic to talk" : "Speech unsupported. Type below"}
                     </div>
                   </div>
 
@@ -390,7 +453,7 @@ export default function DemoPage() {
                   )}
 
                   {/* Live transcript */}
-                  <div className="rounded-2xl border border-[var(--line)] bg-[var(--glass-faint)] px-5 py-4 min-h-[110px] mb-5">
+                  <div className="rounded-xl border border-[var(--line)] bg-[var(--glass-faint)] px-5 py-4 min-h-[110px] mb-5">
                     {speech.finalText || speech.interimText || manualText ? (
                       <>
                         <p className="text-[15px] leading-[1.65] text-[var(--fg)]">
@@ -446,17 +509,17 @@ export default function DemoPage() {
                     <NoteChip
                       label="Records sought"
                       values={notes.records_sought}
-                      empty="— none identified —"
+                      empty="None identified"
                     />
-                    <NoteChip label="Period" values={notes.date_range ? [notes.date_range] : []} empty="— not stated —" />
-                    <NoteChip label="Place" values={notes.place ? [notes.place] : []} empty="— not stated —" />
-                    <NoteChip label="Authority mentioned" values={notes.body_hint ? [notes.body_hint] : []} empty="— none named —" />
+                    <NoteChip label="Period" values={notes.date_range ? [notes.date_range] : []} empty="Not stated" />
+                    <NoteChip label="Place" values={notes.place ? [notes.place] : []} empty="Not stated" />
+                    <NoteChip label="Authority mentioned" values={notes.body_hint ? [notes.body_hint] : []} empty="None named" />
                     <NoteChip label="Format" values={[notes.format]} empty="" />
                   </div>
 
                   {/* Missing-detail loop */}
                   {!notesComplete(notes) && (
-                    <div className="rounded-2xl border border-[var(--iris)]/25 bg-[var(--iris-tint)] px-5 py-4 mb-6">
+                    <div className="rounded-xl border border-[var(--iris)]/25 bg-[var(--iris-tint)] px-5 py-4 mb-6">
                       <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--iris)] mb-2">
                         One question ({rounds + 1}/3)
                       </div>
@@ -469,7 +532,7 @@ export default function DemoPage() {
                           onChange={(e) => setMissingAnswer(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && answerMissing()}
                           placeholder="Type your answer…"
-                          className="flex-1 min-w-[200px] rounded-full border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-2 text-[14px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
+                          className="flex-1 min-w-[200px] rounded-lg border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-2 text-[14px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
                         />
                         <button type="button" onClick={answerMissing} disabled={busy === "notes"} className="brass-plate px-4 py-2 font-mono text-[11px] uppercase tracking-[0.16em]">
                           {busy === "notes" ? "…" : "Answer"}
@@ -482,10 +545,10 @@ export default function DemoPage() {
 
                   <div className="flex flex-wrap items-center gap-3">
                     <button type="button" onClick={confirmNotes} disabled={busy === "guard"} className={`brass-plate px-5 py-2.5 font-mono text-[12px] uppercase tracking-[0.16em] ${busy === "guard" ? "opacity-60" : ""}`}>
-                      {busy === "guard" ? "Checking exemptions…" : "Looks right — check exemptions →"}
+                      {busy === "guard" ? "Checking exemptions..." : "Looks right. Check exemptions →"}
                     </button>
                     <button type="button" onClick={() => setStage("record")} className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]">
-                      ← Re-record
+                      Record again
                     </button>
                   </div>
                 </div>
@@ -499,9 +562,9 @@ export default function DemoPage() {
                       <h1 className="font-display text-[28px] md:text-[32px] font-medium leading-[1.1] tracking-tight mb-3">
                         No exemption blocks this ask.
                       </h1>
-                      <div className="rounded-2xl border border-[var(--green)]/25 bg-[var(--green)]/[0.05] px-5 py-4 mb-6">
+                      <div className="rounded-xl border border-[var(--green)]/25 bg-[var(--green)]/[0.05] px-5 py-4 mb-6">
                         <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--green)] mb-1.5">
-                          Exemption pre-check · allowed
+                          Exemption review | allowed
                         </div>
                         <p className="text-[14.5px] leading-relaxed text-[var(--fg-soft)]">{guard.reason_summary}</p>
                       </div>
@@ -514,7 +577,7 @@ export default function DemoPage() {
                       <h1 className="font-display text-[28px] md:text-[32px] font-medium leading-[1.1] tracking-tight mb-3">
                         The console will not draft this.
                       </h1>
-                      <div className="rounded-2xl border border-[var(--red)]/25 bg-[var(--red)]/[0.04] px-5 py-4 mb-6">
+                      <div className="rounded-xl border border-[var(--red)]/25 bg-[var(--red)]/[0.04] px-5 py-4 mb-6">
                         <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--red)] mb-1.5">
                           {guard.clause ? `Exempt · Section ${guard.clause}` : "Exempt under the RTI Act"}
                         </div>
@@ -548,8 +611,8 @@ export default function DemoPage() {
                     Your RTI application, ready to edit.
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
-                    Every line is yours to change. The official portal allows 3,000 characters —
-                    longer asks go as a PDF attachment.
+                    Every line is yours to change. The official portal allows 3,000 characters.
+                    Longer requests can be added as a PDF attachment.
                   </p>
 
                   <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-faint)] mb-2">
@@ -602,12 +665,12 @@ export default function DemoPage() {
                     {reviewRequired ? "No confident match in the directory." : "Three explained departments."}
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
-                    Retrieved from a dated mock directory of {retrieved.length > 0 || true ? "74" : "74"} Central
-                    public authorities — the model explains, it never chooses.
+                    Retrieved from a dated reference directory of {DIRECTORY.length} Central
+                    public authorities. The model explains each result and never chooses for you.
                   </p>
 
                   {reviewRequired && (
-                    <div className="rounded-2xl border border-[var(--amber)]/30 bg-[var(--amber)]/[0.06] px-5 py-4 mb-6">
+                    <div className="rounded-xl border border-[var(--amber)]/30 bg-[var(--amber)]/[0.06] px-5 py-4 mb-6">
                       <p className="text-[14px] text-[var(--fg-soft)]">
                         Nothing matched confidently. Search the directory yourself, or reword the ask.
                       </p>
@@ -622,12 +685,12 @@ export default function DemoPage() {
                           key={c.id}
                           type="button"
                           onClick={() => setPicked(c.id)}
-                          className={`w-full text-left rounded-2xl border px-5 py-4 transition-all duration-150 ${active ? "border-[var(--iris)] bg-[var(--iris-tint)] ring-4 ring-[var(--iris)]/10" : "border-[var(--line)] bg-[var(--glass)] hover:border-[var(--iris)]/40"}`}
+                          className={`w-full text-left rounded-xl border px-5 py-4 transition-all duration-150 ${active ? "border-[var(--iris)] bg-[var(--iris-tint)] ring-4 ring-[var(--iris)]/10" : "border-[var(--line)] bg-[var(--glass)] hover:border-[var(--iris)]/40"}`}
                         >
                           <div className="flex items-baseline justify-between gap-3 mb-1">
                             <span className="font-display text-[16px] font-medium text-[var(--fg)]">{nameOf(c.id)}</span>
                             <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--fg-faint)] shrink-0">
-                              {i + 1} · {Math.min(100, Math.round((retrieved.find((r) => r.id === c.id)?.score ?? 0) * 12))}% dir-match
+                              {i + 1} · {Math.min(100, Math.round((retrieved.find((r) => r.id === c.id)?.score ?? 0) * 12))}% directory match
                             </span>
                           </div>
                           <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--fg-faint)] mb-2">
@@ -641,7 +704,7 @@ export default function DemoPage() {
                   </div>
 
                   {/* Manual search / override */}
-                  <div className="rounded-2xl border border-[var(--line)] bg-[var(--glass-faint)] px-5 py-4 mb-6">
+                  <div className="rounded-xl border border-[var(--line)] bg-[var(--glass-faint)] px-5 py-4 mb-6">
                     <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-faint)] mb-2">
                       Search the directory yourself
                     </div>
@@ -649,7 +712,7 @@ export default function DemoPage() {
                       value={searchQ}
                       onChange={(e) => setSearchQ(e.target.value)}
                       placeholder="passport, pf, income tax, aadhaar…"
-                      className="w-full rounded-full border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-2 text-[14px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
+                      className="w-full rounded-lg border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-2 text-[14px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
                     />
                     {searchResults.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -663,7 +726,7 @@ export default function DemoPage() {
                                 setRetrieved((prev) => [...prev, { id: p.pa_code, name: p.name, ministry: p.ministry, matched: [], score: 1 }]);
                               }
                             }}
-                            className={`rounded-full border px-3 py-1.5 text-[12.5px] transition-all ${picked === p.pa_code ? "border-[var(--iris)] bg-[var(--iris-tint)] text-[var(--iris)]" : "border-[var(--line-strong)] text-[var(--fg-soft)] hover:border-[var(--iris)]/40"}`}
+                            className={`rounded-lg border px-3 py-1.5 text-[12.5px] transition-all ${picked === p.pa_code ? "border-[var(--iris)] bg-[var(--iris-tint)] text-[var(--iris)]" : "border-[var(--line-strong)] text-[var(--fg-soft)] hover:border-[var(--iris)]/40"}`}
                           >
                             {p.name}
                           </button>
@@ -697,7 +760,7 @@ export default function DemoPage() {
                     Verify it is really you.
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
-                    Demo mode: no SMS is sent. The judge code is{" "}
+                    A local verification code is shown because no SMS service is connected. Use{" "}
                     <span className="font-mono font-semibold text-[var(--fg)]">123456</span>.
                   </p>
                   <input
@@ -716,7 +779,7 @@ export default function DemoPage() {
                           setErr(null);
                           setStage("pay");
                         } else {
-                          setErr("Wrong code — the demo code is 123456.");
+                          setErr("Wrong code. Use the local verification code 123456.");
                         }
                       }}
                       disabled={otp.length !== 6}
@@ -735,23 +798,22 @@ export default function DemoPage() {
               {stage === "pay" && (
                 <div>
                   <h1 className="font-display text-[28px] md:text-[32px] font-medium leading-[1.1] tracking-tight mb-2">
-                    One simulated fee, then your receipt.
+                    Prepare your application summary.
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
-                    The official fee is ₹10 (waived for BPL applicants). Here, no money moves and no
-                    gateway is contacted.
+                    Review the selected authority before creating a preparation receipt. No payment or filing happens in this workspace.
                   </p>
 
-                  <div className="rounded-2xl border border-[var(--line)] bg-[var(--glass)] px-5 py-4 mb-6">
+                  <div className="rounded-xl border border-[var(--line)] bg-[var(--glass)] px-5 py-4 mb-6">
                     <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-faint)] mb-2">
                       Preparing for
                     </div>
-                    <div className="font-display text-[16px] text-[var(--fg)]">{picked ? nameOf(picked) : "—"}</div>
+                    <div className="font-display text-[16px] text-[var(--fg)]">{picked ? nameOf(picked) : "Not selected"}</div>
                     <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-faint)] mt-1">
                       {picked ? ministryOf(picked) : ""}
                     </div>
                     <div className="border-t border-[var(--line)] mt-3 pt-3 text-[13.5px] text-[var(--fg-soft)]">
-                      Simulated fee <span className="font-medium text-[var(--fg)]">₹10</span> · method: mock UPI
+                      Filing and any statutory payment are completed separately on the official RTI Online portal.
                     </div>
                   </div>
 
@@ -764,7 +826,7 @@ export default function DemoPage() {
                     }}
                     className={`brass-plate px-6 py-3 font-mono text-[12px] uppercase tracking-[0.18em] transition-all ${pressed ? "stamp-press" : ""}`}
                   >
-                    Pay ₹10 (simulated) &amp; prepare receipt
+                    Prepare review receipt
                   </button>
                 </div>
               )}
@@ -776,29 +838,29 @@ export default function DemoPage() {
                     Prepared. Not filed.
                   </h1>
                   <p className="text-[14px] text-[var(--fg-soft)] mb-6">
-                    This receipt is a demo artifact. It was never sent to any government system.
+                    This preparation receipt confirms your work here. It was not sent to a government system.
                   </p>
 
-                  <div className="rounded-2xl border border-[var(--line)] bg-[var(--glass-strong)] px-6 py-6 mb-6 relative">
+                  <div className="rounded-xl border border-[var(--line)] bg-[var(--glass-strong)] px-6 py-6 mb-6 relative">
                     <div className={`absolute -top-3.5 right-5 wax px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em]`}>
                       Not submitted
                     </div>
                     <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-faint)] mb-2">
-                      Praja-RTI · independent demo receipt
+                      Praja RTI | independent preparation receipt
                     </div>
                     <div className="font-display text-[20px] font-medium mb-4">{reference}</div>
                     <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13.5px]">
                       <div>
                         <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-faint)] mb-0.5">Authority</dt>
-                        <dd className="text-[var(--fg)]">{picked ? nameOf(picked) : "—"}</dd>
+                        <dd className="text-[var(--fg)]">{picked ? nameOf(picked) : "Not available"}</dd>
                       </div>
                       <div>
-                        <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-faint)] mb-0.5">Fee</dt>
-                        <dd className="text-[var(--fg)]">₹10 · simulated success</dd>
+                        <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-faint)] mb-0.5">Workspace</dt>
+                        <dd className="text-[var(--fg)]">No payment processed</dd>
                       </div>
                       <div>
                         <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-faint)] mb-0.5">Requests</dt>
-                        <dd className="text-[var(--fg)]">{draft?.requests.length ?? "—"}</dd>
+                        <dd className="text-[var(--fg)]">{draft?.requests.length ?? "Not available"}</dd>
                       </div>
                       <div>
                         <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-faint)] mb-0.5">Submission</dt>
@@ -841,7 +903,7 @@ export default function DemoPage() {
                 How this works
               </div>
               <p className="text-[13.5px] leading-relaxed text-[var(--fg-soft)]">
-                Your speech is recognised in the browser. Only your edited transcript text is analysed —
+                Your speech is recognised in the browser. Only your edited transcript text is analysed
                 by a model locked to four strict JSON jobs (notes, exemption check, drafting, explaining).
                 It cannot invent departments: those come from a local dated directory by code.
               </p>
@@ -856,7 +918,7 @@ export default function DemoPage() {
                   <li key={g} className="flex items-center justify-between">
                     <span className="text-[var(--fg-soft)]">{g}</span>
                     <span className={gateModes[g] === "LIVE" ? "text-[var(--green)]" : gateModes[g] === "SIMULATED" ? "text-[var(--amber)]" : "text-[var(--fg-faint)]"}>
-                      {gateModes[g] ?? "—"}
+                      {gateModes[g] === "LIVE" ? "Live" : gateModes[g] === "SIMULATED" ? "Local" : "Pending"}
                     </span>
                   </li>
                 ))}
@@ -869,7 +931,7 @@ export default function DemoPage() {
               </div>
               <p className="text-[13.5px] leading-relaxed text-[var(--fg-soft)]">
                 At the record stage, say something like{" "}
-                <em>&ldquo;give me the minister&apos;s personal bank details&rdquo;</em> — the console
+                <em>&ldquo;give me the minister&apos;s personal bank details&rdquo;</em>. The workspace
                 refuses with the exact exemption clause and offers a lawful reframing.
               </p>
             </div>
@@ -888,7 +950,7 @@ function NoteChip({ label, values, empty }: { label: string; values: string[]; e
       </span>
       {values.length > 0 ? (
         values.map((v) => (
-          <span key={v} className="rounded-full border border-[var(--iris)]/25 bg-[var(--iris-tint)] px-3 py-1 text-[13px] text-[var(--fg)]">
+          <span key={v} className="rounded-md border border-[var(--iris)]/25 bg-[var(--iris-tint)] px-3 py-1 text-[13px] text-[var(--fg)]">
             {v}
           </span>
         ))

@@ -110,7 +110,7 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "Action failed");
-      setMsg({ kind: "ok", text: action === "clear" ? "Key cleared — gates run simulated." : "Updated." });
+      setMsg({ kind: "ok", text: action === "clear" ? "Key cleared. Gates now use the local fallback." : "Updated." });
       await loadStatus();
     } catch (err) {
       setMsg({ kind: "err", text: err instanceof Error ? err.message : "Action failed" });
@@ -121,12 +121,17 @@ export default function AdminPage() {
 
   return (
     <main className="relative min-h-screen flex flex-col">
-      <div className="w-full border-b border-[var(--line)] bg-[var(--glass)] backdrop-blur-sm">
+      <div className="tricolour" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="w-full border-b border-[var(--line)] bg-white">
         <div className="mx-auto max-w-3xl px-6 py-2 flex items-center gap-2.5 text-[13px] text-[var(--fg-soft)]">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--amber)]">Admin</span>
-          <span>Model control room. Your key is stored server-side and never shown again.</span>
-          <Link href="/demo" className="ml-auto font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--iris)] hover:underline shrink-0">
-            ← Console
+          <span>Model control room. Your key is stored on the server and never shown again.</span>
+          <Link href="/request" className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--iris)] hover:underline shrink-0">
+            Back to workspace
           </Link>
         </div>
       </div>
@@ -136,7 +141,7 @@ export default function AdminPage() {
         <p className="text-[15px] text-[var(--fg-soft)] -mt-3">
           Paste your GMI Cloud gateway key once. Every gate on the console then runs LIVE on
           <span className="font-mono text-[13px] mx-1 px-1.5 py-0.5 rounded bg-[var(--iris-tint)] text-[var(--iris)]">{model || "minimax/minimax-m3"}</span>
-          through the gateway — for all visitors.
+          through the gateway for all visitors.
         </p>
 
         {!unlocked ? (
@@ -149,7 +154,7 @@ export default function AdminPage() {
                 type="password"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder="demo pin: 123456"
+                placeholder="service pin: 123456"
                 autoFocus
                 className="flex-1 rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 text-[15px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
               />
@@ -161,21 +166,21 @@ export default function AdminPage() {
         ) : (
           <>
             <div className="paper p-6">
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] ${status?.configured && status.source === "admin" ? "border-[var(--green)]/30 bg-[var(--green)]/10 text-[var(--green)]" : "border-[var(--amber)]/30 bg-[var(--amber)]/10 text-[var(--amber)]"}`}>
-                {status?.source === "admin" ? `Live · admin key ····${status?.meta?.keyLast4}` : status?.source === "env" ? "Live · env fallback" : "Simulated · no key"}
+              <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] ${status?.configured && status.source === "admin" ? "border-[var(--green)]/30 bg-[var(--green)]/10 text-[var(--green)]" : "border-[var(--amber)]/30 bg-[var(--amber)]/10 text-[var(--amber)]"}`}>
+                {status?.source === "admin" ? `Live | admin key ${status?.meta?.keyLast4}` : status?.source === "env" ? "Live | environment fallback" : "Local fallback | no key"}
               </span>
               {status?.meta && (
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-5 gap-y-2 text-[13px] text-[var(--fg-soft)]">
                   <div><span className="block text-[11px] text-[var(--fg-faint)]">Model</span>{status.meta.modelFast}</div>
                   <div className="min-w-0"><span className="block text-[11px] text-[var(--fg-faint)]">Base URL</span><span className="truncate block">{status.meta.baseUrl}</span></div>
                   <div><span className="block text-[11px] text-[var(--fg-faint)]">State</span>{status.meta.live ? "enabled" : "paused"}</div>
-                  <div><span className="block text-[11px] text-[var(--fg-faint)]">Updated</span>{status.meta.updatedAt ? new Date(status.meta.updatedAt).toLocaleString() : "—"}</div>
+                  <div><span className="block text-[11px] text-[var(--fg-faint)]">Updated</span>{status.meta.updatedAt ? new Date(status.meta.updatedAt).toLocaleString() : "Not available"}</div>
                 </div>
               )}
               {status?.meta && (
                 <div className="mt-4 flex gap-2.5">
                   <button onClick={() => act(status.meta?.live ? "pause" : "resume")} disabled={busy} className="btn-chip">
-                    {status.meta.live ? "Pause (revert to simulated)" : "Resume"}
+                    {status.meta.live ? "Pause and use local fallback" : "Resume"}
                   </button>
                   <button onClick={() => act("clear")} disabled={busy} className="btn-chip btn-danger">
                     Clear key
@@ -227,7 +232,7 @@ export default function AdminPage() {
 
         {!status?.configured && status?.envFallback && (
           <p className="text-[13px] text-[var(--fg-faint)]">
-            Note: an env-var LLM key also exists on this deployment and acts as fallback when no admin key is saved.
+            Note: an environment variable key also exists on this deployment and acts as fallback when no admin key is saved.
           </p>
         )}
       </div>

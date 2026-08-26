@@ -1,263 +1,432 @@
+import Image from "next/image";
 import Link from "next/link";
-import Aurora from "@/components/Aurora";
-import BlurText from "@/components/BlurText";
-import SpotlightCard from "@/components/SpotlightCard";
-import CountUp from "@/components/CountUp";
-import ThemeToggle from "@/components/ThemeToggle";
+import HeroDraftActions from "@/components/HeroDraftActions";
 
-const flowSteps = [
+const serviceSteps = [
   {
-    title: "Speak, type, or attach a photo",
-    body: "Voice first, with a visible editable transcript. Photos are read by vision; every finding is read back and enters the draft only after you confirm it.",
+    title: "Tell us what happened",
+    body: "Speak or type in the language that feels natural. Your transcript stays visible and editable.",
   },
   {
-    title: "The agent writes the RTI application",
-    body: "Records-focused, not grievance. One plain follow-up when something material is missing. It never invents dates, names, or authorities.",
+    title: "Confirm the facts",
+    body: "Review the place, period, records sought, and anything clearly visible in an attached photo.",
   },
   {
-    title: "Three explained departments",
-    body: "A successful Central match returns exactly three candidates, each with a reason and an ambiguity warning. State matters stop safely.",
+    title: "Review the draft",
+    body: "Your concern becomes a neutral request for existing records, written as clear numbered points.",
   },
   {
-    title: "Confirm, mock pay, DEMO receipt",
-    body: "Sandbox OTP sign-in, explicit confirmation of draft and destination, simulated fee (waived for BPL). Receipt labelled NOT SUBMITTED.",
+    title: "Choose an authority",
+    body: "Compare three explained Central public authority suggestions and make the final choice yourself.",
+  },
+  {
+    title: "Save your application",
+    body: "Copy or download the prepared request so you can review it again before filing.",
+  },
+  {
+    title: "Use the official portal",
+    body: "When you are ready, continue through RTI Online to complete the official filing process.",
   },
 ];
 
-const guardrails = [
-  {
-    tag: "Sec 8 guard",
-    title: "Refuses what the RTI Act already exempts",
-    body: "If a request targets exempt material — national security, cabinet papers, an official's personal details unconnected to public duty — the agent does not draft. You get a plain-language summary of exactly which exemption applies, plus a lawful reframing where one exists.",
-    spotlight: "rgba(185, 28, 28, 0.06)" as const,
-    tagClass: "text-[var(--red)] border-[var(--red)]/20 bg-[var(--red)]/[0.04]",
-  },
-  {
-    tag: "Evidence",
-    title: "Reads the photo you attached",
-    body: "Photos of the incident are analysed for what is clearly observable — scene, signboards, condition. Each finding is confirmed by you before it enters the draft, and images are cited as attached supporting evidence in the standard filing format. Never as accusations.",
-    spotlight: "rgba(79, 70, 229, 0.07)" as const,
-    tagClass: "text-[var(--iris)] border-[var(--iris)]/20 bg-[var(--iris-tint)]",
-  },
+const draftRequests = [
+  "Certified copy of the work order and sanctioned budget for Road 12, Sector 4.",
+  "Contractor details, scheduled completion date, and delay clauses recorded for the work.",
+  "Copies of quality inspection reports submitted for the road work.",
 ];
+
+function ArrowIcon({ direction = "right" }: { direction?: "right" | "down" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={direction === "down" ? "rotate-90" : ""}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path d="M5 12h14M14 7l5 5l-5 5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <rect height="10" rx="4" stroke="currentColor" strokeWidth="1.7" width="7" x="8.5" y="3" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path d="M7 2.75h7l4 4V21.25H7z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" />
+      <path d="M14 2.75v4h4M9.5 11h6M9.5 14.5h6M9.5 18h4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path d="M12 2.75c2.3 1.6 4.9 2.45 7.25 2.7v5.4c0 4.6-2.8 8.35-7.25 10.4c-4.45-2.05-7.25-5.8-7.25-10.4v-5.4C7.1 5.2 9.7 4.35 12 2.75Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" />
+      <path d="m8.8 12l2.1 2.1l4.4-4.6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function StepIcon({ index }: { index: number }) {
+  const common = { stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.6 };
+  if (index === 0) return <MicIcon />;
+  if (index === 1) {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+        <path d="M8 6h11M8 12h11M8 18h11M3.5 6l1.2 1.2L6.8 5M3.5 12l1.2 1.2l2.1-2.2M3.5 18l1.2 1.2l2.1-2.2" {...common} />
+      </svg>
+    );
+  }
+  if (index === 2) return <DocumentIcon />;
+  if (index === 3) {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+        <path d="M3 9h18M5 9v9M9.5 9v9M14.5 9v9M19 9v9M3 19.5h18M12 3l9 4H3z" {...common} />
+      </svg>
+    );
+  }
+  if (index === 4) {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+        <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 20h14" {...common} />
+      </svg>
+    );
+  }
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" {...common} />
+      <path d="M3.5 12h17M12 3c2.3 2.5 3.4 5.5 3.4 9S14.3 18.5 12 21M12 3C9.7 5.5 8.6 8.5 8.6 12s1.1 6.5 3.4 9" {...common} />
+    </svg>
+  );
+}
 
 export default function Page() {
   return (
-    <main className="relative">
-      {/* Independent-demo ribbon */}
-      <div className="w-full border-b border-[var(--line)] bg-[var(--glass)] backdrop-blur-sm">
-        <div className="mx-auto max-w-6xl px-6 py-2 flex items-center gap-2.5 text-[13px] text-[var(--fg-soft)]">
-          <span className="size-1.5 rounded-full bg-[var(--amber)]" aria-hidden />
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--amber)]">Independent</span>
-          <span>
-            Praja-RTI is a hackathon demo — not affiliated with the Government of India. No RTI is filed with any government system here.
-          </span>
+    <main className="site-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+
+      <div className="tricolour" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <div className="utility-bar">
+        <div className="site-container utility-inner">
+          <span>Independent citizen assistance for RTI</span>
+          <div className="utility-links" aria-label="Utility links">
+            <a href="#accessibility">Accessibility</a>
+            <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Official RTI portal</a>
+          </div>
         </div>
       </div>
 
-      {/* Nav */}
-      <header className="mx-auto max-w-6xl w-full px-6 py-5 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="grid place-items-center size-8 rounded-lg bg-[var(--iris)] text-white font-display text-[15px] font-semibold">
-            P
-          </span>
-          <span className="font-display font-semibold text-[18px] tracking-tight">Praja&middot;RTI</span>
-        </Link>
-        <nav className="hidden md:flex items-center gap-7 text-[14px] text-[var(--fg-soft)]">
-          <a href="#how" className="hover:text-[var(--fg)] transition-colors">How it works</a>
-          <a href="#guardrails" className="hover:text-[var(--fg)] transition-colors">Guardrails</a>
-          <a href="#facts" className="hover:text-[var(--fg)] transition-colors">Portal facts</a>
-        </nav>
-        <div className="flex items-center gap-2.5">
-          <ThemeToggle />
-          <Link
-            href="/demo"
-            className="rounded-full bg-[var(--iris)] px-4.5 py-2 text-[13.5px] font-medium text-white transition-all duration-200 hover:bg-[var(--iris-deep)] hover:shadow-[0_8px_20px_-8px_rgba(79,70,229,0.5)]"
-          >
-            Open the demo
+      <header className="civic-header">
+        <div className="site-container header-inner">
+          <Link className="brand" href="/" aria-label="Praja RTI home">
+            <Image
+              alt="State Emblem of India"
+              className="brand-emblem"
+              height={72}
+              priority
+              src="/india-emblem-white.png"
+              width={50}
+            />
+            <span className="brand-rule" aria-hidden="true" />
+            <span>
+              <strong>Praja RTI</strong>
+              <small lang="hi">प्रजा आरटीआई</small>
+            </span>
+            <span className="brand-context">Independent<br />Citizen Assistance</span>
           </Link>
+
+          <nav className="primary-nav" aria-label="Primary navigation">
+            <a href="#how-it-works">How it works</a>
+            <a href="#rti-lifecycle">RTI lifecycle</a>
+            <a href="#safeguards">Safeguards</a>
+          </nav>
+
+          <Link className="header-action header-start-action" href="/request">Start drafting</Link>
         </div>
       </header>
 
-      {/* HERO */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-[560px] -z-10 hero-aurora [mask-image:radial-gradient(ellipse_75%_65%_at_50%_0%,#000_40%,transparent_100%)]">
-          <Aurora
-            colorStops={["#c4b5fd", "#bae6fd", "#fbcfe8"]}
-            amplitude={0.7}
-            blend={0.65}
-            speed={0.7}
-          />
+      <div className="truth-strip">
+        <div className="site-container">
+          <strong>Important:</strong> Praja RTI is independent citizen assistance. It is not a government portal and does not file an application on your behalf.
+        </div>
+      </div>
+
+      <section className="hero site-container" id="main-content">
+        <div className="hero-copy">
+          <h1>Speak naturally. Leave with a clear RTI request.</h1>
+          <p>
+            Turn a spoken concern into a focused request for records. Review every word, compare explained Central authority suggestions, and decide what to take forward.
+          </p>
+          <div className="hero-actions">
+            <Link className="primary-button" href="/request">
+              <MicIcon />
+              Start your request
+            </Link>
+            <a className="text-link" href="#how-it-works">See the full process</a>
+          </div>
+          <dl className="hero-assurances">
+            <div>
+              <dt>Language</dt>
+              <dd>English, हिन्दी, and Hinglish</dd>
+            </div>
+            <div>
+              <dt>Control</dt>
+              <dd>You confirm every consequential choice</dd>
+            </div>
+          </dl>
         </div>
 
-        <div className="mx-auto max-w-6xl px-6 pt-20 pb-24 md:pt-28 md:pb-32 text-center">
-          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--glass)] backdrop-blur px-3.5 py-1.5 text-[12.5px] text-[var(--fg-soft)] mb-9 shadow-[0_2px_8px_-2px_rgba(20,20,30,0.06)]">
-            <span className="size-1.5 rounded-full bg-[var(--iris)]" aria-hidden />
-            Voice-first · mock-only · not a government service
+        <div className="transformation" aria-label="Example of a spoken concern becoming an RTI records request">
+          <div className="transform-toolbar">
+            <span>Draft workspace</span>
+            <span className="workspace-status"><i aria-hidden="true" /> Ready for review</span>
           </div>
+          <div className="transform-grid">
+            <section className="transcript-panel">
+              <div className="panel-heading">
+                <span className="panel-icon"><MicIcon /></span>
+                <span>
+                  <small>Your words</small>
+                  <strong>Editable transcript</strong>
+                </span>
+              </div>
+              <div className="voice-line" aria-hidden="true">
+                {[10, 22, 15, 28, 18, 31, 24, 12, 26, 17, 9, 21, 13, 7].map((height, index) => (
+                  <i key={index} style={{ height }} />
+                ))}
+              </div>
+              <blockquote>
+                The road outside my house in Sector 4 has been broken for months. I want to know what work was approved and whether it was inspected.
+              </blockquote>
+              <div className="transcript-meta">
+                <span>English with Hinglish supported</span>
+                <span>Text remains editable</span>
+              </div>
+            </section>
 
-          <h1 className="mx-auto max-w-4xl font-display text-[44px] sm:text-[58px] md:text-[68px] font-medium leading-[1.04] tracking-tight text-[var(--fg)]">
-            <BlurText
-              text="Speak it. The agent writes the RTI."
-              delay={55}
-              stepDuration={0.45}
-              animateBy="words"
-              className="justify-center"
-            />
-            <span className="block mt-2 font-display italic font-light text-[var(--iris)]">
-              It picks the right department.
-            </span>
-          </h1>
+            <div className="transform-arrow" aria-hidden="true"><ArrowIcon /></div>
 
-          <p className="mt-7 text-[16.5px] sm:text-[17.5px] text-[var(--fg-soft)] max-w-2xl mx-auto leading-relaxed">
-            A calm little console for a loud process: it turns a spoken complaint into a
-            records-focused RTI application, explains the most likely Central public authority,
-            and prepares a clearly simulated DEMO receipt — without ever contacting the government.
-          </p>
+            <section className="draft-panel">
+              <div className="panel-heading">
+                <span className="panel-icon"><DocumentIcon /></span>
+                <span>
+                  <small>Prepared output</small>
+                  <strong>Records focused request</strong>
+                </span>
+              </div>
+              <ol className="request-list">
+                {draftRequests.map((request) => <li key={request}>{request}</li>)}
+              </ol>
+              <HeroDraftActions />
+              <div className="draft-footer">
+                <span><ShieldIcon /> Facts kept neutral</span>
+                <span>3 request points</span>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3.5">
-            <Link
-              href="/demo"
-              className="rounded-full bg-[var(--iris)] px-7 py-3 text-[15px] font-medium text-white transition-all duration-200 hover:bg-[var(--iris-deep)] hover:shadow-[0_12px_28px_-10px_rgba(79,70,229,0.55)] hover:scale-[1.02] active:scale-[0.99]"
-            >
-              Launch the console →
-            </Link>
-            <a
-              href="#guardrails"
-              className="rounded-full border border-[var(--line-strong)] bg-[var(--glass)] backdrop-blur px-7 py-3 text-[15px] text-[var(--fg-soft)] hover:text-[var(--fg)] hover:border-[var(--iris)]/40 transition-all duration-200"
-            >
-              See the guardrails
+      <section className="service-principles reveal reveal-wipe" aria-labelledby="principles-title">
+        <div className="site-container principles-grid">
+          <h2 id="principles-title">Built around citizen control</h2>
+          <div>
+            <strong>Records, not accusations</strong>
+            <p>Your concern is rewritten as a request for existing files, orders, budgets, registers, or reports.</p>
+          </div>
+          <div>
+            <strong>Reasons, not silent routing</strong>
+            <p>Each suggested Central authority comes with a reason and an uncertainty note.</p>
+          </div>
+          <div>
+            <strong>Review before action</strong>
+            <p>The transcript, facts, request points, and destination remain yours to correct.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="process-section site-container reveal reveal-rise" id="how-it-works">
+        <div className="section-intro">
+          <h2>A clear path from concern to application</h2>
+          <p>One decision at a time, with the citizen in control throughout.</p>
+        </div>
+        <ol className="service-path">
+          {serviceSteps.map((step, index) => (
+            <li key={step.title}>
+              <span className="step-icon"><StepIcon index={index} /></span>
+              <div>
+                <span className="step-index">Step {index + 1}</span>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="lifecycle-section reveal reveal-fade" id="rti-lifecycle">
+        <div className="site-container">
+          <div className="section-intro lifecycle-intro">
+            <div>
+              <h2>Understand the official RTI lifecycle</h2>
+              <p>This simplified view follows the lifecycle published by RTI Online and keeps the main reply, transfer, appeal, and complaint branches readable.</p>
+            </div>
+            <a href="https://rtionline.gov.in/images/rti_lifecycle.jpg" rel="noreferrer" target="_blank">
+              View the original flowchart
+              <ArrowIcon />
             </a>
           </div>
 
-          {/* CountUp instruments */}
-          <div id="facts" className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-3.5 max-w-3xl mx-auto">
-            {[
-              { to: 10, prefix: "Rs ", label: "fee, waived for BPL applicants" },
-              { to: 2916, separator: ",", label: "Central public authorities (we mock a curated ~50)" },
-              { to: 30, suffix: " days", label: "statutory response window (48 h life-and-liberty)" },
-              { to: 3000, separator: ",", label: "character limit per request (attachments allowed)" },
-            ].map((s) => (
-              <div key={s.label} className="paper px-4 py-5 text-left">
-                <div className="font-display text-[27px] font-semibold text-[var(--fg)] leading-none">
-                  {s.prefix}
-                  <CountUp to={s.to} separator={s.separator} duration={1.8} />
-                  {s.suffix}
+          <div className="lifecycle-flow" aria-label="RTI lifecycle adapted from RTI Online">
+            <div className="life-node life-start">
+              <small>Application</small>
+              <strong>RTI request submitted</strong>
+            </div>
+
+            <div className="life-branches">
+              <article>
+                <span className="time-chip">30 days</span>
+                <h3>Reply received</h3>
+                <p>If the response is complete, the process can close. If it is incomplete, a first appeal may follow.</p>
+                <div className="life-outcomes">
+                  <span className="outcome-good">Satisfied</span>
+                  <span className="outcome-action">First appeal</span>
                 </div>
-                <div className="mt-2 text-[12px] leading-snug text-[var(--fg-faint)]">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              </article>
 
-      <div className="section-rule mx-auto max-w-6xl" />
+              <article>
+                <span className="time-chip">5 days</span>
+                <h3>Request transferred</h3>
+                <p>The receiving public authority then follows the applicable response period.</p>
+                <div className="life-outcomes">
+                  <span className="outcome-neutral">Reply</span>
+                  <span className="outcome-action">First appeal if needed</span>
+                </div>
+              </article>
 
-      {/* HOW IT WORKS */}
-      <section id="how" className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="font-display text-[32px] md:text-[40px] font-medium tracking-tight text-[var(--fg)] mb-3">
-          Four motions, one honest request.
-        </h2>
-        <p className="text-[var(--fg-soft)] max-w-2xl leading-relaxed mb-10">
-          No silent submission, no fake confidence. The console prepares an application, explains the
-          destination, and hands you a labelled DEMO receipt.
-        </p>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          {flowSteps.map((s, i) => (
-            <SpotlightCard
-              key={s.title}
-              spotlightColor={"rgba(79, 70, 229, 0.06)" as const}
-              className="!rounded-[20px] !p-6"
-            >
-              <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--iris)] mb-3">
-                Step {i + 1}
-              </div>
-              <h3 className="font-display text-[20px] font-medium text-[var(--fg)] leading-snug mb-2">
-                {s.title}
-              </h3>
-              <p className="text-[14px] leading-relaxed text-[var(--fg-soft)]">{s.body}</p>
-            </SpotlightCard>
-          ))}
-        </div>
-
-        {/* Grievance → draft */}
-        <div className="mt-8 grid md:grid-cols-2 gap-4">
-          <div className="paper p-7">
-            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--red)] mb-2.5">
-              What you said
+              <article>
+                <span className="time-chip">30 days</span>
+                <h3>No reply received</h3>
+                <p>No response within the period can lead to a first appeal or a Section 18 complaint.</p>
+                <div className="life-outcomes">
+                  <span className="outcome-action">First appeal</span>
+                  <span className="outcome-neutral">Complaint to CIC</span>
+                </div>
+              </article>
             </div>
-            <p className="font-display italic text-[17px] leading-relaxed text-[var(--fg-soft)]">
-              &ldquo;The road outside my house in Sector 4 is broken for months. Why is the government not
-              fixing it? Officers are corrupt!&rdquo;
-            </p>
-          </div>
-          <div className="paper p-7">
-            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--green)] mb-2.5">
-              What the agent wrote
-            </div>
-            <p className="text-[14.5px] leading-relaxed text-[var(--fg)]">
-              Please provide certified copies of: (1) the work order, sanctioned budget, and contractor
-              details for Road #12, Sector 4; (2) the scheduled completion date and delay-penalty clauses;
-              (3) quality inspection reports submitted by the site engineer.
-            </p>
-          </div>
-        </div>
-      </section>
 
-      <div className="section-rule mx-auto max-w-6xl" />
-
-      {/* GUARDRAILS */}
-      <section id="guardrails" className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="font-display text-[32px] md:text-[40px] font-medium tracking-tight text-[var(--fg)] mb-3">
-          Two things the console will not do.
-        </h2>
-        <p className="text-[var(--fg-soft)] max-w-2xl leading-relaxed mb-10">
-          The guardrails run inside the same flow as the drafting. They are not a step you have to remember.
-        </p>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          {guardrails.map((g) => (
-            <SpotlightCard key={g.tag} spotlightColor={g.spotlight} className="!rounded-[20px] !p-7">
-              <div className={`inline-flex items-center rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] mb-4 ${g.tagClass}`}>
-                {g.tag}
+            <div className="appeal-track">
+              <div>
+                <span className="time-chip">30 to 45 days</span>
+                <strong>First appellate decision</strong>
+                <p>The appellate authority may decide within 30 days, or record reasons for extending up to 45 days.</p>
               </div>
-              <h3 className="font-display text-[21px] font-medium text-[var(--fg)] leading-snug mb-2.5">
-                {g.title}
-              </h3>
-              <p className="text-[14px] leading-relaxed text-[var(--fg-soft)]">{g.body}</p>
-            </SpotlightCard>
-          ))}
+              <ArrowIcon />
+              <div>
+                <span className="time-chip">Within 90 days</span>
+                <strong>Second appeal</strong>
+                <p>If the citizen remains unsatisfied, a second appeal may be made to the CIC or SIC as applicable.</p>
+              </div>
+            </div>
+          </div>
+
+          <figure className="source-reference">
+            <Image alt="Original RTI lifecycle flowchart published by RTI Online" height={543} src="/rti-lifecycle.jpg" width={571} />
+            <figcaption>
+              <strong>Source reference</strong>
+              Original lifecycle chart published on RTI Online. The accessible flow above is a simplified interpretation for orientation and is not legal advice.
+            </figcaption>
+          </figure>
         </div>
       </section>
 
-      <div className="section-rule mx-auto max-w-6xl" />
-
-      {/* WHY ROUTING MATTERS */}
-      <section className="mx-auto max-w-6xl px-6 py-16">
-        <div className="paper p-8 flex flex-wrap items-center justify-between gap-6">
-          <p className="max-w-[62ch] text-[15px] leading-relaxed text-[var(--fg-soft)]">
-            <span className="text-[var(--fg)] font-medium">Why the choice matters.</span> Picking the wrong
-            Central public authority triggers a Section 6(3) transfer within up to five days — plus the
-            new authority&apos;s own handling time. The console explains every recommendation, and you
-            can always search or override it.
-          </p>
-          <a
-            href="https://rtionline.gov.in/index.php"
-            target="_blank"
-            rel="noreferrer"
-            className="font-mono text-[12px] uppercase tracking-[0.16em] text-[var(--iris)] hover:underline whitespace-nowrap"
-          >
-            Official portal ↗
-          </a>
+      <section className="safeguards-section site-container reveal reveal-rise" id="safeguards">
+        <div className="section-intro">
+          <h2>Safeguards inside the drafting process</h2>
+          <p>The service should help you ask clearly without inventing facts or overstepping the Act.</p>
+        </div>
+        <div className="safeguards-grid">
+          <article>
+            <span className="safeguard-icon"><ShieldIcon /></span>
+            <div>
+              <h3>Sensitive request check</h3>
+              <p>Requests aimed at exempt information are not drafted. You receive a plain explanation and a lawful reframing where one is available.</p>
+              <ul>
+                <li>National security and protected material</li>
+                <li>Cabinet papers and protected deliberations</li>
+                <li>Private details unrelated to public duty</li>
+              </ul>
+            </div>
+          </article>
+          <article>
+            <span className="safeguard-icon"><DocumentIcon /></span>
+            <div>
+              <h3>Photo evidence check</h3>
+              <p>Only clearly observable details are proposed. Nothing enters the draft until you confirm it.</p>
+              <ul>
+                <li>Visible scene, condition, and signboards</li>
+                <li>No accusations inferred from an image</li>
+                <li>Attachments referenced as supporting material</li>
+              </ul>
+            </div>
+          </article>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-[var(--line)]">
-        <div className="mx-auto max-w-6xl px-6 py-8 flex flex-wrap items-center justify-between gap-3 text-[12.5px] text-[var(--fg-faint)]">
-          <div>© 2026 Praja&middot;RTI · Independent hackathon concept</div>
-          <div className="font-mono">Aurora · BlurText · SpotlightCard · CountUp — React Bits</div>
+      <section className="official-next-step reveal reveal-wipe">
+        <div className="site-container next-step-inner">
+          <div>
+            <h2>Ready to prepare your request?</h2>
+            <p>Draft here, review every detail, then use the official RTI Online portal when you are ready to file.</p>
+          </div>
+          <div className="next-step-actions">
+            <Link className="light-button" href="/request">Start drafting</Link>
+            <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Go to RTI Online</a>
+          </div>
+        </div>
+      </section>
+
+      <footer className="site-footer" id="accessibility">
+        <div className="site-container footer-grid">
+          <div className="footer-brand">
+            <Image alt="State Emblem of India" height={54} src="/india-emblem-white.png" width={37} />
+            <div>
+              <strong>Praja RTI</strong>
+              <span>Independent citizen assistance</span>
+            </div>
+          </div>
+          <div>
+            <strong>Service</strong>
+            <a href="#how-it-works">How it works</a>
+            <a href="#safeguards">Safeguards</a>
+          </div>
+          <div>
+            <strong>Official resources</strong>
+            <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">RTI Online</a>
+            <a href="https://rtionline.gov.in/faq.php" rel="noreferrer" target="_blank">RTI FAQ</a>
+          </div>
+          <div>
+            <strong>Accessibility</strong>
+            <span>Keyboard friendly</span>
+            <span>Reduced motion supported</span>
+          </div>
+        </div>
+        <div className="site-container footer-bottom">
+          <span>Praja RTI is not affiliated with the Government of India.</span>
+          <span>Information last reviewed August 2026</span>
         </div>
       </footer>
     </main>

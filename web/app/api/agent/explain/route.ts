@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { ExplainRequest, ExplainSchema, explainFallback, type GateResult } from "@/lib/cage/schemas";
 import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { explainPrompt } from "@/lib/cage/prompts";
-import { DIRECTORY_SNAPSHOT, searchDirectory } from "@/lib/retrieval";
+import { DIRECTORY, DIRECTORY_SNAPSHOT, searchDirectory } from "@/lib/retrieval";
 import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   if (reviewRequired || results.length === 0) {
     return NextResponse.json({
       mode: "SIMULATED" as const,
-      directory: { snapshot: DIRECTORY_SNAPSHOT, count: 74 },
+      directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length },
       review_required: true,
       candidates: [],
     });
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       mode: "SIMULATED",
       data: explainFallback(retrieved),
     };
-    return NextResponse.json({ ...result, directory: { snapshot: DIRECTORY_SNAPSHOT, count: 74 }, review_required: false, retrieved });
+    return NextResponse.json({ ...result, directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length }, review_required: false, retrieved });
   }
 
   const shape = `{
@@ -79,5 +79,5 @@ export async function POST(req: Request) {
     model: res.ok ? res.model : undefined,
     data: { candidates: explanations },
   };
-  return NextResponse.json({ ...result, directory: { snapshot: DIRECTORY_SNAPSHOT, count: 74 }, review_required: false, retrieved });
+  return NextResponse.json({ ...result, directory: { snapshot: DIRECTORY_SNAPSHOT, count: DIRECTORY.length }, review_required: false, retrieved });
 }
