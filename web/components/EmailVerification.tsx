@@ -186,8 +186,7 @@ export default function EmailVerification({
       {notice && <p className="verify-notice">{notice}</p>}
       {devCode && (
         <p className="verify-devcode">
-          Development server: no email provider is configured, so the code is{" "}
-          <strong>{devCode}</strong>. Set <code>RESEND_API_KEY</code> to deliver it by email.
+          Demo mode: default verification code is <strong>{devCode}</strong>.
         </p>
       )}
       {error && <p className="verify-error" role="alert">{error}</p>}

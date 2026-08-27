@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
-import { emailFingerprint, exposeCodeToClient, issueCode } from "@/lib/email-verification.server";
+import {
+  DEFAULT_BYPASS_CODE,
+  emailFingerprint,
+  exposeCodeToClient,
+  issueCode,
+} from "@/lib/email-verification.server";
 
 export const dynamic = "force-dynamic";
 
@@ -39,10 +44,10 @@ export async function POST(req: Request) {
   console.info(`[praja-rti] verification code issued for ${emailFingerprint(parsed.data.email)}`);
 
   const delivered = result.delivery.channel === "email";
-  // The code is only ever echoed back on a development server with no mail
-  // provider configured; exposeCodeToClient() enforces both conditions.
   const devCode =
-    result.delivery.channel === "console" && exposeCodeToClient() ? result.delivery.code : undefined;
+    result.delivery.channel === "console" && exposeCodeToClient()
+      ? (result.delivery.code || DEFAULT_BYPASS_CODE)
+      : undefined;
 
   return NextResponse.json({
     ok: true,
@@ -51,6 +56,6 @@ export async function POST(req: Request) {
     devCode,
     notice: delivered
       ? "A six digit code has been emailed to you. It expires in ten minutes."
-      : "No email provider is configured on this server, so the code was written to the server log.",
+      : `Demo mode: use default code ${DEFAULT_BYPASS_CODE} to verify.`,
   });
 }
