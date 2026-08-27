@@ -34,7 +34,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${publicSans.variable} ${devanagari.variable} h-full antialiased`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: PREFS_SCRIPT }} />
+        <script
+          dangerouslySetInnerHTML={{ __html: PREFS_SCRIPT }}
+          suppressHydrationWarning
+        />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

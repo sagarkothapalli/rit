@@ -1,56 +1,117 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 const STEPS = [90, 100, 125, 150, 175];
 const NAMES = ["Smaller", "Default", "Large", "Larger", "Largest"];
 
 function nearestIndex(zoom: number) {
-  return STEPS.reduce((best, step, index) =>
-    Math.abs(step - zoom) < Math.abs(STEPS[best] - zoom) ? index : best,
-  1);
+  return STEPS.reduce(
+    (best, step, index) =>
+      Math.abs(step - zoom) < Math.abs(STEPS[best] - zoom) ? index : best,
+    1
+  );
+}
+
+function getZoomFill(index: number) {
+  return `${(index / (STEPS.length - 1)) * 100}%`;
 }
 
 export default function AccessibilityControls() {
-  const sliderRef = useRef<HTMLInputElement>(null);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [zoomIndex, setZoomIndex] = useState<number>(1);
+  const [announcement, setAnnouncement] = useState<string>("");
 
   useEffect(() => {
-    const sync = () => {
-      const slider = sliderRef.current;
-      if (!slider) return;
-      const zoom = parseInt(document.documentElement.dataset.textScale || "100", 10);
-      const index = nearestIndex(Number.isNaN(zoom) ? 100 : zoom);
-      slider.value = String(index);
-      slider.setAttribute("aria-valuetext", NAMES[index]);
+    const syncFromDOM = () => {
+      const currentTheme =
+        document.documentElement.getAttribute("data-theme") === "dark"
+          ? "dark"
+          : "light";
+      const currentZoom = parseInt(
+        document.documentElement.getAttribute("data-text-scale") || "100",
+        10
+      );
+      const index = nearestIndex(
+        Number.isNaN(currentZoom) ? 100 : currentZoom
+      );
+      setTheme(currentTheme);
+      setZoomIndex(index);
     };
-    sync();
-    window.addEventListener("praja-prefs", sync);
-    return () => window.removeEventListener("praja-prefs", sync);
+
+    syncFromDOM();
+    window.addEventListener("praja-prefs", syncFromDOM);
+    return () => window.removeEventListener("praja-prefs", syncFromDOM);
   }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    document.documentElement.setAttribute("data-theme", nextTheme);
+    try {
+      localStorage.setItem("praja-theme", nextTheme);
+    } catch {}
+    setAnnouncement(
+      `${NAMES[zoomIndex]} text size. ${nextTheme === "dark" ? "Dark" : "Light"} appearance.`
+    );
+    try {
+      window.dispatchEvent(new Event("praja-prefs"));
+    } catch {}
+  };
+
+  const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newIdx = Math.max(
+      0,
+      Math.min(STEPS.length - 1, parseInt(e.target.value, 10) || 1)
+    );
+    setZoomIndex(newIdx);
+    const zoom = STEPS[newIdx];
+    document.documentElement.setAttribute("data-text-scale", String(zoom));
+    document.documentElement.style.setProperty("--text-scale", String(zoom / 100));
+    document.documentElement.style.setProperty("--zoom-fill", getZoomFill(newIdx));
+    try {
+      localStorage.setItem("praja-text-scale", String(zoom));
+    } catch {}
+    setAnnouncement(
+      `${NAMES[newIdx]} text size. ${theme === "dark" ? "Dark" : "Light"} appearance.`
+    );
+    try {
+      window.dispatchEvent(new Event("praja-prefs"));
+    } catch {}
+  };
 
   return (
     <div className="a11y-dock">
       <div className="a11y-zoom">
-        <span className="a11y-zoom-min" aria-hidden="true">A</span>
+        <span className="a11y-zoom-min" aria-hidden="true">
+          A
+        </span>
         <input
           aria-label="Text size"
-          aria-valuetext="Default"
+          aria-valuetext={NAMES[zoomIndex]}
           className="a11y-zoom-slider"
-          defaultValue="1"
           max="4"
           min="0"
-          ref={sliderRef}
+          onChange={handleZoomChange}
           step="1"
           suppressHydrationWarning
           type="range"
+          value={zoomIndex}
         />
-        <span className="a11y-zoom-max" aria-hidden="true">A</span>
+        <span className="a11y-zoom-max" aria-hidden="true">
+          A
+        </span>
       </div>
 
       <button
-        aria-label="Switch to dark appearance"
-        aria-pressed="false"
+        aria-label={
+          theme === "dark"
+            ? "Switch to light appearance"
+            : "Switch to dark appearance"
+        }
+        aria-pressed={theme === "dark"}
         className="a11y-theme"
+        onClick={toggleTheme}
         suppressHydrationWarning
         type="button"
       >
@@ -69,7 +130,9 @@ export default function AccessibilityControls() {
         <span className="a11y-theme-label a11y-theme-on-dark">Light</span>
       </button>
 
-      <span className="sr-only" aria-live="polite" suppressHydrationWarning />
+      <span className="sr-only" aria-live="polite" suppressHydrationWarning>
+        {announcement}
+      </span>
     </div>
   );
 }
