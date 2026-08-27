@@ -1,8 +1,9 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import SiteMasthead from "@/components/SiteMasthead";
 import { useSpeech } from "@/hooks/useSpeech";
+import { useLiveIntake } from "@/hooks/useLiveIntake";
 import { searchDirectory, shortlistDirectory, DIRECTORY, DIRECTORY_SNAPSHOT, PORTAL_TOTAL, type PublicAuthority } from "@/lib/retrieval";
 import {
   draftFallback,
@@ -12,7 +13,10 @@ import {
   type Notes,
   type Guard,
   type Draft,
+  type IntakeHints,
 } from "@/lib/cage/schemas";
+import { loadIntakeRecord, clearIntakeRecord, composeIntakeTranscript } from "@/lib/live/intakeMemory";
+import type { IntakeHandoff } from "@/lib/live/intakePrompt";
 import { normalizeNotes, routingQuery } from "@/lib/intake";
 import { hostedGate } from "@/lib/cage/hosted";
 import { buildReport, downloadText, formatReportText, reportFilename } from "@/lib/report";
@@ -70,9 +74,9 @@ function spokenTranscript(finalText: string, interimText: string) {
 
 function localFallback(url: string, body: unknown): unknown {
   if (url.endsWith("/notes")) {
-    const request = body as { transcript?: string };
+    const request = body as { transcript?: string; intake?: IntakeHints };
     const transcript = request.transcript ?? "";
-    return { mode: "SIMULATED", data: normalizeNotes(transcript, notesFallback(transcript)) };
+    return { mode: "SIMULATED", data: normalizeNotes(transcript, notesFallback(transcript), request.intake) };
   }
   if (url.endsWith("/guard")) return { mode: "SIMULATED", data: guardFallback };
   if (url.endsWith("/draft")) {
@@ -174,9 +178,70 @@ export default function DraftingPage() {
   const [err, setErr] = useState<string | null>(null);
   const [anySimulated, setAnySimulated] = useState(false);
   const [copied, setCopied] = useState<"txt" | "json" | null>(null);
+  const [advancing, setAdvancing] = useState(false);
 
   const speech = useSpeech(lang);
-  const micMode = speech.supported ? "Web Speech" : "Text only";
+  const live = useLiveIntake();
+  const [liveReady, setLiveReady] = useState(false);
+
+  useEffect(() => {
+    // Static hosted deploys have no token route — chips flow there.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLiveReady(live.supported && !onStaticHost());
+  }, [live.supported]);
+
+  // Restore a captured intake if the page was refreshed mid-flow: the
+  // complaint is prefilled on the record stage, ready to send again.
+  useEffect(() => {
+    const rec = loadIntakeRecord();
+    if (!rec || !rec.transcript) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLang(rec.handoff.detected_lang);
+    speech.setFinalText(rec.transcript);
+    setUserCorrected(false);
+    setCorrectOpen(true);
+    setStage("record");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The handoff is the agent's "next step" trigger: seed the transcript and
+  // advance straight into GATE 1 (Notes, step 3) without a manual click.
+  // If the gate fails, fall back to the record stage with everything prefilled.
+  useEffect(() => {
+    if (!live.handoff) return;
+    const h = live.handoff;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLang(h.detected_lang);
+    const text = composeIntakeTranscript(h, live.userText);
+    if (!text) {
+      setStage("record");
+      return;
+    }
+    speech.setFinalText(text);
+    setUserCorrected(false);
+    setCorrectOpen(true);
+    setErr(null);
+    setTranscript(text);
+    setAdvancing(true);
+    void (async () => {
+      const ok = await runNotes(text, h);
+      setAdvancing(false);
+      if (!ok) setStage("record");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live.handoff]);
+
+  function continueFromLive() {
+    const text = live.userText.trim().slice(0, 6000);
+    if (!text) return;
+    speech.setFinalText(text);
+    setUserCorrected(false);
+    setCorrectOpen(true);
+    setErr(null);
+    setStage("record");
+  }
+
+  const micMode = liveReady ? "Live intake" : speech.supported ? "Web Speech" : "Text only";
   const spokenText = spokenTranscript(speech.finalText, speech.interimText);
   const correction = userCorrected ? manualText : spokenText || manualText;
   const listening = speech.status === "listening";
@@ -196,6 +261,8 @@ export default function DraftingPage() {
   }
 
   function goSetup() {
+    live.stop();
+    clearIntakeRecord();
     setStage("record");
     speech.reset();
     setManualText("");
@@ -244,18 +311,28 @@ export default function DraftingPage() {
     runNotes(final);
   }
 
-  async function runNotes(text: string) {
+  async function runNotes(text: string, intakeHints?: IntakeHandoff): Promise<boolean> {
     setBusy("notes");
     setErr(null);
     try {
-      const r = await postJSON<NotesResp>("/api/agent/notes", { transcript: text, lang });
+      const intake: IntakeHints | undefined = intakeHints
+        ? {
+            summary: intakeHints.summary,
+            place: intakeHints.place,
+            date_range: intakeHints.date_range,
+            authority_hint: intakeHints.authority_hint,
+          }
+        : undefined;
+      const r = await postJSON<NotesResp>("/api/agent/notes", { transcript: text, lang, intake });
       recordMode("notes", r.mode);
       setNotes(r.data);
       setCandidates([]);
       setRetrieved([]);
       setStage("notes");
+      return true;
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not reach the agent.");
+      return false;
     } finally {
       setBusy(null);
     }
@@ -390,7 +467,9 @@ export default function DraftingPage() {
     <main className="relative min-h-screen flex flex-col bg-[var(--bg)]">
       <SiteMasthead
         compact
-        notice="Only edited transcript text is analysed. Audio is not sent."
+        notice={liveReady
+          ? "During a live voice session your voice is processed in real time by Google's Live API. Only the text you review and confirm is analysed; audio is not stored by this site."
+          : "Only edited transcript text is analysed. Audio is not sent."}
         links={
           <>
             <Link href="/admin">Service settings</Link>
@@ -408,7 +487,7 @@ export default function DraftingPage() {
 
       {/* Mode badges */}
       <div className="mx-auto max-w-5xl px-6 pt-4 flex flex-wrap items-center gap-2" id="main-content">
-        <span className={`inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] ${speech.supported ? "border-[var(--iris)]/25 bg-[var(--iris-tint)] text-[var(--iris)]" : "border-[var(--line-strong)] text-[var(--fg-faint)]"}`}>
+        <span className={`inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] ${liveReady || speech.supported ? "border-[var(--iris)]/25 bg-[var(--iris-tint)] text-[var(--iris)]" : "border-[var(--line-strong)] text-[var(--fg-faint)]"}`}>
           Voice: {micMode}
         </span>
         <span className={`inline-flex items-center rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] ${liveModel ? "border-[var(--green)]/30 bg-[var(--green)]/10 text-[var(--green)]" : "border-[var(--amber)]/30 bg-[var(--amber)]/10 text-[var(--amber)]"}`}>
@@ -443,41 +522,131 @@ export default function DraftingPage() {
           {/* Main paper */}
           <div className="md:col-span-8">
             <article key={stage} className="paper page-turn-in px-6 md:px-10 py-9">
+              {/* ---------- ADVANCING (agent handoff → GATE 1) ---------- */}
+              {advancing && (
+                <div>
+                  <h1 className="font-display text-[28px] md:text-[32px] font-medium leading-[1.1] tracking-tight mb-3">
+                    The agent captured your complaint.
+                  </h1>
+                  <p className="text-[15px] text-[var(--fg-soft)] leading-relaxed mb-6 max-w-[58ch]">
+                    Handing it to the drafting desk — your notes are being prepared in step 3.
+                  </p>
+                  <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--glass-faint)] px-5 py-4">
+                    <span className="inline-block size-2.5 rounded-full bg-[var(--iris)] animate-pulse" aria-hidden />
+                    <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-soft)]">
+                      Drafting your notes…
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* ---------- SETUP ---------- */}
-              {stage === "setup" && (
+              {stage === "setup" && !advancing && (
                 <div>
                   <h1 className="font-display text-[28px] md:text-[32px] font-medium leading-[1.1] tracking-tight mb-3">
                     Speak in your language. The console takes notes.
                   </h1>
                   <p className="text-[15px] text-[var(--fg-soft)] leading-relaxed mb-7 max-w-[58ch]">
-                    Pick your language, allow the microphone, and just talk. A complaint, a rant, or half a
-                    thought. You will see every word recognised, and you can correct it before anything
-                    is analysed.
+                    Tap the assistant and just talk — a complaint, a rant, or half a thought. It learns your
+                    language by ear, and you will see every word before anything is analysed. Prefer to pick
+                    a language yourself? Use the picker below.
                   </p>
 
-                  <div className="mb-6">
-                    <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-faint)] mb-2">
-                      I will speak in
+                  {liveReady && (
+                    <div className="mb-6 rounded-xl border border-[var(--line-strong)] bg-[var(--glass-faint)] px-5 py-5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-faint)]">
+                          Live voice intake
+                        </div>
+                        <span className="inline-flex items-center rounded-md border border-[var(--iris)]/25 bg-[var(--iris-tint)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--iris)]">
+                          Gemini 3 Flash Live
+                        </span>
+                      </div>
+
+                      {live.status === "idle" || live.status === "failed" || live.status === "ended" || live.status === "done" ? (
+                        <>
+                          <p className="text-[14px] text-[var(--fg-soft)] leading-relaxed mb-4 max-w-[56ch]">
+                            One conversation. The assistant works out your language by ear, may ask up to
+                            three short questions, and you can interrupt it anytime. Nothing is analysed
+                            until you review the words and send them.
+                          </p>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={live.start}
+                              className="brass-plate px-6 py-3 font-mono text-[12px] uppercase tracking-[0.08em] transition-all"
+                            >
+                              Talk to the assistant
+                            </button>
+                            {live.status === "ended" && live.userText.trim() && (
+                              <button
+                                type="button"
+                                onClick={continueFromLive}
+                                className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]"
+                              >
+                                Review what I said →
+                              </button>
+                            )}
+                            {live.error && (
+                              <span className="text-[13px] text-[var(--amber)]">{live.error}</span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex flex-wrap items-center gap-3 mb-3">
+                            <span className="inline-block size-2.5 rounded-full bg-[var(--green)] animate-pulse" aria-hidden />
+                            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-soft)]">
+                              {live.status === "connecting" ? "Connecting…" : live.status === "wrapup" ? "Wrapping up…" : "Listening — speak naturally, interrupt anytime"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={live.stop}
+                              className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)]"
+                            >
+                              Stop
+                            </button>
+                          </div>
+                          <div className="rounded-xl border border-[var(--line)] bg-[var(--glass-strong)] px-4 py-3 min-h-[96px]" aria-live="polite">
+                            {live.agentText ? (
+                              <p className="text-[13.5px] leading-[1.65] text-[var(--iris)] mb-2">Assistant: {live.agentText}</p>
+                            ) : null}
+                            {live.userText ? (
+                              <p className="text-[13.5px] leading-[1.65] text-[var(--fg)]">You: {live.userText}</p>
+                            ) : (
+                              <p className="text-[13.5px] italic text-[var(--fg-faint)]">Your words will appear here…</p>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {LANGUAGES.map((l) => (
-                        <button
-                          key={l.code}
-                          type="button"
-                          onClick={() => setLang(l.code)}
-                          className={`rounded-lg border px-3.5 py-1.5 text-[13px] transition-all ${lang === l.code ? "border-[var(--iris)] bg-[var(--iris-tint)] text-[var(--iris)] font-medium" : "border-[var(--line-strong)] text-[var(--fg-soft)] hover:border-[var(--iris)]/40"}`}
-                        >
-                          {l.label}
-                        </button>
-                      ))}
+                  )}
+
+                  <details className="mb-6" open={!liveReady}>
+                    <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-faint)] hover:text-[var(--fg-soft)] select-none">
+                      {liveReady ? "Pick my language instead" : "I will speak in"}
+                    </summary>
+                    <div className="mt-3">
+                      <div className="flex flex-wrap gap-2">
+                        {LANGUAGES.map((l) => (
+                          <button
+                            key={l.code}
+                            type="button"
+                            onClick={() => setLang(l.code)}
+                            className={`rounded-lg border px-3.5 py-1.5 text-[13px] transition-all ${lang === l.code ? "border-[var(--iris)] bg-[var(--iris-tint)] text-[var(--iris)] font-medium" : "border-[var(--line-strong)] text-[var(--fg-soft)] hover:border-[var(--iris)]/40"}`}
+                          >
+                            {l.label}
+                          </button>
+                        ))}
+                      </div>
+                      {!speech.supported && (
+                        <p className="mt-3 text-[13px] text-[var(--amber)]">
+                          This browser does not support live speech recognition. You can still type your
+                          concern in the next step. Everything else still works.
+                        </p>
+                      )}
                     </div>
-                    {!speech.supported && (
-                      <p className="mt-3 text-[13px] text-[var(--amber)]">
-                        This browser does not support live speech recognition. You can still type your
-                        concern in the next step. Everything else still works.
-                      </p>
-                    )}
-                  </div>
+                  </details>
 
                   <button
                     type="button"

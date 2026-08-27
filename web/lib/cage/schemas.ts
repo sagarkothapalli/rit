@@ -44,7 +44,20 @@ export const ExplainSchema = z.object({
 });
 export type Explain = z.infer<typeof ExplainSchema>;
 
-export const NotesRequest = z.object({ transcript: z.string().min(4).max(6000), lang: z.string().max(20) });
+/** Structured hints captured by the live intake agent and confirmed by the citizen. */
+export const IntakeHintsSchema = z.object({
+  summary: z.string().max(600).optional(),
+  place: z.string().max(120).nullable().optional(),
+  date_range: z.string().max(80).nullable().optional(),
+  authority_hint: z.string().max(160).nullable().optional(),
+});
+export type IntakeHints = z.infer<typeof IntakeHintsSchema>;
+
+export const NotesRequest = z.object({
+  transcript: z.string().min(4).max(6000),
+  lang: z.string().max(20),
+  intake: IntakeHintsSchema.optional(),
+});
 export const GuardRequest = z.object({ notes: NotesSchema });
 export const DraftRequest = z.object({ notes: NotesSchema });
 export const ExplainRequest = z.object({

@@ -256,12 +256,20 @@ export function routingQuery(input: {
 const NATIONAL_HIGHWAY = /\b(nhai|nh-?\d|national highway|highways?|expressway|राजमार्ग|हाईवे)\b/i;
 const STATE_BODY = /\b(pwd|public works|municipal|nagar|panchayat|discom|jal board)\b/i;
 
-export function normalizeNotes(transcript: string, notes: NotesLike): NotesLike {
+/** Structured hints handed off by the live intake agent (already confirmed by the citizen). */
+export interface IntakeHintsLike {
+  summary?: string;
+  place?: string | null;
+  date_range?: string | null;
+  authority_hint?: string | null;
+}
+
+export function normalizeNotes(transcript: string, notes: NotesLike, intake?: IntakeHintsLike): NotesLike {
   const inferred = inferRecordsFromRant(transcript);
   const fromModel = unique(notes.records_sought ?? []);
   const records = (fromModel.length >= 3 ? fromModel : unique([...fromModel, ...inferred])).slice(0, 6);
   const format = !notes.format || notes.format === "unspecified" ? inferFormat(transcript) : notes.format;
-  let body = notes.body_hint || inferBodyHint(transcript);
+  let body = notes.body_hint || intake?.authority_hint?.trim() || inferBodyHint(transcript);
   let stateMatter = notes.is_state_matter;
   if (NATIONAL_HIGHWAY.test(transcript)) {
     stateMatter = false;
@@ -270,8 +278,8 @@ export function normalizeNotes(transcript: string, notes: NotesLike): NotesLike 
   return {
     ...notes,
     records_sought: records.length ? records : inferred,
-    date_range: notes.date_range || inferDateRange(transcript),
-    place: notes.place || inferPlace(transcript),
+    date_range: notes.date_range || intake?.date_range?.trim() || inferDateRange(transcript),
+    place: notes.place || intake?.place?.trim() || inferPlace(transcript),
     body_hint: body,
     format,
     missing_essentials: [],

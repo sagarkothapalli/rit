@@ -24,13 +24,13 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
   }
-  const { transcript, lang } = parsed.data;
+  const { transcript, lang, intake } = parsed.data;
 
   // Code-side state hint is always applied, model or not.
   const stateHint = looksStateMatter(transcript);
 
   function finish(raw: Notes, mode: "LIVE" | "SIMULATED", model?: string) {
-    const normalized = normalizeNotes(transcript, raw);
+    const normalized = normalizeNotes(transcript, raw, intake);
     const data = NotesSchema.parse({
       ...normalized,
       is_state_matter: normalized.is_state_matter || stateHint,
