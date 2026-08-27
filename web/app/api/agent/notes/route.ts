@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { NotesRequest, NotesSchema, notesFallback, type GateResult, type Notes } from "@/lib/cage/schemas";
 import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { notesPrompt, wrapUntrusted } from "@/lib/cage/prompts";
-import { looksStateMatter } from "@/lib/retrieval";
 import { normalizeNotes } from "@/lib/intake";
 import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
 
@@ -26,15 +25,12 @@ export async function POST(req: Request) {
   }
   const { transcript, lang, intake } = parsed.data;
 
-  // Code-side state hint is always applied, model or not.
-  const stateHint = looksStateMatter(transcript);
-
   function finish(raw: Notes, mode: "LIVE" | "SIMULATED", model?: string) {
+    // normalizeNotes() owns the jurisdiction verdict: it runs the
+    // deterministic classifier over the transcript and the agent's hints, so
+    // the model cannot talk a ward road into being a Central matter.
     const normalized = normalizeNotes(transcript, raw, intake);
-    const data = NotesSchema.parse({
-      ...normalized,
-      is_state_matter: normalized.is_state_matter || stateHint,
-    });
+    const data = NotesSchema.parse(normalized);
     const result: GateResult<Notes> = { mode, model, data };
     return NextResponse.json(result);
   }

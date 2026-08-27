@@ -14,11 +14,18 @@ import {
   explainFallback,
   type Notes,
   type Draft,
+  type Guard,
   type GateResult,
+  type IntakeHints,
 } from "@/lib/cage/schemas";
+import {
+  centralPortalIneligible,
+  needsThirdPartyNotice,
+  preScreen,
+  reconcileGuard,
+} from "@/lib/cage/exemptions";
 import { normalizeNotes, routingQuery } from "@/lib/intake";
 import {
-  looksStateMatter,
   shortlistDirectory,
   DIRECTORY,
   DIRECTORY_SNAPSHOT,
@@ -70,7 +77,11 @@ async function callHostedJSON<T>(
   return validate(extractJson(content));
 }
 
-export async function hostedNotes(transcript: string, lang: string): Promise<GateResult<Notes>> {
+export async function hostedNotes(
+  transcript: string,
+  lang: string,
+  intake?: IntakeHints,
+): Promise<GateResult<Notes>> {
   const shape = `{
   "records_sought": string[],
   "date_range": string | null,
@@ -83,36 +94,51 @@ export async function hostedNotes(transcript: string, lang: string): Promise<Gat
 }`;
   const { system, user } = notesPrompt(wrapUntrusted(transcript, lang), shape);
   const raw = await callHostedJSON(system, user, 700, (x) => NotesSchema.parse(x));
-  const normalized = normalizeNotes(transcript, raw);
+  // normalizeNotes() applies the deterministic jurisdiction verdict.
   return {
     mode: "LIVE",
     model: HOSTED_MODEL,
-    data: NotesSchema.parse({
-      ...normalized,
-      is_state_matter: normalized.is_state_matter || looksStateMatter(transcript),
-    }),
+    data: NotesSchema.parse(normalizeNotes(transcript, raw, intake)),
   };
 }
 
-export async function hostedGuard(notes: Notes): Promise<GateResult<unknown>> {
+export async function hostedGuard(notes: Notes, transcript = ""): Promise<GateResult<Guard>> {
+  const screen = preScreen(transcript, notes);
+  const advisories = {
+    third_party_notice: needsThirdPartyNotice(transcript, notes),
+    central_portal_ineligible: centralPortalIneligible(notes),
+  };
   const shape = `{
   "verdict": "ALLOWED" | "EXEMPT",
   "clause": string | null,
   "reason_summary": string,
-  "safe_reframing": string | null
+  "safe_reframing": string | null,
+  "third_party_notice": boolean,
+  "central_portal_ineligible": boolean
 }`;
   const { system, user } = guardPrompt(JSON.stringify(notes), shape);
-  const data = await callHostedJSON(system, user, 400, (x) => GuardSchema.parse(x));
-  return { mode: "LIVE", model: HOSTED_MODEL, data };
+  const model = await callHostedJSON(system, user, 500, (x) => GuardSchema.parse(x));
+  const merged = reconcileGuard(screen, model);
+  return {
+    mode: "LIVE",
+    model: HOSTED_MODEL,
+    data: {
+      ...merged,
+      third_party_notice: advisories.third_party_notice || Boolean(model.third_party_notice),
+      central_portal_ineligible:
+        advisories.central_portal_ineligible || Boolean(model.central_portal_ineligible),
+    },
+  };
 }
 
 export async function hostedDraft(notes: Notes): Promise<GateResult<Draft>> {
   const shape = `{
   "title": string,
+  "background": string,
   "requests": string[]
 }`;
   const { system, user } = draftPrompt(JSON.stringify(notes), shape);
-  const data = await callHostedJSON(system, user, 900, (x) => DraftSchema.parse(x));
+  const data = await callHostedJSON(system, user, 1400, (x) => DraftSchema.parse(x));
   return { mode: "LIVE", model: HOSTED_MODEL, data };
 }
 
@@ -174,12 +200,12 @@ export async function hostedExplain(input: {
 
 export async function hostedGate(url: string, body: unknown): Promise<unknown> {
   if (url.endsWith("/notes")) {
-    const request = body as { transcript?: string; lang?: string };
-    return hostedNotes(request.transcript ?? "", request.lang ?? "en-IN");
+    const request = body as { transcript?: string; lang?: string; intake?: IntakeHints };
+    return hostedNotes(request.transcript ?? "", request.lang ?? "en-IN", request.intake);
   }
   if (url.endsWith("/guard")) {
-    const request = body as { notes: Notes };
-    return hostedGuard(request.notes);
+    const request = body as { notes: Notes; transcript?: string };
+    return hostedGuard(request.notes, request.transcript ?? "");
   }
   if (url.endsWith("/draft")) {
     const request = body as { notes: Notes };

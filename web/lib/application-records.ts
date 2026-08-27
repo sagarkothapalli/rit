@@ -1,13 +1,7 @@
+import type { ApplicantDetails } from "@/lib/applicant";
 import type { ApplicationReport } from "@/lib/report";
 
-export interface ApplicantDetails {
-  name: string;
-  email: string;
-  address: string;
-  mobile: string;
-  citizenship: "Indian";
-  isBpl: boolean;
-}
+export type { ApplicantDetails };
 
 export interface StoredApplication {
   acknowledgementNumber: string;
@@ -181,18 +175,101 @@ export async function findApplication(acknowledgementNumber: string): Promise<St
   return localGet(ack);
 }
 
-export async function listApplications(email: string, otp: string): Promise<ApplicationSummary[]> {
+/* ---------- email verification ---------- */
+
+export interface CodeRequestOutcome {
+  delivery: "email" | "console";
+  notice: string;
+  /** Present only in local development with no email provider configured. */
+  devCode?: string;
+}
+
+/** Ask the server to email a six digit code. */
+export async function requestEmailCode(email: string): Promise<CodeRequestOutcome> {
+  const res = await fetch("/api/auth/email/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+  });
+  if (!jsonResponse(res)) {
+    throw new Error("Email verification is not available in this static preview.");
+  }
+  const payload = (await res.json()) as {
+    error?: string;
+    retryAfter?: number;
+    delivery?: "email" | "console";
+    notice?: string;
+    devCode?: string;
+  };
+  if (!res.ok) {
+    if (payload.error === "COOLDOWN" || payload.error === "RATE_LIMITED") {
+      throw new Error(`Please wait ${payload.retryAfter ?? 60} seconds before requesting another code.`);
+    }
+    if (payload.error === "INVALID_EMAIL") throw new Error("Enter a valid email address.");
+    throw new Error("The verification code could not be sent. Try again.");
+  }
+  return {
+    delivery: payload.delivery ?? "console",
+    notice: payload.notice ?? "A verification code has been issued.",
+    devCode: payload.devCode,
+  };
+}
+
+/** Verify the code. On success the browser holds a signed verified-email cookie. */
+export async function verifyEmailCode(email: string, code: string): Promise<void> {
+  const res = await fetch("/api/auth/email/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim().toLowerCase(), code }),
+  });
+  if (!jsonResponse(res)) {
+    throw new Error("Email verification is not available in this static preview.");
+  }
+  const payload = (await res.json()) as { error?: string; message?: string; attemptsLeft?: number };
+  if (!res.ok) {
+    const suffix = typeof payload.attemptsLeft === "number" ? ` ${payload.attemptsLeft} attempts left.` : "";
+    throw new Error(`${payload.message ?? "That code could not be verified."}${suffix}`);
+  }
+}
+
+/** The email this browser has verified, or null. */
+export async function verifiedEmail(): Promise<string | null> {
+  try {
+    const res = await fetch("/api/auth/email/session", { cache: "no-store" });
+    if (!res.ok || !jsonResponse(res)) return null;
+    const payload = (await res.json()) as { email?: string | null };
+    return payload.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function signOutEmail(): Promise<void> {
+  try {
+    await fetch("/api/auth/email/session", { method: "DELETE" });
+  } catch {
+    // Nothing to clean up if the route is unavailable.
+  }
+}
+
+/**
+ * Applications stored against the verified address. The server decides which
+ * address that is from the signed cookie, so this cannot be pointed at
+ * someone else's history.
+ */
+export async function listApplications(email: string): Promise<ApplicationSummary[]> {
   const normalized = email.trim().toLowerCase();
   try {
-    const params = new URLSearchParams({ email: normalized, otp });
-    const res = await fetch(`/api/applications?${params}`, { cache: "no-store" });
+    const res = await fetch("/api/applications", { cache: "no-store" });
     if (res.ok && jsonResponse(res)) {
       const payload = (await res.json()) as { applications?: ApplicationSummary[] };
       if (payload.applications) return payload.applications;
+    } else if (res.status === 401) {
+      throw new Error("Verify your email address first.");
     }
-  } catch {
+  } catch (cause) {
+    if (cause instanceof Error && cause.message === "Verify your email address first.") throw cause;
     // Static builds and offline use search the current browser.
   }
-  if (otp !== "123456") throw new Error("Use the local verification code 123456.");
   return localList(normalized);
 }

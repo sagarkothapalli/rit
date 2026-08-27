@@ -1,3 +1,4 @@
+import { classifyJurisdiction } from "@/lib/jurisdiction";
 import { searchDirectory } from "@/lib/retrieval";
 
 export interface NotesLike {
@@ -9,6 +10,9 @@ export interface NotesLike {
   missing_essentials: string[];
   is_state_matter: boolean;
   state_name: string | null | undefined;
+  jurisdiction?: "central" | "state" | "unclear";
+  filing_channel?: string | null | undefined;
+  jurisdiction_reasons?: string[];
 }
 
 interface Pattern {
@@ -283,6 +287,9 @@ export interface IntakeHintsLike {
   place?: string | null;
   date_range?: string | null;
   authority_hint?: string | null;
+  jurisdiction?: "central" | "state" | "unclear";
+  state_name?: string | null;
+  jurisdiction_note?: string | null;
 }
 
 export function normalizeNotes(transcript: string, notes: NotesLike, intake?: IntakeHintsLike): NotesLike {
@@ -298,16 +305,46 @@ export function normalizeNotes(transcript: string, notes: NotesLike, intake?: In
   ).slice(0, 6);
   const format = !notes.format || notes.format === "unspecified" ? inferFormat(transcript) : notes.format;
   let body = notes.body_hint || intake?.authority_hint?.trim() || inferBodyHint(transcript);
-  let stateMatter = notes.is_state_matter;
-  let stateName = notes.state_name;
+
+  /* ---------- jurisdiction, decided in code ---------- */
+  // The citizen's own words plus anything the agent captured: a city named
+  // only during the applicant-details part of the call still counts.
+  const jurisdictionText = [transcript, intake?.place, intake?.state_name, intake?.authority_hint]
+    .filter(Boolean)
+    .join(" ");
+  const verdict = classifyJurisdiction(jurisdictionText);
+
+  let jurisdiction: "central" | "state" | "unclear" = verdict.level;
+  let stateName = verdict.stateName ?? notes.state_name ?? intake?.state_name ?? null;
+  let filingChannel: string | null = verdict.filingChannel;
+  let reasons = [...verdict.reasons];
+
+  // A confident agent verdict fills the gap when the text alone was unclear;
+  // it can never override a deterministic verdict.
+  if (jurisdiction === "unclear" && intake?.jurisdiction && intake.jurisdiction !== "unclear") {
+    jurisdiction = intake.jurisdiction;
+    if (intake.jurisdiction_note) reasons = [intake.jurisdiction_note];
+  }
+
+  if (verdict.level === "state" && verdict.recommendedBody) {
+    // Never leave a Central department as the records holder for a ward matter.
+    body = verdict.recommendedBody;
+  }
+
   if (corridorMatter) {
-    stateMatter = true;
+    jurisdiction = "state";
     stateName = "Maharashtra";
     body = "Maharashtra State Road Development Corporation (MSRDC)";
-  } else if (NATIONAL_HIGHWAY.test(transcript)) {
-    stateMatter = false;
+    filingChannel = "Maharashtra State RTI channel";
+    if (reasons.length === 0) {
+      reasons = ["The Mumbai-Pune Expressway is operated by a Maharashtra State corporation, not a Central authority."];
+    }
+  } else if (NATIONAL_HIGHWAY.test(transcript) && verdict.level !== "state") {
+    jurisdiction = "central";
+    filingChannel = "RTI Online Central portal (rtionline.gov.in)";
     if (!body || STATE_BODY.test(body)) body = "National Highways Authority of India (NHAI)";
   }
+
   return {
     ...notes,
     records_sought: records.length ? records : inferred,
@@ -319,7 +356,10 @@ export function normalizeNotes(transcript: string, notes: NotesLike, intake?: In
     body_hint: body,
     format,
     missing_essentials: [],
-    is_state_matter: stateMatter,
+    is_state_matter: jurisdiction === "state",
     state_name: stateName,
+    jurisdiction,
+    filing_channel: filingChannel,
+    jurisdiction_reasons: reasons.slice(0, 6),
   };
 }

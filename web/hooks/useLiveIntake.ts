@@ -8,6 +8,7 @@ import {
 } from "@/lib/live/intakePrompt";
 import { createPlaybackQueue, int16ToBase64, type PlaybackQueue } from "@/lib/live/audio";
 import { saveIntakeRecord, clearIntakeRecord } from "@/lib/live/intakeMemory";
+import { classifyJurisdiction, type JurisdictionVerdict } from "@/lib/jurisdiction";
 import {
   LIVE_VOICE,
   INPUT_MIME,
@@ -74,6 +75,51 @@ const HANDOFF_ACK =
 
 const FALLBACK_HINT = "Pick a language below and continue instead.";
 
+/**
+ * Deterministic backstop for the jurisdiction flag. The system prompt asks
+ * the model to volunteer that a ward road or municipal complaint is a State
+ * matter, but the citizen must be told even when the model forgets. As soon
+ * as the running transcript classifies as a State matter, we inject the
+ * verdict as a system turn so the agent speaks it in the citizen's language.
+ */
+function jurisdictionNudge(verdict: JurisdictionVerdict): string {
+  const body = verdict.localBody?.name ?? verdict.recommendedBody ?? "the relevant State department or local body";
+  const state = verdict.stateName ? ` in ${verdict.stateName}` : "";
+  return [
+    "(System note, not spoken by the citizen. Jurisdiction triage has run on what the citizen just said:",
+    `this is a STATE / local-body matter${state}, not a Central government one.`,
+    `The records are held by ${body}.`,
+    "In your very next turn, in the citizen's language and in one or two short sentences, tell them:",
+    "(1) this is not a Central government matter, (2) RTI Online — this Central portal — cannot accept it,",
+    `(3) they must approach ${body}.`,
+    "Then reassure them you will still prepare the complete application addressed to that authority, and continue the intake.",
+    "Do not repeat this flag later in the conversation. When you call submit_intake, set jurisdiction to \"state\"",
+    `and authority_hint to "${body}".)`,
+  ].join(" ");
+}
+
+/**
+ * The deterministic verdict has the final say on jurisdiction. The model may
+ * have missed the flag or mislabelled a ward road as Central; the citizen's
+ * application must still be addressed correctly.
+ */
+function reconcileJurisdiction(handoff: IntakeHandoff, verdict: JurisdictionVerdict): IntakeHandoff {
+  if (verdict.level === "unclear") return handoff;
+  if (verdict.level === "central" && handoff.jurisdiction !== "state") {
+    return { ...handoff, jurisdiction: "central" };
+  }
+  if (verdict.level !== "state") return handoff;
+  const body = verdict.localBody?.name ?? verdict.recommendedBody;
+  return {
+    ...handoff,
+    jurisdiction: "state",
+    state_name: handoff.state_name ?? verdict.stateName,
+    jurisdiction_note: handoff.jurisdiction_note ?? (verdict.reasons.join(" ") || null),
+    // Never let a Central authority guess stand as the records holder.
+    authority_hint: body ?? handoff.authority_hint,
+  };
+}
+
 export function useLiveIntake() {
   const [status, setStatus] = useState<LiveStatus>("idle");
   const [supported, setSupported] = useState(false);
@@ -81,6 +127,8 @@ export function useLiveIntake() {
   const [userText, setUserText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<IntakeHandoff | null>(null);
+  /** Live jurisdiction verdict, surfaced in the panel while the citizen talks. */
+  const [jurisdiction, setJurisdiction] = useState<JurisdictionVerdict | null>(null);
 
   const statusRef = useRef<LiveStatus>("idle");
   const sessionRef = useRef<LiveSessionLike | null>(null);
@@ -97,6 +145,9 @@ export function useLiveIntake() {
   const agentTextRef = useRef("");
   const handoffRef = useRef<IntakeHandoff | null>(null);
   const closingRef = useRef(false);
+  const jurisdictionRef = useRef<JurisdictionVerdict | null>(null);
+  const flaggedRef = useRef(false);
+  const pendingFlagRef = useRef<JurisdictionVerdict | null>(null);
 
   useEffect(() => {
     const ok =
@@ -118,6 +169,37 @@ export function useLiveIntake() {
     if (!text) return;
     userTextRef.current = `${userTextRef.current} ${text}`.replace(/\s+/g, " ").trim().slice(0, 6000);
     setUserText(userTextRef.current);
+
+    // Re-triage on every transcription chunk. The verdict is cheap and the
+    // citizen may only name their city several sentences in.
+    const verdict = classifyJurisdiction(userTextRef.current);
+    if (verdict.level !== jurisdictionRef.current?.level
+      || verdict.localBody?.pa_code !== jurisdictionRef.current?.localBody?.pa_code) {
+      jurisdictionRef.current = verdict;
+      setJurisdiction(verdict);
+    }
+
+    // Queue the backstop flag. It is sent on turn completion, never mid-turn,
+    // so it cannot interrupt the agent while it is already speaking.
+    if (verdict.level === "state" && verdict.confidence >= 0.6 && !flaggedRef.current) {
+      pendingFlagRef.current = verdict;
+    }
+  }, []);
+
+  /** Send the queued jurisdiction flag once the turn is free. */
+  const flushJurisdictionFlag = useCallback(() => {
+    const verdict = pendingFlagRef.current;
+    if (!verdict || flaggedRef.current || closingRef.current) return;
+    if (statusRef.current !== "active" && statusRef.current !== "wrapup") return;
+    pendingFlagRef.current = null;
+    flaggedRef.current = true;
+    try {
+      sessionRef.current?.sendClientContent({
+        turns: { role: "user", parts: [{ text: jurisdictionNudge(verdict) }] },
+      });
+    } catch {
+      /* session may be closing — the notes gate flags it again downstream */
+    }
   }, []);
 
   const appendAgent = useCallback((text: string) => {
@@ -262,12 +344,17 @@ export function useLiveIntake() {
           }
         }
       }
+      // A completed turn is the only safe moment to inject the flag.
+      if (content?.turnComplete) flushJurisdictionFlag();
       if (msg.goAway && statusRef.current === "active") wrapUp();
       const calls = msg.toolCall?.functionCalls;
       if (calls) {
         for (const call of calls) {
           if (call.name !== "submit_intake") continue;
-          const normalized = normalizeHandoff(call.args ?? {});
+          const normalized = reconcileJurisdiction(
+            normalizeHandoff(call.args ?? {}),
+            classifyJurisdiction(userTextRef.current),
+          );
           handoffRef.current = normalized;
           setHandoff(normalized);
           // Persist the intake so a refresh mid-flow never loses the complaint.
@@ -295,7 +382,7 @@ export function useLiveIntake() {
         }
       }
     },
-    [appendAgent, appendUser, beginAudio, setPhase, wrapUp]
+    [appendAgent, appendUser, beginAudio, flushJurisdictionFlag, setPhase, wrapUp]
   );
 
   const start = useCallback(async () => {
@@ -306,10 +393,14 @@ export function useLiveIntake() {
     userTextRef.current = "";
     agentTextRef.current = "";
     handoffRef.current = null;
+    jurisdictionRef.current = null;
+    pendingFlagRef.current = null;
+    flaggedRef.current = false;
     clearIntakeRecord();
     setUserText("");
     setAgentText("");
     setHandoff(null);
+    setJurisdiction(null);
     setError(null);
     setPhase("connecting");
     try {
@@ -418,10 +509,14 @@ export function useLiveIntake() {
     userTextRef.current = "";
     agentTextRef.current = "";
     handoffRef.current = null;
+    jurisdictionRef.current = null;
+    pendingFlagRef.current = null;
+    flaggedRef.current = false;
     clearIntakeRecord();
     setUserText("");
     setAgentText("");
     setHandoff(null);
+    setJurisdiction(null);
     setError(null);
     setPhase("idle");
   }, [setPhase, stop]);
@@ -451,5 +546,5 @@ export function useLiveIntake() {
     [clearTimers]
   );
 
-  return { status, supported, agentText, userText, error, handoff, start, stop, reset };
+  return { status, supported, agentText, userText, error, handoff, jurisdiction, start, stop, reset };
 }

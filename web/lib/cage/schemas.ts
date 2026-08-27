@@ -14,6 +14,17 @@ export const NotesSchema = z.object({
   missing_essentials: z.array(z.enum(["records_sought", "date_range", "place", "body_hint", "format"])).default([]),
   is_state_matter: z.boolean().default(false),
   state_name: z.string().max(60).nullable().optional().default(null),
+  /**
+   * Which level of government holds these records. Decided in code by
+   * `lib/jurisdiction.ts`, never left to the model — RTI Online accepts
+   * Central public authorities only, so a wrong call here sends the citizen
+   * to a portal that will reject the application without a refund.
+   */
+  jurisdiction: z.enum(["central", "state", "unclear"]).default("unclear"),
+  /** Where the application actually has to be filed. */
+  filing_channel: z.string().max(200).nullable().optional().default(null),
+  /** Plain-language reasons, shown to the citizen when this is a State matter. */
+  jurisdiction_reasons: z.array(z.string().max(300)).max(6).default([]),
 });
 export type Notes = z.infer<typeof NotesSchema>;
 
@@ -22,12 +33,22 @@ export const GuardSchema = z.object({
   clause: z.string().max(40).nullable().optional().default(null),
   reason_summary: z.string().max(420),
   safe_reframing: z.string().max(300).nullable().optional().default(null),
+  /** Section 11: a third party must be given notice, extending the clock to 40 days. */
+  third_party_notice: z.boolean().optional().default(false),
+  /** The Central portal returns State-body applications without refund. */
+  central_portal_ineligible: z.boolean().optional().default(false),
 });
 export type Guard = z.infer<typeof GuardSchema>;
 
 export const DraftSchema = z.object({
   title: z.string().max(160),
-  requests: z.array(z.string().min(20)).min(3).max(5),
+  /**
+   * Neutral factual context, 1-3 sentences, stated before the numbered
+   * points. The official form is a single free-text field, so a real
+   * application opens with the background before it enumerates records.
+   */
+  background: z.string().max(900).optional().default(""),
+  requests: z.array(z.string().min(20)).min(3).max(8),
 });
 export type Draft = z.infer<typeof DraftSchema>;
 
@@ -50,6 +71,10 @@ export const IntakeHintsSchema = z.object({
   place: z.string().max(120).nullable().optional(),
   date_range: z.string().max(80).nullable().optional(),
   authority_hint: z.string().max(160).nullable().optional(),
+  /** What the voice agent concluded about jurisdiction during the call. */
+  jurisdiction: z.enum(["central", "state", "unclear"]).optional(),
+  state_name: z.string().max(80).nullable().optional(),
+  jurisdiction_note: z.string().max(400).nullable().optional(),
 });
 export type IntakeHints = z.infer<typeof IntakeHintsSchema>;
 
@@ -58,7 +83,10 @@ export const NotesRequest = z.object({
   lang: z.string().max(20),
   intake: IntakeHintsSchema.optional(),
 });
-export const GuardRequest = z.object({ notes: NotesSchema });
+export const GuardRequest = z.object({
+  notes: NotesSchema,
+  transcript: z.string().max(6000).optional().default(""),
+});
 export const DraftRequest = z.object({ notes: NotesSchema });
 export const ExplainRequest = z.object({
   notes: NotesSchema,
@@ -113,6 +141,10 @@ export function notesFallback(transcript: string): Notes {
     missing_essentials: [],
     is_state_matter: state,
     state_name: null,
+    // normalizeNotes() overwrites these with the deterministic verdict.
+    jurisdiction: state ? "state" : "unclear",
+    filing_channel: null,
+    jurisdiction_reasons: [],
   };
 }
 
@@ -121,16 +153,25 @@ export const guardFallback: Guard = {
   clause: null,
   reason_summary: "The stated information need appears to be a request for existing official records and does not obviously target exempt material.",
   safe_reframing: null,
+  third_party_notice: false,
+  central_portal_ineligible: false,
 };
 
 export function draftFallback(notes: Notes): Draft {
   const subject = notes.records_sought[0] ?? "the records described";
+  const where = notes.place ? ` at ${notes.place}` : "";
+  const when = notes.date_range ? ` during ${notes.date_range}` : "";
   return {
     title: `Request for ${notes.format} of official records`,
+    background:
+      `Under Section 6(1) of the Right to Information Act, 2005, I request ${notes.format} of the records listed below`
+      + `${where}${when}. Where a record is held by another public authority, please transfer this application under Section 6(3) `
+      + `within five days and inform me of the transfer.`,
     requests: [
       `Please provide ${notes.format} of ${subject}${notes.date_range ? `, for ${notes.date_range}` : ""}${notes.place ? `, relating to ${notes.place}` : ""}.`,
-      `Please provide ${notes.format} of the file notings and official correspondence relating to the matter described.`,
-      `Please provide ${notes.format} of the names and designations of the officials responsible for the matter described.`,
+      `Please provide ${notes.format} of the file notings, inter-departmental correspondence, and approvals recorded on the subject matter described above.`,
+      `Please provide ${notes.format} of the names and designations of the officials who dealt with the matter, together with the dates on which each acted.`,
+      `Please provide ${notes.format} of the rules, circulars, guidelines, or standing orders that governed the decisions taken in this matter.`,
     ],
   };
 }

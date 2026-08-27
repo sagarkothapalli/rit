@@ -1,4 +1,5 @@
 import directoryFile from "@/data/rti-authorities.json";
+import { LOCAL_BODIES, classifyJurisdiction } from "@/lib/jurisdiction";
 
 export interface PublicAuthority {
   pa_code: string;
@@ -57,9 +58,37 @@ export const JURISDICTION_AUTHORITIES: PublicAuthority[] = [
     directory_status: "curated-jurisdiction-rule",
     filing_channel: "Maharashtra state RTI channel",
   },
+  /**
+   * Urban local bodies. A ward road, drain, or street light belongs
+   * here, never to a Central authority. Registering them as retrievable
+   * records holders means the citizen still gets a complete, correctly
+   * addressed application instead of a dead end.
+   */
+  ...LOCAL_BODIES.map((body): PublicAuthority => ({
+    pa_code: body.pa_code,
+    name: body.name,
+    ministry: `Government of ${body.state}`,
+    keywords: [
+      ...body.aliases,
+      ...(body.keywords ?? []),
+      "municipal corporation", "ward", "local body",
+      "road maintenance", "colony road", "ward road", "drainage", "sewerage",
+      "street light", "sanitation", "solid waste", "property tax",
+      "work order", "contractor", "sanctioned budget", "tender",
+    ],
+    level: 0,
+    boost: true,
+    jurisdiction: "state",
+    directory_status: "curated-jurisdiction-rule",
+    filing_channel: `${body.short} Public Information Officer (${body.state} State RTI channel)`,
+  })),
 ];
 
-/** Hints that the subject is a State/State-body matter — the Central portal cannot take it. */
+/**
+ * Hints that the subject is a State/State-body matter — the Central portal
+ * cannot take it. Kept as a fast substring pass; the authoritative decision
+ * lives in `lib/jurisdiction.ts`, which this function defers to.
+ */
 const STATE_HINTS = [
   "municipal", "nagar nigam", "nagar palika", "municipality", "corporation ward",
   "state police", "state road", "city bus", "state transport", "roadways",
@@ -73,7 +102,8 @@ const STATE_HINTS = [
 
 export function looksStateMatter(text: string): boolean {
   const t = text.toLowerCase();
-  return STATE_HINTS.some((h) => t.includes(h));
+  if (STATE_HINTS.some((h) => t.includes(h))) return true;
+  return classifyJurisdiction(text).level === "state";
 }
 
 const STOP = new Set([
@@ -115,6 +145,8 @@ interface IndexedDoc {
   rawName: string;
 }
 
+const LOCAL_BODY_CODES = new Set(LOCAL_BODIES.map((body) => body.pa_code));
+
 const INDEX: IndexedDoc[] = [...JURISDICTION_AUTHORITIES, ...DIRECTORY].map((pa) => {
   const kw = pa.keywords.map((k) => k.toLowerCase());
   return {
@@ -139,10 +171,17 @@ export interface ScoredDoc {
  * Field offices are down-ranked unless the query names them. Curated topic
  * overlays (boost) are up-ranked. The LLM never invents an authority: it only
  * ranks a shortlist this function already retrieved.
+ *
+ * Local bodies are gated by the jurisdiction verdict rather than by keywords:
+ * exactly the one municipal corporation the citizen's own city maps to is
+ * eligible, and none of them survive a Central subject like a passport delay.
  */
 export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]; reviewRequired: boolean } {
   const qTokens = tokenize(query);
   if (qTokens.length === 0) return { results: [], reviewRequired: true };
+
+  const verdict = classifyJurisdiction(query);
+  const anchorCode = verdict.level === "state" ? verdict.localBody?.pa_code : undefined;
 
   const df = new Map<string, number>();
   for (const t of new Set(qTokens)) {
@@ -177,6 +216,18 @@ export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]
     if (d.pa.pa_code === "STATE-MSRDC" && /\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b/i.test(query)) {
       score += 18;
       matched.add("mumbai-pune corridor");
+    }
+    if (LOCAL_BODY_CODES.has(d.pa.pa_code)) {
+      // Only the citizen's own local body competes, and never against a
+      // Central subject — otherwise every city matches "road maintenance".
+      if (d.pa.pa_code === anchorCode) {
+        score += 22;
+        matched.add("local body jurisdiction");
+      } else {
+        score = 0;
+      }
+    } else if (d.pa.jurisdiction === "state" && verdict.level === "central") {
+      score *= 0.05;
     }
     if (isFieldOffice(d.pa)) {
       const named = qTokens.some((t) => t.length > 3 && d.rawName.includes(t) && !["india", "national", "authority"].includes(t));
@@ -236,6 +287,8 @@ export function shortlistDirectory(query: string, pool = 16): { results: ScoredD
     for (const doc of INDEX) {
       if (results.length >= 3) break;
       if (have.has(doc.pa.pa_code)) continue;
+      // Never pad with an unrelated city's municipal corporation.
+      if (LOCAL_BODY_CODES.has(doc.pa.pa_code)) continue;
       if (doc.pa.ministry !== ministry && !doc.pa.boost) continue;
       results.push({ pa: doc.pa, score: 0.15, matched: [] });
       have.add(doc.pa.pa_code);

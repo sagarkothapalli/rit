@@ -14,9 +14,14 @@ function lintDraft(draft: z.infer<typeof DraftSchema>): { ok: boolean; repaired?
     .map((r) => r.trim())
     .filter((r) => r.length >= 20)
     .map((r) => (/^please provide/i.test(r) ? r : `Please provide ${r.charAt(0).toLowerCase()}${r.slice(1)}`));
-  const total = requests.join(" ").length;
-  if (requests.length >= 3 && requests.length <= 5 && total <= 3000 && !requests.some((r) => bad.test(r))) {
-    return { ok: true, repaired: { title: draft.title.slice(0, 160), requests } };
+  const background = draft.background?.trim() ?? "";
+  const total = background.length + requests.join(" ").length;
+  const clean = !requests.some((r) => bad.test(r)) && !bad.test(background);
+  if (requests.length >= 3 && requests.length <= 8 && total <= 3000 && clean) {
+    return {
+      ok: true,
+      repaired: { title: draft.title.slice(0, 160), background: background.slice(0, 900), requests },
+    };
   }
   return { ok: false };
 }
@@ -44,11 +49,12 @@ export async function POST(req: Request) {
 
   const shape = `{
   "title": string,
-  "requests": string[]  // 3 to 5 items, each one sentence starting with "Please provide"
+  "background": string,  // 2 to 4 sentences of neutral context, invoking Section 6(1)
+  "requests": string[]   // 4 to 8 items, each one sentence starting with "Please provide"
 }`;
 
   const { system, user } = draftPrompt(JSON.stringify(notes), shape);
-  const res = await callModelJSON({ cfg, model: cfg.strong || cfg.fast, system, user, maxTokens: 900 }, (x) =>
+  const res = await callModelJSON({ cfg, model: cfg.strong || cfg.fast, system, user, maxTokens: 1400 }, (x) =>
     DraftSchema.parse(x)
   );
 

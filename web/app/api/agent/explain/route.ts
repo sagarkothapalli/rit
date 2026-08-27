@@ -94,8 +94,16 @@ export async function POST(req: Request) {
     if (padded.length) ranked = padded.slice(0, 3);
   }
 
-  const jurisdictionAnchor = notes.is_state_matter
-    ? retrieved.find((candidate) => candidate.directory_status === "curated-jurisdiction-rule")
+  /*
+   * For a State matter the correct records holder is a curated jurisdiction
+   * rule (the citizen's own municipal corporation or a State body), never a
+   * Central directory entry. Anchor it at the top so the citizen is not
+   * offered a Central authority that would reject the application.
+   */
+  const jurisdictionAnchor = notes.is_state_matter || notes.jurisdiction === "state"
+    ? retrieved.find((candidate) => candidate.name.toLowerCase() === notes.body_hint?.toLowerCase()
+        && candidate.directory_status === "curated-jurisdiction-rule")
+      ?? retrieved.find((candidate) => candidate.directory_status === "curated-jurisdiction-rule")
     : retrieved.find((candidate) => candidate.name.toLowerCase() === notes.body_hint?.toLowerCase());
   if (jurisdictionAnchor) {
     const anchored = ranked.find((candidate) => candidate.id === jurisdictionAnchor.id)
@@ -124,5 +132,12 @@ export async function POST(req: Request) {
     directory: directoryMeta,
     review_required: reviewRequired && ranked.length === 0,
     retrieved: rankedRetrieved,
+    jurisdiction: {
+      level: notes.jurisdiction ?? (notes.is_state_matter ? "state" : "unclear"),
+      state_name: notes.state_name ?? null,
+      filing_channel: notes.filing_channel ?? null,
+      reasons: notes.jurisdiction_reasons ?? [],
+      outside_central_portal: (notes.jurisdiction ?? (notes.is_state_matter ? "state" : "unclear")) === "state",
+    },
   });
 }

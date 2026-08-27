@@ -6,17 +6,30 @@ import {
   downloadPdfBase64,
   findApplication,
   listApplications,
+  signOutEmail,
+  verifiedEmail,
   type ApplicationSummary,
   type StoredApplication,
 } from "@/lib/application-records";
+import EmailVerification from "@/components/EmailVerification";
 
-type AccessMode = "acknowledgement" | "login";
+/* ============================================================
+   Reopening a saved application. Two routes, because the two
+   situations are genuinely different:
+
+     - You have the reference number from the receipt. That
+       number is the secret, so it needs nothing else.
+     - You lost the number. Then you prove the email address and
+       we list everything saved against it.
+   ============================================================ */
+
+type AccessMode = "reference" | "email";
 
 export default function ApplicationAccess() {
-  const [mode, setMode] = useState<AccessMode>("acknowledgement");
+  const [mode, setMode] = useState<AccessMode>("reference");
   const [ack, setAck] = useState("");
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
+  const [verified, setVerified] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [application, setApplication] = useState<StoredApplication | null>(null);
@@ -35,10 +48,23 @@ export default function ApplicationAccess() {
     };
   }, [previewUrl]);
 
-  async function retrieve(nextAck = ack) {
-    const normalized = nextAck.trim().toUpperCase();
+  // A browser that verified earlier can go straight to its history.
+  useEffect(() => {
+    let active = true;
+    void verifiedEmail().then((found) => {
+      if (!active || !found) return;
+      setEmail(found);
+      setVerified(found);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function openByReference(next = ack) {
+    const normalized = next.trim().toUpperCase();
     if (!normalized) {
-      setError("Enter the Praja acknowledgement number printed on the receipt.");
+      setError("Enter the reference number printed on your receipt.");
       return;
     }
     setBusy(true);
@@ -47,118 +73,138 @@ export default function ApplicationAccess() {
       const record = await findApplication(normalized);
       if (!record) {
         setApplication(null);
-        setError("No saved application matched that number. Check every letter and number, then try again.");
+        setError("No saved application matched that number. Check every character and try again.");
         return;
       }
       setAck(record.acknowledgementNumber);
       setApplication(record);
       setPreviewKind("application");
     } catch {
-      setError("The application store could not be reached. Try again when you are online or on the device used to prepare it.");
+      setError("The application store could not be reached. Try again when you are online.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function signIn() {
-    if (!email.trim() || !email.includes("@")) {
-      setError("Enter the email address used at the verification step.");
-      return;
-    }
+  async function loadHistory(address: string) {
     setBusy(true);
     setError(null);
     setApplication(null);
     try {
-      const rows = await listApplications(email, otp);
+      const rows = await listApplications(address);
       setApplications(rows);
-      if (!rows.length) setError("No applications are stored for that email address yet.");
+      if (rows.length === 0) setError("Nothing is saved against that address yet.");
     } catch (cause) {
       setApplications([]);
-      setError(cause instanceof Error ? cause.message : "Could not open the application history.");
+      setError(cause instanceof Error ? cause.message : "Could not open your history.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <section className="application-access" id="application-access" aria-labelledby="application-access-title">
+    <section className="application-access" id="saved-applications" aria-labelledby="saved-applications-title">
       <div className="application-access-copy">
-        <h2 id="application-access-title">Open a saved application.</h2>
+        <h2 id="saved-applications-title">Reopen a saved application</h2>
         <p>
-          Use the Praja acknowledgement number from step 9, or sign in locally with the email used during verification.
+          Every application you prepare here is saved with a reference number. Use that number, or verify your email
+          address to see everything saved against it.
         </p>
         <p className="application-access-boundary">
-          These are local Praja RTI records. Government RTI status is available only on the official portal with its own registration number.
+          These are Praja records. The status of an application you filed with the government is available only on
+          the official portal, using the registration number it issued.
         </p>
       </div>
 
       <div className="application-access-workspace">
-        <div className="application-access-tabs" role="tablist" aria-label="Saved application access method">
+        <div className="application-access-tabs" role="tablist" aria-label="How to reopen an application">
           <button
             type="button"
             role="tab"
-            aria-selected={mode === "acknowledgement"}
-            className={mode === "acknowledgement" ? "is-active" : ""}
-            onClick={() => { setMode("acknowledgement"); setError(null); }}
+            aria-selected={mode === "reference"}
+            className={mode === "reference" ? "is-active" : ""}
+            onClick={() => { setMode("reference"); setError(null); }}
           >
-            Acknowledgement number
+            I have my reference number
           </button>
           <button
             type="button"
             role="tab"
-            aria-selected={mode === "login"}
-            className={mode === "login" ? "is-active" : ""}
-            onClick={() => { setMode("login"); setError(null); }}
+            aria-selected={mode === "email"}
+            className={mode === "email" ? "is-active" : ""}
+            onClick={() => { setMode("email"); setError(null); }}
           >
-            Citizen sign-in
+            I lost it
           </button>
         </div>
 
-        {mode === "acknowledgement" ? (
+        {mode === "reference" ? (
           <div className="application-access-form" role="tabpanel">
-            <label htmlFor="acknowledgement-number">Praja acknowledgement number</label>
+            <label htmlFor="reference-number">Praja reference number</label>
             <div className="application-access-row">
               <input
-                id="acknowledgement-number"
+                id="reference-number"
                 value={ack}
                 onChange={(event) => setAck(event.target.value.toUpperCase())}
-                onKeyDown={(event) => { if (event.key === "Enter") void retrieve(); }}
+                onKeyDown={(event) => { if (event.key === "Enter") void openByReference(); }}
                 placeholder="PRTI/ACK/26/XXXXXXXXX"
                 autoComplete="off"
               />
-              <button type="button" onClick={() => void retrieve()} disabled={busy}>
-                {busy ? "Looking up..." : "Open copy"}
+              <button type="button" onClick={() => void openByReference()} disabled={busy}>
+                {busy ? "Looking up…" : "Open"}
               </button>
             </div>
           </div>
         ) : (
           <div className="application-access-form" role="tabpanel">
-            <div className="application-login-grid">
-              <label>
-                Email used during verification
-                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
-              </label>
-              <label>
-                Local verification code
-                <input
-                  value={otp}
-                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                  inputMode="numeric"
-                  placeholder="123456"
-                  autoComplete="one-time-code"
-                />
-              </label>
-            </div>
-            <button type="button" className="application-login-button" onClick={() => void signIn()} disabled={busy || otp.length !== 6}>
-              {busy ? "Opening..." : "Open my applications"}
-            </button>
+            {verified ? (
+              <div className="access-verified">
+                <p>
+                  Verified as <strong>{verified}</strong>.
+                </p>
+                <div className="access-verified-actions">
+                  <button type="button" onClick={() => void loadHistory(verified)} disabled={busy}>
+                    {busy ? "Opening…" : "Show my applications"}
+                  </button>
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={async () => {
+                      await signOutEmail();
+                      setVerified(null);
+                      setApplications([]);
+                      setApplication(null);
+                    }}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <EmailVerification
+                email={email}
+                onEmailChange={setEmail}
+                onVerified={(address) => {
+                  setVerified(address);
+                  void loadHistory(address);
+                }}
+                onSignOut={() => {
+                  setVerified(null);
+                  setApplications([]);
+                }}
+              />
+            )}
+
             {applications.length > 0 && (
               <ul className="application-history-list">
                 {applications.map((item) => (
                   <li key={item.acknowledgementNumber}>
-                    <button type="button" onClick={() => void retrieve(item.acknowledgementNumber)}>
+                    <button type="button" onClick={() => void openByReference(item.acknowledgementNumber)}>
                       <span>{item.title}</span>
-                      <small>{item.acknowledgementNumber} · {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(item.createdAt))}</small>
+                      <small>
+                        {item.acknowledgementNumber} ·{" "}
+                        {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(item.createdAt))}
+                      </small>
                     </button>
                   </li>
                 ))}
@@ -176,25 +222,59 @@ export default function ApplicationAccess() {
                 <strong>{application.report.title}</strong>
                 <span>{application.acknowledgementNumber}</span>
               </div>
-              <span className="application-result-status">Praja copy stored</span>
+              <span className="application-result-status">Copy saved</span>
             </div>
             <dl>
               <div><dt>Authority</dt><dd>{application.report.authority.name}</dd></div>
-              <div><dt>Prepared</dt><dd>{new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(application.createdAt))}</dd></div>
+              <div>
+                <dt>Prepared</dt>
+                <dd>
+                  {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(
+                    new Date(application.createdAt),
+                  )}
+                </dd>
+              </div>
               <div><dt>Government status</dt><dd>Not submitted</dd></div>
             </dl>
-            <div className="application-preview-tabs" role="tablist" aria-label="Saved PDF preview">
-              <button type="button" className={previewKind === "application" ? "is-active" : ""} onClick={() => setPreviewKind("application")}>Application PDF</button>
-              <button type="button" className={previewKind === "receipt" ? "is-active" : ""} onClick={() => setPreviewKind("receipt")}>Receipt PDF</button>
+            <div className="application-preview-tabs" role="tablist" aria-label="Which PDF to preview">
+              <button
+                type="button"
+                className={previewKind === "application" ? "is-active" : ""}
+                onClick={() => setPreviewKind("application")}
+              >
+                Application
+              </button>
+              <button
+                type="button"
+                className={previewKind === "receipt" ? "is-active" : ""}
+                onClick={() => setPreviewKind("receipt")}
+              >
+                Receipt
+              </button>
             </div>
             {previewUrl && (
-              <object className="application-pdf-object" data={previewUrl} type="application/pdf" aria-label={`${previewKind} PDF preview`}>
-                <p>Your browser cannot show the PDF preview. Use the download buttons below.</p>
+              <object
+                className="application-pdf-object"
+                data={previewUrl}
+                type="application/pdf"
+                aria-label={`${previewKind} PDF preview`}
+              >
+                <p>This browser cannot display the PDF. Use the download buttons below.</p>
               </object>
             )}
             <div className="application-result-actions">
-              <button type="button" onClick={() => downloadPdfBase64("praja-rti-application.pdf", application.applicationPdfBase64)}>Download application PDF</button>
-              <button type="button" onClick={() => downloadPdfBase64("praja-rti-receipt.pdf", application.receiptPdfBase64)}>Download receipt PDF</button>
+              <button
+                type="button"
+                onClick={() => downloadPdfBase64("praja-rti-application.pdf", application.applicationPdfBase64)}
+              >
+                Download application
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadPdfBase64("praja-rti-receipt.pdf", application.receiptPdfBase64)}
+              >
+                Download receipt
+              </button>
             </div>
           </div>
         )}

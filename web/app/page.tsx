@@ -1,55 +1,50 @@
 import Link from "next/link";
 import ApplicationAccess from "@/components/ApplicationAccess";
 import Emblem from "@/components/Emblem";
-import HeroDraftActions from "@/components/HeroDraftActions";
 import RtiLifecycleChart from "@/components/RtiLifecycleChart";
 import SiteMasthead from "@/components/SiteMasthead";
+import { directoryStats } from "@/lib/directory-tree";
 
-const serviceSteps = [
+/* ============================================================
+   Home. One job: explain what this is, show what it produces,
+   and start the request. The lifecycle chart and the safeguards
+   stay because they teach something the citizen cannot get from
+   the official portal; everything decorative has gone.
+   ============================================================ */
+
+const steps = [
   {
-    title: "Tell us what happened",
-    body: "Speak or type in the language that feels natural. Your transcript stays visible and editable.",
+    title: "Describe the problem",
+    body: "Speak to the assistant or type it yourself, in any of twelve languages. Plain words are enough.",
   },
   {
-    title: "Confirm the facts",
-    body: "Review the place, period, records sought, and anything clearly visible in an attached photo.",
+    title: "Confirm what to ask for",
+    body: "Your words become requests for records that already exist on an official file. You review them.",
   },
   {
-    title: "Review the draft",
-    body: "Your concern becomes a neutral request for existing records, written as clear numbered points.",
+    title: "Check it is allowed",
+    body: "Requests aimed at exempt material are refused with the exact section, and a lawful alternative.",
   },
   {
-    title: "Choose an authority",
-    body: "Compare three explained Central public authority suggestions and make the final choice yourself.",
+    title: "Find the right authority",
+    body: "Search the full Central directory, or compare three explained suggestions. You choose.",
   },
   {
-    title: "Save your application",
-    body: "Copy or download the prepared request so you can review it again before filing.",
+    title: "Add your details",
+    body: "The same particulars the official form asks for, verified by email so your copy stays yours.",
   },
   {
-    title: "Use the official portal",
-    body: "When you are ready, continue through RTI Online to complete the official filing process.",
+    title: "Take it to the portal",
+    body: "Download the completed application as a PDF, then file it and pay on the official portal.",
   },
 ];
 
-const draftRequests = [
-  "Certified copy of the work order and sanctioned budget for Road 12, Sector 4.",
-  "Contractor details, scheduled completion date, and delay clauses recorded for the work.",
-  "Copies of quality inspection reports submitted for the road work.",
+const exampleRequests = [
+  "Certified copies of the work order and sanctioned estimate for the road work in Ward 12.",
+  "The contractor's name, agreement, and the scheduled date of completion recorded on the file.",
+  "Copies of every quality inspection report submitted for that work.",
+  "The file notings recording why the work remained incomplete after the scheduled date.",
 ];
-
-function ArrowIcon({ direction = "right" }: { direction?: "right" | "down" }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={direction === "down" ? "rotate-90" : ""}
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <path d="M5 12h14M14 7l5 5l-5 5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
-    </svg>
-  );
-}
 
 function MicIcon() {
   return (
@@ -78,172 +73,138 @@ function ShieldIcon() {
   );
 }
 
-function StepIcon({ index }: { index: number }) {
-  const common = { stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.6 };
-  if (index === 0) return <MicIcon />;
-  if (index === 1) {
-    return (
-      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-        <path d="M8 6h11M8 12h11M8 18h11M3.5 6l1.2 1.2L6.8 5M3.5 12l1.2 1.2l2.1-2.2M3.5 18l1.2 1.2l2.1-2.2" {...common} />
-      </svg>
-    );
-  }
-  if (index === 2) return <DocumentIcon />;
-  if (index === 3) {
-    return (
-      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-        <path d="M3 9h18M5 9v9M9.5 9v9M14.5 9v9M19 9v9M3 19.5h18M12 3l9 4H3z" {...common} />
-      </svg>
-    );
-  }
-  if (index === 4) {
-    return (
-      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-        <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 20h14" {...common} />
-      </svg>
-    );
-  }
+function ScaleIcon() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="9" {...common} />
-      <path d="M3.5 12h17M12 3c2.3 2.5 3.4 5.5 3.4 9S14.3 18.5 12 21M12 3C9.7 5.5 8.6 8.5 8.6 12s1.1 6.5 3.4 9" {...common} />
+      <path d="M12 3v18M7 21h10M12 6l-6 2m6-2l6 2M6 8l-2.5 5h5zM18 8l-2.5 5h5z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
     </svg>
   );
 }
 
 export default function Page() {
+  const stats = directoryStats();
+
   return (
     <main className="site-shell">
       <SiteMasthead
-        notice="Independent citizen assistance for RTI"
+        notice="Independent citizen assistance for RTI applications"
         links={
           <>
-            <a href="#accessibility">Accessibility help</a>
+            <Link href="/departments">Authority directory</Link>
             <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Official RTI portal</a>
           </>
         }
         truth={
           <>
-            <strong>Important:</strong> Praja RTI is independent citizen assistance. It is not a government portal and does not file an application on your behalf.
+            <strong>Important:</strong> Praja RTI is independent citizen assistance. It is not a government portal
+            and it does not file an application on your behalf.
           </>
         }
       >
         <nav className="primary-nav" aria-label="Primary navigation">
           <a href="#how-it-works">How it works</a>
-          <a href="#application-access">Saved applications</a>
-          <a href="#rti-lifecycle">RTI lifecycle</a>
-          <a href="#safeguards">Safeguards</a>
+          <Link href="/departments">Authorities</Link>
+          <a href="#rti-lifecycle">The RTI process</a>
+          <a href="#saved-applications">Saved applications</a>
         </nav>
-        <Link className="header-action header-start-action" href="/request">Start drafting</Link>
+        <Link className="header-action" href="/request">Start a request</Link>
       </SiteMasthead>
 
       <section className="hero site-container" id="main-content">
         <div className="hero-copy">
-          <h1>Speak naturally. Leave with a clear RTI request.</h1>
+          <h1>Say what went wrong. Leave with a filed-ready RTI application.</h1>
           <p>
-            Turn a spoken concern into a focused request for records. Review every word, compare explained Central authority suggestions, and decide what to take forward.
+            Describe the problem in your own language. We turn it into a formal request for the records that prove
+            what happened, addressed to the authority that actually holds them.
           </p>
           <div className="hero-actions">
             <Link className="primary-button" href="/request">
               <MicIcon />
-              Start your request
+              Start a request
             </Link>
-            <a className="text-link" href="#how-it-works">See the full process</a>
+            <Link className="text-link" href="/departments">
+              Browse {stats.authorities.toLocaleString("en-IN")} public authorities
+            </Link>
           </div>
           <dl className="hero-assurances">
             <div>
-              <dt>Language</dt>
-              <dd>English, हिन्दी, and Hinglish</dd>
+              <dt>Languages</dt>
+              <dd>Twelve, including Hindi, Telugu, Tamil, and Bengali</dd>
+            </div>
+            <div>
+              <dt>Directory</dt>
+              <dd>{stats.ministries} ministries, {stats.authorities.toLocaleString("en-IN")} authorities</dd>
             </div>
             <div>
               <dt>Control</dt>
-              <dd>You confirm every consequential choice</dd>
+              <dd>You confirm every step</dd>
             </div>
           </dl>
         </div>
 
-        <div className="transformation" aria-label="Example of a spoken concern becoming an RTI records request">
-          <div className="transform-toolbar">
-            <span>Draft workspace</span>
-            <span className="workspace-status"><i aria-hidden="true" /> Ready for review</span>
+        <div className="example-panel" aria-label="Example of a spoken concern becoming an RTI application">
+          <div className="example-head">
+            <span>What you say</span>
           </div>
-          <div className="transform-grid">
-            <section className="transcript-panel">
-              <div className="panel-heading">
-                <span className="panel-icon"><MicIcon /></span>
-                <span>
-                  <small>Your words</small>
-                  <strong>Editable transcript</strong>
-                </span>
-              </div>
-              <div className="voice-line" aria-hidden="true">
-                {[10, 22, 15, 28, 18, 31, 24, 12, 26, 17, 9, 21, 13, 7].map((height, index) => (
-                  <i key={index} style={{ height }} />
-                ))}
-              </div>
-              <blockquote>
-                The road outside my house in Sector 4 has been broken for months. I want to know what work was approved and whether it was inspected.
-              </blockquote>
-              <div className="transcript-meta">
-                <span>English with Hinglish supported</span>
-                <span>Text remains editable</span>
-              </div>
-            </section>
-
-            <div className="transform-arrow" aria-hidden="true"><ArrowIcon /></div>
-
-            <section className="draft-panel">
-              <div className="panel-heading">
-                <span className="panel-icon"><DocumentIcon /></span>
-                <span>
-                  <small>Prepared output</small>
-                  <strong>Records focused request</strong>
-                </span>
-              </div>
-              <ol className="request-list">
-                {draftRequests.map((request) => <li key={request}>{request}</li>)}
-              </ol>
-              <HeroDraftActions />
-              <div className="draft-footer">
-                <span><ShieldIcon /> Facts kept neutral</span>
-                <span>3 request points</span>
-              </div>
-            </section>
+          <blockquote className="example-quote">
+            The road in our colony was dug up eight months ago and never repaired. Nobody tells us who was
+            supposed to fix it or where the money went.
+          </blockquote>
+          <div className="example-divider" aria-hidden="true">
+            <span>becomes</span>
           </div>
+          <div className="example-head">
+            <span>What the authority receives</span>
+          </div>
+          <ol className="example-requests">
+            {exampleRequests.map((request) => <li key={request}>{request}</li>)}
+          </ol>
+          <p className="example-note">
+            <ShieldIcon />
+            No accusation, no adjective of blame — only records the authority must produce.
+          </p>
         </div>
       </section>
 
-      <section className="service-principles reveal reveal-wipe" aria-labelledby="principles-title">
+      <section className="service-principles" aria-labelledby="principles-title">
         <div className="site-container principles-grid">
-          <h2 id="principles-title">Built around citizen control</h2>
+          <h2 id="principles-title">Why applications get rejected, and how we avoid it</h2>
           <div>
-            <strong>Records, not accusations</strong>
-            <p>Your concern is rewritten as a request for existing files, orders, budgets, registers, or reports.</p>
+            <strong>Records, not complaints</strong>
+            <p>
+              The Act compels documents, not answers. A &ldquo;why did nobody fix this&rdquo; question is refused; a
+              request for the file notings that record the reason is not.
+            </p>
           </div>
           <div>
-            <strong>Reasons, not silent routing</strong>
-            <p>Each suggested Central authority comes with a reason and an uncertainty note.</p>
+            <strong>The right government</strong>
+            <p>
+              The Central portal returns State and municipal applications without refunding the fee. We tell you
+              which government holds your record before you pay anything.
+            </p>
           </div>
           <div>
-            <strong>Review before action</strong>
-            <p>The transcript, facts, request points, and destination remain yours to correct.</p>
+            <strong>Exemptions checked first</strong>
+            <p>
+              Section 8, 9, 11, and 24 are screened before drafting. If your request is not allowed, you find out
+              here rather than 30 days later.
+            </p>
           </div>
         </div>
       </section>
 
       <ApplicationAccess />
 
-      <section className="process-section site-container reveal reveal-rise" id="how-it-works">
+      <section className="process-section site-container" id="how-it-works">
         <div className="section-intro">
-          <h2>A clear path from concern to application</h2>
-          <p>One decision at a time, with the citizen in control throughout.</p>
+          <h2>From a problem to a filed-ready application</h2>
+          <p>Nine steps, one decision at a time. You can go back and change any answer.</p>
         </div>
         <ol className="service-path">
-          {serviceSteps.map((step, index) => (
+          {steps.map((step, index) => (
             <li key={step.title}>
-              <span className="step-icon"><StepIcon index={index} /></span>
+              <span className="step-icon">{index + 1}</span>
               <div>
-                <span className="step-index">Step {index + 1}</span>
                 <h3>{step.title}</h3>
                 <p>{step.body}</p>
               </div>
@@ -252,59 +213,72 @@ export default function Page() {
         </ol>
       </section>
 
-      <section className="lifecycle-section reveal reveal-fade" id="rti-lifecycle">
+      <section className="lifecycle-section" id="rti-lifecycle">
         <div className="site-container">
           <div className="section-intro">
-            <h2>Understand the official RTI lifecycle</h2>
+            <h2>What happens after you file</h2>
             <p>
-              Hover or tap any block to light that step and the next two or three connected stages — reply, transfer, appeal, or complaint.
+              Thirty days for a reply, forty if a third party must be consulted. Select any block to trace the
+              stages that follow it — reply, transfer, appeal, or complaint.
             </p>
           </div>
           <RtiLifecycleChart />
         </div>
       </section>
 
-      <section className="safeguards-section site-container reveal reveal-rise" id="safeguards">
+      <section className="safeguards-section site-container" id="safeguards">
         <div className="section-intro">
-          <h2>Safeguards inside the drafting process</h2>
-          <p>The service should help you ask clearly without inventing facts or overstepping the Act.</p>
+          <h2>What we refuse to draft</h2>
+          <p>An application that asks for exempt material wastes your fee and your thirty days.</p>
         </div>
         <div className="safeguards-grid">
           <article>
-            <span className="safeguard-icon"><ShieldIcon /></span>
+            <span className="safeguard-icon"><ScaleIcon /></span>
             <div>
-              <h3>Sensitive request check</h3>
-              <p>Requests aimed at exempt information are not drafted. You receive a plain explanation and a lawful reframing where one is available.</p>
+              <h3>Exempt under the Act</h3>
+              <p>
+                Screened in code before anything is written, so a refusal never depends on a service being
+                available.
+              </p>
               <ul>
-                <li>National security and protected material</li>
-                <li>Cabinet papers and protected deliberations</li>
-                <li>Private details unrelated to public duty</li>
+                <li>National security and strategic matters — 8(1)(a)</li>
+                <li>Cabinet papers on an incomplete decision — 8(1)(i)</li>
+                <li>A third party&apos;s trade secrets — 8(1)(d)</li>
+                <li>An official&apos;s private life — 8(1)(j)</li>
+                <li>Anything identifying an informant — 8(1)(g)</li>
+                <li>Live investigations — 8(1)(h)</li>
+                <li>Second Schedule organisations — Section 24</li>
               </ul>
             </div>
           </article>
           <article>
             <span className="safeguard-icon"><DocumentIcon /></span>
             <div>
-              <h3>Photo evidence check</h3>
-              <p>Only clearly observable details are proposed. Nothing enters the draft until you confirm it.</p>
+              <h3>Not information at all</h3>
+              <p>
+                The Act gives you material already on record. These get rewritten into something an authority can
+                actually be compelled to produce.
+              </p>
               <ul>
-                <li>Visible scene, condition, and signboards</li>
-                <li>No accusations inferred from an image</li>
-                <li>Attachments referenced as supporting material</li>
+                <li>Opinions, advice, and justifications</li>
+                <li>&ldquo;Why did you decide that?&rdquo; questions</li>
+                <li>Promises about future action</li>
+                <li>Records that do not exist yet</li>
+                <li>Demands for punishment, refunds, or redress</li>
               </ul>
             </div>
           </article>
         </div>
       </section>
 
-      <section className="official-next-step reveal reveal-wipe">
+      <section className="official-next-step">
         <div className="site-container next-step-inner">
           <div>
-            <h2>Ready to prepare your request?</h2>
-            <p>Draft here, review every detail, then use the official RTI Online portal when you are ready to file.</p>
+            <h2>Ready to start?</h2>
+            <p>Prepare it here, review every detail, then file it on the official portal.</p>
           </div>
           <div className="next-step-actions">
-            <Link className="light-button" href="/request">Start drafting</Link>
+            <Link className="light-button" href="/request">Start a request</Link>
             <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Go to RTI Online</a>
           </div>
         </div>
@@ -313,7 +287,7 @@ export default function Page() {
       <footer className="site-footer" id="accessibility">
         <div className="site-container footer-grid">
           <div className="footer-brand">
-            <Emblem className="footer-emblem" height={72} width={43} />
+            <Emblem className="footer-emblem" size={44} />
             <div>
               <strong>Praja RTI</strong>
               <span>Independent citizen assistance</span>
@@ -322,23 +296,25 @@ export default function Page() {
           <div>
             <strong>Service</strong>
             <a href="#how-it-works">How it works</a>
-            <a href="#safeguards">Safeguards</a>
+            <Link href="/departments">Authority directory</Link>
+            <a href="#safeguards">What we refuse</a>
           </div>
           <div>
             <strong>Official resources</strong>
             <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">RTI Online</a>
-            <a href="https://rtionline.gov.in/faq.php" rel="noreferrer" target="_blank">RTI FAQ</a>
+            <a href="https://rtionline.gov.in/request/allpa.php" rel="noreferrer" target="_blank">All public authorities</a>
+            <a href="https://rtionline.gov.in/faq.php" rel="noreferrer" target="_blank">Official FAQ</a>
           </div>
           <div>
             <strong>Accessibility</strong>
-            <span>Dark and light appearance</span>
-            <span>Text size slider in the top bar</span>
-            <span>Keyboard and reduced motion supported</span>
+            <span>Light and dark appearance</span>
+            <span>Text size control in the top bar</span>
+            <span>Keyboard navigation and reduced motion</span>
           </div>
         </div>
         <div className="site-container footer-bottom">
           <span>Praja RTI is not affiliated with the Government of India.</span>
-          <span>Information last reviewed August 2026</span>
+          <span>Directory reviewed August 2026</span>
         </div>
       </footer>
     </main>

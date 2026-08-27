@@ -1,4 +1,4 @@
-import type { IntakeHandoff } from "./intakePrompt";
+import { normalizeHandoff, type IntakeHandoff } from "./intakePrompt";
 
 /* ============================================================
    Intake memory. The handoff record persists in sessionStorage
@@ -29,13 +29,41 @@ export function loadIntakeRecord(): IntakeRecord | null {
     const parsed = JSON.parse(raw) as Partial<IntakeRecord> | null;
     if (!parsed || typeof parsed !== "object" || !parsed.handoff) return null;
     return {
-      handoff: parsed.handoff as IntakeHandoff,
+      // Re-normalise: a record written by an earlier build may predate the
+      // applicant fields, and stored JSON is not a trusted shape.
+      handoff: rehydrate(parsed.handoff),
       transcript: typeof parsed.transcript === "string" ? parsed.transcript : "",
       capturedAt: typeof parsed.capturedAt === "number" ? parsed.capturedAt : Date.now(),
     };
   } catch {
     return null;
   }
+}
+
+/** Flatten a stored handoff back into the tool-call shape normalizeHandoff expects. */
+function rehydrate(stored: IntakeHandoff): IntakeHandoff {
+  const applicant = stored.applicant ?? {};
+  return normalizeHandoff({
+    detected_lang: stored.detected_lang,
+    summary: stored.summary,
+    jurisdiction: stored.jurisdiction,
+    state_name: stored.state_name,
+    jurisdiction_note: stored.jurisdiction_note,
+    place: stored.place,
+    date_range: stored.date_range,
+    authority_hint: stored.authority_hint,
+    applicant_name: applicant.name,
+    gender: applicant.gender,
+    address: applicant.address,
+    pincode: applicant.pincode,
+    state: applicant.state,
+    area_status: applicant.areaStatus,
+    educational_status: applicant.educationalStatus,
+    mobile: applicant.mobile,
+    phone: applicant.phone,
+    email: applicant.email,
+    is_bpl: applicant.isBpl,
+  });
 }
 
 export function clearIntakeRecord(): void {

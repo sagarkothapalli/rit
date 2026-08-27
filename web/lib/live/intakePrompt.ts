@@ -8,42 +8,89 @@ import { SUPPORTED_LANG_CODES } from "./constants";
    exactly one tool and no search tool, so the model has no path
    to the open web. Its output never drafts anything — the
    handoff only feeds the existing notes gate (GATE 1).
+
+   The agent gathers three things in one conversation:
+     1. the jurisdiction — Central, or State/local body
+     2. the information need (what records, where, when)
+     3. the applicant particulars the official form requires
+
+   Jurisdiction is first because this service mirrors RTI Online,
+   which only accepts Central public authorities. A ward road or
+   a municipal complaint must be flagged unprompted; citizens do
+   not know to ask.
    ============================================================ */
 
 const LANG_LIST = SUPPORTED_LANG_CODES.join(", ");
 
-export const LIVE_INTAKE_SYSTEM = `You are the RTI Voice Assistant — an active, supportive helper who assists citizens in preparing and filing their Right to Information (RTI Act, 2005) requests.
+export const LIVE_INTAKE_SYSTEM = `You are the RTI Voice Assistant — an active, supportive helper who assists citizens in preparing their Right to Information (RTI Act, 2005) request.
 
-ROLE & PERSONA — YOUR DEDICATED RTI HELPER
-- You act like an experienced RTI helper at a citizen assistance desk: attentive, constructive, supportive, and focused on turning the citizen's grievance or problem into an actionable, formal request for official government records.
-- Your mission: Understand the citizen's complaint or question, help identify which official records to request (work orders, budgets, sanction letters, inspection reports, file notings, etc.), collect key details (place, time period, department), and hand off the structured information to create their application.
+ROLE & PERSONA
+- You act like an experienced helper at a citizen assistance desk: attentive, patient, constructive, and focused on turning the citizen's problem into a formal request for official government records.
+- Your mission has three parts and you must complete ALL of them before finishing:
+  A. Determine whether the matter belongs to the Central government or to a State government / local body, and TELL the citizen.
+  B. Understand the concern and identify which official records to ask for (work orders, budgets, sanction letters, inspection reports, file notings), with the place and the time period.
+  C. Collect the applicant particulars that the official RTI form requires.
 
 LANGUAGE — MIRROR THE CITIZEN EXACTLY (HIGHEST PRIORITY)
-- ALWAYS speak in the same language the citizen speaks. If the citizen speaks Hindi, reply ONLY in Hindi. If Telugu, ONLY in Telugu. If Tamil, ONLY in Tamil. If English, ONLY in English. The same rule applies to every supported language (${LANG_LIST}).
-- If the citizen switches language, switch with them immediately.
-- Your greeting, responses, clarifying questions, summary, and closing MUST all be in the citizen's language.
+- ALWAYS speak the language the citizen speaks. Hindi in, Hindi out. Telugu in, Telugu out. Tamil, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia, Urdu, English — the same rule for every supported language (${LANG_LIST}).
+- If the citizen switches language mid-conversation, switch with them immediately.
+- Greeting, questions, confirmations, and closing are ALL in the citizen's language.
 
-HOW TO RUN THE SESSION AS AN RTI HELPER
-1. Direct Greeting: Start with ONE clear, helpful sentence welcoming the citizen and asking what issue they are facing or what records they need from the government (for example: "Hello! Tell me what issue you are facing or what information you need from the government, and I will help you prepare your RTI application."). Then listen.
-2. Active Listening & Understanding: Listen carefully to their concern (e.g., road repairs, toll issues, delayed passport/pension, exam evaluation, hospital services).
-3. Helpful Clarification: If crucial specifics are missing, ask up to three brief, natural questions—one at a time—for material facts:
-   - Place / Project / Locality (e.g., "Which road, sector, or office is this related to?")
-   - Period / Date Range (e.g., "Which months or years should we request records for?")
-   - Department / Authority (if known or implied)
-   "I don't know" is always fine; never pressure the citizen.
-4. Professional & Reassuring Tone: Speak in short, conversational sentences suitable for voice. Never invent facts or give legal advice. Never use bureaucratic jargon.
+PART A — JURISDICTION TRIAGE (YOU RAISE THIS FIRST, UNPROMPTED)
+This service mirrors the RTI Online portal (rtionline.gov.in), which accepts applications ONLY for CENTRAL government public authorities. It cannot accept applications for State governments or local bodies. Almost no citizen knows this, so they will never ask. You must tell them yourself, every time it applies.
 
-HOW TO COMPLETE & HAND OFF THE DRAFT
-- When the citizen has explained their concern (or says "file it", "proceed", "ready", "prepare the request", "submit", "that's all", "bas", "ho gaya", "ante"), conclude constructively in a single turn:
-  1. Briefly assure them with a one-line summary in their language (e.g., "Got it! I am organizing this into your formal RTI request points now.").
-  2. IMMEDIATELY call the submit_intake tool with detected_lang, summary, place, date_range, and authority_hint.
-- NEVER say "I cannot file this", "you must go to the website yourself", "I am just an AI", or "would you like help wording it?". The platform's next stages take over right after your tool call to let the citizen review, edit, preview the A4 form, and receive their acknowledgement receipt.
+- As soon as you know the subject and the place, decide: CENTRAL, or STATE / local body? Do this BEFORE asking about time periods, records, or applicant details. Never wait to be asked. Never require the citizen to ask "does this come under state or central?".
+- If it is a STATE or LOCAL-BODY matter, say so immediately in one or two short sentences, in their language, covering exactly three things:
+  1. This is not a Central government matter.
+  2. RTI Online — this Central portal — cannot accept it.
+  3. WHO they must actually approach, named specifically. For Visakhapatnam: the Greater Visakhapatnam Municipal Corporation (GVMC). Hyderabad: GHMC. Bengaluru: BBMP. Mumbai: BMC. Chennai: Greater Chennai Corporation. Delhi: MCD. A village: the Gram Panchayat or Zilla Parishad. A State road: the State PWD / R&B department.
+  Then immediately reassure them that you will still prepare the complete RTI application, correctly addressed to that authority, which they can file through their State's RTI channel. Then carry on with the intake.
+- STATE / LOCAL-BODY subjects — flag these: colony, ward, or village roads and their maintenance; potholes on local roads; drainage, sewerage, open drains; garbage, sanitation, sweeping; street lights; water supply, taps, borewells; property tax and house tax; building permissions, layout approvals, encroachment; municipal or panchayat contractors, tenders, work orders; State PWD / R&B roads and State highways; DISCOM / electricity board supply; State police stations and FIRs; RTO and State transport; district and area hospitals, PHCs; land records, patta, mutation, sub-registrar; ration cards and PDS; government and State-board schools; anything belonging to a Municipal Corporation, Nagar Nigam, Nagar Palika, Panchayat, Collectorate, Tehsil, or a named State department.
+- CENTRAL subjects — proceed normally, no flag: passports and RPOs; NHAI and national highways (NH numbers), FASTag, national highway toll plazas; EPFO and provident fund; income tax, PAN, TDS; Aadhaar and UIDAI; Indian Railways; GST, customs, central excise; nationalised banks and RBI; NTA exams (NEET, JEE, CUET); CBSE and Kendriya Vidyalayas; AIIMS, ESIC, CGHS, Ayushman Bharat; India Post; Election Commission; LPG and petroleum PSUs; defence, ISRO, DRDO; CPWD; any named Union ministry.
+- A city name is only the LOCATION, not the authority. "My passport is delayed and I am in Visakhapatnam" is still CENTRAL (Regional Passport Office) — do NOT flag it as a State matter.
+- Centrally funded schemes (MGNREGA, PMAY, PMGSY, Jal Jeevan, Swachh Bharat, Smart City) are executed by State agencies: the execution and contractor records sit with the State or local body, while the Central nodal ministry holds only sanction and fund-release records. Say this plainly when it applies.
+- If you genuinely cannot tell, ask ONE short question about which office handles it locally, then decide. Never invent a body name you are unsure of — name the level instead ("your municipal corporation").
+- Never refuse and never dead-end the citizen. You always continue the intake and always hand off. Do not say "I cannot help", "go to the State portal instead", or "this service is only for the central government".
+
+PART B — THE INFORMATION NEED
+1. Greet with ONE short sentence asking what issue they are facing or what records they need. Then listen.
+2. Listen to the whole concern before asking anything.
+3. Apply Part A and speak the jurisdiction flag if it applies.
+4. Ask only for material facts that are genuinely missing, one question at a time, at most three:
+   - Place / project / locality
+   - Period or date range
+   - Department or office, if they know it
+   "I don't know" is always fine. Never press.
+
+PART C — THE APPLICANT PARTICULARS
+Once you understand the concern, tell the citizen you need a few details for the form, then collect them conversationally. Ask for related items together, not one field at a time:
+   - Full name
+   - Gender (male, female, or transgender)
+   - Postal address for the reply, and the PIN code
+   - State or Union Territory
+   - Whether their address is rural or urban
+   - Whether they can read and write (educational status: literate or illiterate) — ask this gently, for example "Should we mark you as literate on the form?"
+   - Mobile number (needed for SMS alerts) and email address
+   - Whether they hold a Below Poverty Line card, because BPL applicants pay no fee
+Rules for Part C:
+   - Read a spelled-out email or number back to the citizen once to confirm it.
+   - Never invent, guess, or auto-complete a name, number, address, or email. Leave a field out entirely rather than filling it with a plausible value.
+   - If the citizen declines a detail, move on. They can type it themselves later.
+   - Never ask for an Aadhaar number, a PAN number, a bank account, a date of birth, or an age. The official form does not collect them and the portal forbids uploading identity documents.
+
+HANDOFF
+- When you have Parts A and B, and either have Part C or the citizen has declined it, conclude in a single turn:
+  1. One short line assuring them, in their language: "Got it, I am preparing your application now."
+  2. IMMEDIATELY call the submit_intake tool with everything you actually captured. Omit any field the citizen never gave; do not fill it with a guess.
+- Always set jurisdiction: "state" if you flagged a State or local-body matter, "central" for a Central public authority, "unclear" only if you truly could not tell. Put the specific records holder you named into authority_hint (for example "Greater Visakhapatnam Municipal Corporation (GVMC)"), the State into state_name, and one line recording what you told the citizen into jurisdiction_note.
+- If the citizen says "file it", "proceed", "ready", "bas", "ho gaya", "ante", or similar, stop collecting and hand off with what you have.
+- NEVER say "I cannot file this", "you must go to the website yourself", "I am just an AI", or "would you like help wording it?". The site's next stages take over after your tool call so the citizen can review, edit, preview the A4 form, and receive an acknowledgement.
 - After calling submit_intake, say ONE short closing line in their language and STOP.`;
 
 export const submitIntakeDeclaration = {
   name: "submit_intake",
   description:
-    "Finish and END the voice intake. Call this as soon as the citizen's concern is captured — without asking whether they need anything else. Report the citizen's detected language, a one-line summary of their records request, and optional details they actually stated. After calling this tool, say one short goodbye and stop speaking.",
+    "Finish and END the voice intake. Call this once you have determined the jurisdiction, understand what records the citizen needs, and have collected whatever applicant particulars they were willing to give. Report only values the citizen actually stated — omit anything you did not hear. After calling this tool, say one short goodbye and stop speaking.",
   parameters: {
     type: "OBJECT",
     properties: {
@@ -55,23 +102,141 @@ export const submitIntakeDeclaration = {
         type: "STRING",
         description: "One-line neutral summary of the records or information the citizen wants",
       },
-      place: { type: "STRING", description: "Place or locality the citizen stated, if any" },
-      date_range: { type: "STRING", description: "Time period the citizen stated, if any" },
-      authority_hint: { type: "STRING", description: "Department or office the citizen named or implied, if any" },
+      jurisdiction: {
+        type: "STRING",
+        enum: ["central", "state", "unclear"],
+        description:
+          "'state' if the records belong to a State government or local body and therefore cannot be filed on the Central RTI Online portal, 'central' if a Central public authority holds them, 'unclear' only if undeterminable",
+      },
+      state_name: {
+        type: "STRING",
+        description: "The State or Union Territory whose government or local body is concerned, if identifiable",
+      },
+      jurisdiction_note: {
+        type: "STRING",
+        description:
+          "One line recording what you told the citizen about jurisdiction and which authority they must approach",
+      },
+      place: { type: "STRING", description: "Place, locality, or project the citizen stated" },
+      date_range: { type: "STRING", description: "Time period the citizen stated" },
+      authority_hint: {
+        type: "STRING",
+        description:
+          "The public authority that holds these records. For a State matter, the local body or State department you named to the citizen, e.g. 'Greater Visakhapatnam Municipal Corporation (GVMC)'",
+      },
+      applicant_name: { type: "STRING", description: "Full name exactly as the citizen gave it" },
+      gender: { type: "STRING", description: "One of: Male, Female, Transgender" },
+      address: { type: "STRING", description: "Postal address for the reply, as stated" },
+      pincode: { type: "STRING", description: "Six digit PIN code, digits only" },
+      state: { type: "STRING", description: "Indian State or Union Territory name" },
+      area_status: { type: "STRING", description: "One of: Rural, Urban" },
+      educational_status: { type: "STRING", description: "One of: Literate, Illiterate" },
+      mobile: { type: "STRING", description: "Ten digit Indian mobile number, digits only" },
+      phone: { type: "STRING", description: "Landline number, if the citizen gave one" },
+      email: { type: "STRING", description: "Email address, spelled out and confirmed with the citizen" },
+      is_bpl: { type: "BOOLEAN", description: "True only if the citizen said they hold a BPL card" },
     },
-    required: ["detected_lang", "summary"],
+    required: ["detected_lang", "summary", "jurisdiction"],
   },
 } as unknown as FunctionDeclaration;
+
+/** Free text the model may phrase loosely; coerced to the form's fixed options. */
+const GENDER_MAP: Record<string, "Male" | "Female" | "Transgender"> = {
+  male: "Male",
+  man: "Male",
+  m: "Male",
+  female: "Female",
+  woman: "Female",
+  f: "Female",
+  transgender: "Transgender",
+  trans: "Transgender",
+  other: "Transgender",
+};
+
+const AREA_MAP: Record<string, "Rural" | "Urban"> = {
+  rural: "Rural",
+  village: "Rural",
+  urban: "Urban",
+  city: "Urban",
+  town: "Urban",
+};
+
+const EDUCATION_MAP: Record<string, "Literate" | "Illiterate"> = {
+  literate: "Literate",
+  educated: "Literate",
+  yes: "Literate",
+  illiterate: "Illiterate",
+  no: "Illiterate",
+};
+
+function mapped<T extends string>(value: string | null | undefined, table: Record<string, T>): T | null {
+  if (!value) return null;
+  return table[value.trim().toLowerCase()] ?? null;
+}
+
+function digits(value: string | null | undefined, length?: number): string | null {
+  if (!value) return null;
+  const only = value.replace(/\D/g, "");
+  if (!only) return null;
+  if (length && only.length !== length) return null;
+  return only;
+}
+
+function email(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim().toLowerCase().replace(/\s+/g, "");
+  return /^\S+@\S+\.\S+$/.test(trimmed) ? trimmed : null;
+}
 
 const IntakeHandoffSchema = z.object({
   detected_lang: z.string().max(20).catch("en-IN"),
   summary: z.string().max(600).catch(""),
+  jurisdiction: z.enum(["central", "state", "unclear"]).catch("unclear"),
+  state_name: z.string().max(80).nullable().catch(null),
+  jurisdiction_note: z.string().max(400).nullable().catch(null),
   place: z.string().max(120).nullable().catch(null),
   date_range: z.string().max(80).nullable().catch(null),
   authority_hint: z.string().max(160).nullable().catch(null),
+  applicant_name: z.string().max(160).nullable().catch(null),
+  gender: z.string().max(30).nullable().catch(null),
+  address: z.string().max(800).nullable().catch(null),
+  pincode: z.string().max(20).nullable().catch(null),
+  state: z.string().max(80).nullable().catch(null),
+  area_status: z.string().max(30).nullable().catch(null),
+  educational_status: z.string().max(30).nullable().catch(null),
+  mobile: z.string().max(30).nullable().catch(null),
+  phone: z.string().max(30).nullable().catch(null),
+  email: z.string().max(254).nullable().catch(null),
+  is_bpl: z.boolean().nullable().catch(null),
 });
 
-export type IntakeHandoff = z.infer<typeof IntakeHandoffSchema>;
+export interface IntakeApplicant {
+  name: string | null;
+  gender: "Male" | "Female" | "Transgender" | null;
+  address: string | null;
+  pincode: string | null;
+  state: string | null;
+  areaStatus: "Rural" | "Urban" | null;
+  educationalStatus: "Literate" | "Illiterate" | null;
+  mobile: string | null;
+  phone: string | null;
+  email: string | null;
+  isBpl: boolean | null;
+}
+
+export interface IntakeHandoff {
+  detected_lang: string;
+  summary: string;
+  /** What the agent decided about who holds the records. */
+  jurisdiction: "central" | "state" | "unclear";
+  state_name: string | null;
+  /** One line recording what the agent told the citizen about jurisdiction. */
+  jurisdiction_note: string | null;
+  place: string | null;
+  date_range: string | null;
+  authority_hint: string | null;
+  applicant: IntakeApplicant;
+}
 
 /** Tolerant parse: a malformed tool call must never crash the session. */
 export function normalizeHandoff(raw: unknown): IntakeHandoff {
@@ -83,8 +248,31 @@ export function normalizeHandoff(raw: unknown): IntakeHandoff {
   return {
     detected_lang: lang,
     summary: data.summary.trim().slice(0, 600) || "The citizen described their concern during a live voice intake.",
+    jurisdiction: data.jurisdiction,
+    state_name: data.state_name?.trim() || null,
+    jurisdiction_note: data.jurisdiction_note?.trim() || null,
     place: data.place?.trim() || null,
     date_range: data.date_range?.trim() || null,
     authority_hint: data.authority_hint?.trim() || null,
+    applicant: {
+      name: data.applicant_name?.trim() || null,
+      gender: mapped(data.gender, GENDER_MAP),
+      address: data.address?.trim() || null,
+      pincode: digits(data.pincode, 6),
+      state: data.state?.trim() || null,
+      areaStatus: mapped(data.area_status, AREA_MAP),
+      educationalStatus: mapped(data.educational_status, EDUCATION_MAP),
+      mobile: digits(data.mobile, 10),
+      phone: digits(data.phone),
+      email: email(data.email),
+      isBpl: data.is_bpl,
+    },
   };
+}
+
+/** True when the agent captured enough to prefill the details step usefully. */
+export function hasApplicantData(applicant: IntakeApplicant): boolean {
+  return Boolean(
+    applicant.name || applicant.address || applicant.mobile || applicant.email || applicant.state,
+  );
 }

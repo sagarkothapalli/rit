@@ -41,17 +41,11 @@ export default function SiteMasthead({
       <header className="civic-header">
         <div className={`site-container header-inner${compact ? " header-inner-compact" : ""}`}>
           <Link className="brand" href="/" aria-label="Praja RTI home">
-            <Emblem
-              className="brand-emblem"
-              height={compact ? 64 : 78}
-              width={compact ? 38 : 47}
-            />
-            <span className="brand-rule" aria-hidden="true" />
+            <Emblem className="brand-emblem" size={compact ? 40 : 46} />
             <span className="brand-name">
               <strong>Praja RTI</strong>
               <small lang="hi">प्रजा आरटीआई</small>
             </span>
-            <span className="brand-context">Independent<br />Citizen Assistance</span>
           </Link>
           {children}
         </div>

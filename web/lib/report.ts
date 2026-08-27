@@ -6,6 +6,9 @@ export interface ApplicationReport {
   government_submission_status: "NOT_SUBMITTED";
   title: string;
   authority: { name: string; ministry: string };
+  /** Which level of government holds the records, and where it must be filed. */
+  jurisdiction: "central" | "state" | "unclear";
+  filing_channel: string | null;
   notes: {
     records_sought: string[];
     date_range: string | null;
@@ -13,6 +16,8 @@ export interface ApplicationReport {
     body_hint: string | null;
     format: string;
   } | null;
+  /** Neutral opening context of the application, before the numbered points. */
+  background: string;
   requests: string[];
   transcript: string;
   disclaimer: string;
@@ -35,6 +40,8 @@ export function buildReport(input: {
     government_submission_status: "NOT_SUBMITTED",
     title: input.draft?.title ?? "RTI application",
     authority: { name: input.authorityName, ministry: input.ministry },
+    jurisdiction: input.notes?.jurisdiction ?? "unclear",
+    filing_channel: input.notes?.filing_channel ?? null,
     notes: input.notes
       ? {
           records_sought: input.notes.records_sought,
@@ -44,10 +51,44 @@ export function buildReport(input: {
           format: input.notes.format,
         }
       : null,
+    background: input.draft?.background ?? "",
     requests: input.draft?.requests ?? [],
     transcript: input.transcript,
     disclaimer: DISCLAIMER,
   };
+}
+
+/**
+ * The exact text a citizen pastes into the portal's single free-text field.
+ * Built from the same pieces as the PDF so the two can never disagree.
+ */
+export function applicationText(report: ApplicationReport): string {
+  const parts: string[] = [];
+  if (report.background.trim()) parts.push(report.background.trim());
+  report.requests.forEach((request, index) => parts.push(`${index + 1}. ${request.trim()}`));
+  const details: string[] = [];
+  if (report.notes?.place) details.push(`Place / project: ${report.notes.place}`);
+  if (report.notes?.date_range) details.push(`Period: ${report.notes.date_range}`);
+  if (report.notes?.format) details.push(`Preferred format: ${report.notes.format}`);
+  if (details.length) parts.push(details.join("\n"));
+  return parts.join("\n\n");
+}
+
+/** Character count against the portal's 3,000 character field limit. */
+export function applicationLength(report: ApplicationReport): number {
+  return applicationText(report).length;
+}
+
+/**
+ * The portal rejects anything outside this set in its text field.
+ * Reporting the offending characters is more useful than a bare count.
+ */
+const PORTAL_ALLOWED = /[^A-Za-z0-9\s,.\-_()/@:&?\\%]/g;
+
+export function disallowedCharacters(report: ApplicationReport): string[] {
+  const found = applicationText(report).match(PORTAL_ALLOWED);
+  if (!found) return [];
+  return [...new Set(found)].slice(0, 12);
 }
 
 export function formatReportText(report: ApplicationReport): string {
@@ -60,19 +101,17 @@ export function formatReportText(report: ApplicationReport): string {
     `Submission: ${report.government_submission_status}`,
     `Authority: ${report.authority.name}`,
     `Ministry: ${report.authority.ministry || "Not selected"}`,
-    `Title: ${report.title}`,
+    `Jurisdiction: ${report.jurisdiction}`,
+    `File through: ${report.filing_channel || "Not determined"}`,
+    `Subject: ${report.title}`,
     "",
-    "REQUESTS",
+    "APPLICATION TEXT",
+    applicationText(report),
   ];
-  if (report.requests.length === 0) {
-    lines.push("(none yet)");
-  } else {
-    report.requests.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
-  }
   if (report.notes) {
     lines.push(
       "",
-      "NOTES",
+      "EXTRACTED INTENT",
       `Records: ${report.notes.records_sought.join("; ") || "None"}`,
       `Period: ${report.notes.date_range || "Not stated"}`,
       `Place: ${report.notes.place || "Not stated"}`,
