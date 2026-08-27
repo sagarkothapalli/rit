@@ -52,6 +52,9 @@ export async function POST(req: Request) {
     ministry: r.pa.ministry,
     matched: r.matched.slice(0, 6),
     score: Math.round(r.score * 100) / 100,
+    jurisdiction: r.pa.jurisdiction ?? "central",
+    directory_status: r.pa.directory_status ?? "official-central-snapshot",
+    filing_channel: r.pa.filing_channel ?? "RTI Online Central portal",
   }));
 
   const cfg = await getModelConfig();
@@ -89,6 +92,20 @@ export async function POST(req: Request) {
       seen.add(item.id);
     }
     if (padded.length) ranked = padded.slice(0, 3);
+  }
+
+  const jurisdictionAnchor = notes.is_state_matter
+    ? retrieved.find((candidate) => candidate.directory_status === "curated-jurisdiction-rule")
+    : retrieved.find((candidate) => candidate.name.toLowerCase() === notes.body_hint?.toLowerCase());
+  if (jurisdictionAnchor) {
+    const anchored = ranked.find((candidate) => candidate.id === jurisdictionAnchor.id)
+      ?? fallback.candidates.find((candidate) => candidate.id === jurisdictionAnchor.id)
+      ?? {
+        id: jurisdictionAnchor.id,
+        why: "This jurisdiction rule matches the named road, project, or public body.",
+        caveat: "It is outside the Central RTI Online authority list.",
+      };
+    ranked = [anchored, ...ranked.filter((candidate) => candidate.id !== anchored.id)].slice(0, 3);
   }
 
   const rankedIds = new Set(ranked.map((c) => c.id));

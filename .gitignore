@@ -5,3 +5,5 @@ coverage
 *.local
 .vercel
 .herenow/
+.firecrawl/
+graphify-out/

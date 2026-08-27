@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ApplicationAccess from "@/components/ApplicationAccess";
 import Emblem from "@/components/Emblem";
 import HeroDraftActions from "@/components/HeroDraftActions";
 import RtiLifecycleChart from "@/components/RtiLifecycleChart";
@@ -129,6 +130,7 @@ export default function Page() {
       >
         <nav className="primary-nav" aria-label="Primary navigation">
           <a href="#how-it-works">How it works</a>
+          <a href="#application-access">Saved applications</a>
           <a href="#rti-lifecycle">RTI lifecycle</a>
           <a href="#safeguards">Safeguards</a>
         </nav>
@@ -228,6 +230,8 @@ export default function Page() {
           </div>
         </div>
       </section>
+
+      <ApplicationAccess />
 
       <section className="process-section site-container reveal reveal-rise" id="how-it-works">
         <div className="section-intro">

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build data/rti-authorities.json from a saved allpa.php snapshot.
 
-The official portal heading reports 2,916 public authorities. This snapshot
-is a dated local copy, labelled mock, never presented as live.
+The official portal heading reports 2,916 public authorities. The output keeps
+that heading separate from rendered-row and unique-identifier counts so the
+dated local snapshot is never presented as live or falsely complete.
 """
 from __future__ import annotations
 
@@ -58,7 +59,7 @@ def name_keywords(name: str) -> list[str]:
     return out
 
 
-def parse_rows(html: str) -> dict[str, dict]:
+def parse_rows(html: str) -> tuple[dict[str, dict], int, int]:
     rows = re.findall(
         r'<tr[^>]*data-level="(\d+)"[^>]*data-id="(\d+)"[^>]*data-parent="([^"]*)"[^>]*>\s*<td>(.*?)</td>\s*</tr>',
         html,
@@ -70,7 +71,7 @@ def parse_rows(html: str) -> dict[str, dict]:
         if not name:
             continue
         by_id[id_] = {"level": int(level), "id": id_, "parent": parent or None, "name": name}
-    return by_id
+    return by_id, len(rows), len(rows) - len(by_id)
 
 
 def ministry_of(node: dict, by_id: dict[str, dict]) -> str:
@@ -127,7 +128,7 @@ def match_curated(curated: list[dict], official_list: list[dict]) -> dict[str, d
 
 def main() -> None:
     html = HTML_PATH.read_text(errors="ignore")
-    by_id = parse_rows(html)
+    by_id, raw_row_count, duplicate_id_rows = parse_rows(html)
     official_list = list(by_id.values())
     curated = json.loads(CURATED_PATH.read_text())
     overlay = match_curated(curated, official_list)
@@ -155,12 +156,21 @@ def main() -> None:
             seen_codes[rec["pa_code"]] = p["id"]
         authorities.append(rec)
 
+    total_match = re.search(r"Total\s*-\s*([0-9,]+)", html, re.I)
+    portal_total = int(total_match.group(1).replace(",", "")) if total_match else len(authorities)
     payload = {
         "snapshot": "2026-08-27",
         "source": "rtionline.gov.in/request/allpa.php",
-        "portal_total": 2916,
+        "portal_total": portal_total,
         "count": len(authorities),
-        "label": "dated snapshot of the official listing, not live",
+        "raw_row_count": raw_row_count,
+        "duplicate_id_rows": duplicate_id_rows,
+        "reconciliation_note": (
+            f"The official page heading claims {portal_total:,} authorities. Its HTML contains "
+            f"{raw_row_count:,} rendered rows, including {duplicate_id_rows:,} repeated data-id values, "
+            f"leaving {len(authorities):,} unique selectable identifiers in this snapshot."
+        ),
+        "label": "dated snapshot of the official listing, not live; unique identifiers reconciled separately from the portal heading",
         "authorities": authorities,
     }
     OUT_PATH.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))

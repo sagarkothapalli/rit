@@ -19,6 +19,17 @@ interface Pattern {
 
 const PATTERNS: Pattern[] = [
   {
+    test: /\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b[\s\S]{0,40}\b(expressway|toll)|\b(expressway|toll)\b[\s\S]{0,40}\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b/i,
+    records: [
+      "month-wise toll collection statements for the Mumbai-Pune Expressway",
+      "statements showing allocation and utilisation of toll revenue for debt servicing, operation, and maintenance",
+      "sanction orders, work orders, contractor agreements, and expenditure for projects and repairs",
+      "road-condition, safety, quality-inspection, and completion reports for repair works",
+      "file notings and audit observations on toll collection, projects, and maintenance",
+    ],
+    body: "Maharashtra State Road Development Corporation (MSRDC)",
+  },
+  {
     test: /\b(nhai|nh-?\d|national highway|expressway|flyover|toll|fastag|pothole|राजमार्ग|हाईवे|गड्ढ)\b/i,
     records: [
       "sanctioned budget and year-wise expenditure for the highway work described",
@@ -202,6 +213,12 @@ export function inferBodyHint(transcript: string): string | null {
 }
 
 export function inferDateRange(transcript: string): string | null {
+  const months = "January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec";
+  const monthSpan = transcript.match(new RegExp(`\\b(${months})\\s*(?:to|through|till|until|[-–—])\\s*(${months})(?:\\s+(?:of\\s+)?)?(20\\d{2})?\\b`, "i"));
+  if (monthSpan) {
+    const year = monthSpan[3] || transcript.match(/\b20\d{2}\b/)?.[0];
+    return `${monthSpan[1]}-${monthSpan[2]}${year ? ` ${year}` : ""}`;
+  }
   const span = transcript.match(
     /\b((?:last|past|previous|since|from|for)\s+(?:the\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|a few)?\s*(?:month|months|mahine|महीने|year|years|saal|साल|week|weeks|day|days|din|दिन)s?|\d+\s+(?:month|months|mahine|महीने|year|years|saal|साल)s?)\b/i
   );
@@ -215,6 +232,9 @@ export function inferDateRange(transcript: string): string | null {
 }
 
 export function inferPlace(transcript: string): string | null {
+  if (/\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b/i.test(transcript)) {
+    return "Mumbai-Pune Expressway";
+  }
   const sector = transcript.match(/\b(sector\s*\d+[A-Za-z]?)\b/i);
   if (sector) return sector[1];
   const labeled = transcript.match(
@@ -253,7 +273,8 @@ export function routingQuery(input: {
     .join(" ");
 }
 
-const NATIONAL_HIGHWAY = /\b(nhai|nh-?\d|national highway|highways?|expressway|राजमार्ग|हाईवे)\b/i;
+const MUMBAI_PUNE_EXPRESSWAY = /\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b[\s\S]{0,50}\b(expressway|toll)|\b(expressway|toll)\b[\s\S]{0,50}\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b/i;
+const NATIONAL_HIGHWAY = /\b(nhai|nh-?\d|national highway|highways?|राजमार्ग|हाईवे)\b/i;
 const STATE_BODY = /\b(pwd|public works|municipal|nagar|panchayat|discom|jal board)\b/i;
 
 /** Structured hints handed off by the live intake agent (already confirmed by the citizen). */
@@ -267,22 +288,38 @@ export interface IntakeHintsLike {
 export function normalizeNotes(transcript: string, notes: NotesLike, intake?: IntakeHintsLike): NotesLike {
   const inferred = inferRecordsFromRant(transcript);
   const fromModel = unique(notes.records_sought ?? []);
-  const records = (fromModel.length >= 3 ? fromModel : unique([...fromModel, ...inferred])).slice(0, 6);
+  const corridorMatter = MUMBAI_PUNE_EXPRESSWAY.test(transcript);
+  const records = (
+    corridorMatter
+      ? unique([...inferred, ...fromModel])
+      : fromModel.length >= 3
+        ? fromModel
+        : unique([...fromModel, ...inferred])
+  ).slice(0, 6);
   const format = !notes.format || notes.format === "unspecified" ? inferFormat(transcript) : notes.format;
   let body = notes.body_hint || intake?.authority_hint?.trim() || inferBodyHint(transcript);
   let stateMatter = notes.is_state_matter;
-  if (NATIONAL_HIGHWAY.test(transcript)) {
+  let stateName = notes.state_name;
+  if (corridorMatter) {
+    stateMatter = true;
+    stateName = "Maharashtra";
+    body = "Maharashtra State Road Development Corporation (MSRDC)";
+  } else if (NATIONAL_HIGHWAY.test(transcript)) {
     stateMatter = false;
     if (!body || STATE_BODY.test(body)) body = "National Highways Authority of India (NHAI)";
   }
   return {
     ...notes,
     records_sought: records.length ? records : inferred,
-    date_range: notes.date_range || intake?.date_range?.trim() || inferDateRange(transcript),
+    date_range:
+      (notes.date_range && notes.date_range !== "the period mentioned by the citizen" ? notes.date_range : null)
+      || intake?.date_range?.trim()
+      || inferDateRange(transcript),
     place: notes.place || intake?.place?.trim() || inferPlace(transcript),
     body_hint: body,
     format,
     missing_essentials: [],
     is_state_matter: stateMatter,
+    state_name: stateName,
   };
 }

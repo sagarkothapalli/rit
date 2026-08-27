@@ -29,6 +29,7 @@ Field rules:
 - ALWAYS fill records_sought from the rant even if the citizen never named a document. This is required conversion, not invention. Typical conversions: "road/highway broken, where did the money go" → sanctioned budget, expenditure, work order, contractor agreement, quality inspection reports, delay-penalty clauses, file notings. "why hasn't X happened" → rules on file, written reasons recorded, inspection registers.
 - records_sought: 3 to 6 noun phrases, most specific first (budget/work order/inspection before generic notings). Max 8.
 - date_range / place: extract if spoken; else null. Never invent a date, amount, file number, or locality.
+- Preserve explicit month ranges exactly enough for review (for example, "March to September 2026"), and treat named corridors such as "Mumbai-Pune Expressway" as the place/project.
 - body_hint: the likely Central public authority (plain official name), inferred from the subject even if unnamed; null only if truly unclear.
 - format: "certified copies" unless they asked for inspection, electronic copies, or samples. Never leave "unspecified".
 - missing_essentials: always []. Never ask what record they want. Never block on format, authority, period, or place.
@@ -86,6 +87,7 @@ Field rules:
 - Pick EXACTLY 3 ids from the given shortlist. Best match first.
 - Do not add, remove, rename, or invent authorities. Use the exact ids given.
 - Prefer the parent body over a field office / PIU unless the citizen named that office.
+- A candidate with directory_status "curated-jurisdiction-rule" is outside the Central directory but may be the correct State records holder. Rank it first when it matches the named road/project; state that limitation only in caveat.
 - Do not pick foreign missions, embassies, or one-city posts unless the citizen named that place.
 - why: max 25 words, grounded ONLY in the candidate's name/ministry/keywords and the citizen's stated need.
 - caveat: max 20 words, the honest uncertainty (e.g. "executing authority varies by stretch").

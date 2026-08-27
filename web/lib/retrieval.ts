@@ -7,6 +7,9 @@ export interface PublicAuthority {
   keywords: string[];
   level?: number;
   boost?: boolean;
+  jurisdiction?: "central" | "state";
+  directory_status?: "official-central-snapshot" | "curated-jurisdiction-rule";
+  filing_channel?: string;
 }
 
 interface DirectoryFile {
@@ -14,6 +17,9 @@ interface DirectoryFile {
   source: string;
   portal_total: number;
   count: number;
+  raw_row_count?: number;
+  duplicate_id_rows?: number;
+  reconciliation_note?: string;
   label: string;
   authorities: PublicAuthority[];
 }
@@ -25,6 +31,33 @@ export const DIRECTORY_SOURCE = FILE.source;
 export const PORTAL_TOTAL = FILE.portal_total;
 export const DIRECTORY: PublicAuthority[] = FILE.authorities;
 export const DIRECTORY_LABEL = FILE.label;
+export const DIRECTORY_RAW_ROWS = FILE.raw_row_count ?? FILE.count;
+export const DIRECTORY_DUPLICATE_ID_ROWS = FILE.duplicate_id_rows ?? 0;
+export const DIRECTORY_RECONCILIATION = FILE.reconciliation_note
+  ?? `The snapshot contains ${FILE.count.toLocaleString("en-IN")} unique identifiers; the portal heading claims ${FILE.portal_total.toLocaleString("en-IN")}.`;
+
+/**
+ * Jurisdiction rules are kept outside the Central portal count. They prevent a
+ * famous State road or body from being confidently mislabelled as NHAI merely
+ * because the transcript contains "expressway". These records are visibly
+ * labelled in the UI and never presented as RTI Online directory entries.
+ */
+export const JURISDICTION_AUTHORITIES: PublicAuthority[] = [
+  {
+    pa_code: "STATE-MSRDC",
+    name: "Maharashtra State Road Development Corporation (MSRDC)",
+    ministry: "Government of Maharashtra",
+    keywords: [
+      "msrdc", "mumbai pune", "mumbai-pune expressway", "yashwantrao chavan expressway",
+      "toll", "toll collection", "expressway repair", "maharashtra road", "road maintenance",
+    ],
+    level: 0,
+    boost: true,
+    jurisdiction: "state",
+    directory_status: "curated-jurisdiction-rule",
+    filing_channel: "Maharashtra state RTI channel",
+  },
+];
 
 /** Hints that the subject is a State/State-body matter — the Central portal cannot take it. */
 const STATE_HINTS = [
@@ -82,7 +115,7 @@ interface IndexedDoc {
   rawName: string;
 }
 
-const INDEX: IndexedDoc[] = DIRECTORY.map((pa) => {
+const INDEX: IndexedDoc[] = [...JURISDICTION_AUTHORITIES, ...DIRECTORY].map((pa) => {
   const kw = pa.keywords.map((k) => k.toLowerCase());
   return {
     pa,
@@ -141,6 +174,10 @@ export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]
       }
     }
     if (d.pa.boost) score *= 1.4;
+    if (d.pa.pa_code === "STATE-MSRDC" && /\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b/i.test(query)) {
+      score += 18;
+      matched.add("mumbai-pune corridor");
+    }
     if (isFieldOffice(d.pa)) {
       const named = qTokens.some((t) => t.length > 3 && d.rawName.includes(t) && !["india", "national", "authority"].includes(t));
       if (!named) score *= 0.32;

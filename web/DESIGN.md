@@ -285,7 +285,7 @@ Every node is a tabbable button. Focus lights the same path, draws the saffron f
 
 ### Preparation Receipt
 
-Receipts summarize the citizen's work only. The status `NOT_SUBMITTED` is red and explicit; nearby copy must say that no payment was processed and nothing was sent to a government system. Never style the receipt as an official acknowledgement, government stamp, or filing confirmation.
+Receipts summarize the citizen's work only. A local Praja acknowledgement number may reopen the stored application and PDFs, but it must never be called a Government registration number. The status `NOT_SUBMITTED` is red and explicit; nearby copy must say that no payment was processed and nothing was sent to a government system. Never style the receipt as an official acknowledgement, government stamp, or filing confirmation.
 
 ### Motion
 
