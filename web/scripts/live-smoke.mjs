@@ -84,7 +84,7 @@ function handle(m) {
   if (m.setupComplete) {
     counts.setupComplete++;
     liveSession.sendClientContent({
-      turns: { role: "user", parts: [{ text: "(Session start. Greet the citizen with one short warm sentence, mention they can speak in any language they prefer, and invite them to describe their concern. Then stop and listen.)" }] },
+      turns: { role: "user", parts: [{ text: "(Session start. Greet the citizen directly in one short sentence asking what issue they need to file a complaint on or what information and records they want to ask from the government. Do not give open-ended chatbot pleasantries. Then stop and listen.)" }] },
     });
     console.log("setupComplete → greeting nudge sent");
     return;

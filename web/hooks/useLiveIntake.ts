@@ -63,7 +63,7 @@ interface WorkletMessage {
 }
 
 const GREETING_NUDGE =
-  "(Session start. Greet the citizen with one short warm sentence, mention they can speak in any language they prefer, and invite them to describe their concern. Then stop and listen.)";
+  "(Session start. Greet the citizen directly in one short sentence asking what issue they need to file a complaint on or what information and records they want to ask from the government. Do not give open-ended chatbot pleasantries. Then stop and listen.)";
 
 const WRAP_NUDGE =
   "(Time is nearly up. In the citizen's language, in one short sentence, thank them and restate your one-line summary, then call submit_intake immediately in the same turn. Do not ask any more questions.)";
