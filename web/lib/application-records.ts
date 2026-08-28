@@ -1,5 +1,6 @@
 import type { ApplicantDetails } from "@/lib/applicant";
 import type { ApplicationReport } from "@/lib/report";
+import { openDb } from "@/lib/storage/cases.client";
 import {
   clearFirebaseSession,
   getFirebaseVerifiedEmail,
@@ -30,22 +31,10 @@ export interface ApplicationSummary {
   status: StoredApplication["status"];
 }
 
-const DB_NAME = "praja-rti-applications";
+// This store lives in the case database, which cases.client.ts opens at a
+// higher version. Opening the same name at version 1 here threw a VersionError
+// the moment anything had upgraded it, so both use the one opener.
 const STORE_NAME = "applications";
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      const store = db.createObjectStore(STORE_NAME, { keyPath: "acknowledgementNumber" });
-      store.createIndex("email", "applicant.email", { unique: false });
-      store.createIndex("createdAt", "createdAt", { unique: false });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Could not open the local application database."));
-  });
-}
 
 async function localPut(record: StoredApplication): Promise<void> {
   const db = await openDb();

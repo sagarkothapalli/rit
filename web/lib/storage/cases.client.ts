@@ -33,7 +33,12 @@ export interface AttachmentBlob {
   bytes: ArrayBuffer;
 }
 
-function openDb(): Promise<IDBDatabase> {
+/**
+ * The one opener for this database. Opening the same name at a lower version
+ * fails with a VersionError, so every caller must come through here — see the
+ * legacy application store in `lib/application-records.ts`.
+ */
+export function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {

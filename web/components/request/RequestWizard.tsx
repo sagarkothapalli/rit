@@ -671,8 +671,13 @@ export default function RequestWorkspace() {
           : "Saved on this device only. The server database was unavailable in this session.",
       );
       setStep("acknowledgement");
-    } catch {
-      setErr("The acknowledgement could not be saved. Your application is intact; try again.");
+    } catch (cause) {
+      // A bare catch here hid a VersionError from the local database for days.
+      console.error("[praja-rti] the acknowledgement could not be saved", cause);
+      const reason = cause instanceof Error ? cause.name : "";
+      setErr(
+        `The acknowledgement could not be saved. Your application is intact; try again.${reason ? ` (${reason})` : ""}`,
+      );
     } finally {
       setSavingApplication(false);
     }
