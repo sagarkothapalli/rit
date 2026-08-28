@@ -4,10 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fetchCaseByReference } from "@/lib/storage/cases.client";
+import { casePath } from "@/lib/storage/paths";
 
 export default function ApplicationAccess() {
   const router = useRouter();
   const [ack, setAck] = useState("");
+  const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,12 +22,12 @@ export default function ApplicationAccess() {
     setBusy(true);
     setError(null);
     try {
-      const record = await fetchCaseByReference(normalized);
+      const record = await fetchCaseByReference(normalized, token || undefined);
       if (!record) {
         setError("No saved case matched that number. Check every character and try again.");
         return;
       }
-      router.push(`/cases/${record.id}`);
+      router.push(casePath(record.id));
     } catch {
       setError("The case store could not be reached. Try again when you are online.");
     } finally {
@@ -64,6 +66,14 @@ export default function ApplicationAccess() {
               {busy ? "Looking up…" : "Open"}
             </button>
           </div>
+          <label htmlFor="recovery-token">Recovery token</label>
+          <input
+            id="recovery-token"
+            value={token}
+            onChange={(event) => setToken(event.target.value.toUpperCase())}
+            placeholder="Printed with the Praja acknowledgement"
+            autoComplete="off"
+          />
           {error && <p className="application-access-error" role="alert">{error}</p>}
           <p>
             <Link className="text-link" href="/cases">Open the full case list</Link>

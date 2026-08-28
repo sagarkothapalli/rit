@@ -8,7 +8,25 @@ import type {
 } from "@/lib/domain/case";
 import type { CaseType, Jurisdiction } from "@/lib/domain/status";
 import { filingRulesFor } from "@/lib/filing-rules/registry";
-import { hashAccessToken, makePrajaReference, newId } from "./id";
+import { hashAccessToken, makeAccessToken, makePrajaReference, newId } from "./id";
+import { emptyMockPayment } from "@/lib/payment/mock";
+
+export function hydratePayload(payload: CaseDraftPayload): CaseDraftPayload {
+  if (payload.kind === "FIRST_APPEAL") return { ...emptyFirstAppealDraft(), ...payload };
+  if (payload.kind === "SECOND_APPEAL") return { ...emptySecondAppealDraft(), ...payload };
+  if (payload.kind === "SECTION_18_COMPLAINT") return { ...emptyComplaintDraft(), ...payload };
+  return payload;
+}
+
+export function hydrateCase(record: CaseRecord): CaseRecord {
+  return {
+    ...record,
+    reminderPreferences: record.reminderPreferences ?? { inApp: true, email: false, sms: false },
+    photoEvidence: record.photoEvidence ?? [],
+    mockPayment: record.mockPayment ?? emptyMockPayment(),
+    draft: { ...record.draft, payload: hydratePayload(record.draft.payload) },
+  };
+}
 
 export function emptyFirstAppealDraft(): FirstAppealDraftPayload {
   return {
@@ -24,6 +42,12 @@ export function emptyFirstAppealDraft(): FirstAppealDraftPayload {
     originalRegistrationNumber: "",
     originalFilingChannel: "",
     targetOfficialReferenceId: null,
+    originalRequestSummary: "",
+    chronology: "",
+    pioName: "",
+    pioDesignation: "",
+    faaName: "",
+    faaDesignation: "",
   };
 }
 
@@ -44,6 +68,14 @@ export function emptySecondAppealDraft(): SecondAppealDraftPayload {
     noFaaDecision: false,
     destination: "",
     furnishedCopyToAuthority: false,
+    originalRegistrationNumber: "",
+    firstAppealRegistrationNumber: "",
+    firstAppealFiledAt: null,
+    chronology: "",
+    pioName: "",
+    pioDesignation: "",
+    faaName: "",
+    faaDesignation: "",
   };
 }
 
@@ -58,6 +90,11 @@ export function emptyComplaintDraft(): ComplaintDraftPayload {
     facts: "",
     relief: "",
     furnishedCopyToAuthority: false,
+    relatedRegistrationNumber: "",
+    chronology: "",
+    pioName: "",
+    publicAuthorityAddress: "",
+    destination: "",
   };
 }
 
@@ -92,6 +129,7 @@ export async function createBlankCase(input: {
   const now = new Date().toISOString();
   const id = newId();
   const prajaReference = makePrajaReference(input.caseType);
+  const accessToken = makeAccessToken();
   const jurisdiction = input.jurisdiction ?? "UNCLEAR";
   const rules = filingRulesFor({ caseType: input.caseType, jurisdiction });
   const payload = payloadFor(input.caseType);
@@ -100,7 +138,8 @@ export async function createBlankCase(input: {
     id,
     ownerEmail: input.ownerEmail.trim().toLowerCase(),
     prajaReference,
-    accessTokenHash: await hashAccessToken(prajaReference),
+    accessToken,
+    accessTokenHash: await hashAccessToken(accessToken),
     caseType: input.caseType,
     parentCaseId: input.parentCaseId ?? null,
     targetOfficialReferenceId: null,
@@ -148,6 +187,9 @@ export async function createBlankCase(input: {
     deadlines: [],
     packet: null,
     remindersEnabled: true,
+    reminderPreferences: { inApp: true, email: false, sms: false },
+    photoEvidence: [],
+    mockPayment: emptyMockPayment(),
     legacyAcknowledgementNumber: input.caseType === "RTI_REQUEST" ? prajaReference : null,
     ruleDestination: rules.destination,
   };

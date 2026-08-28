@@ -8,14 +8,23 @@ import {
   type OfficialReference,
 } from "@/lib/domain/case";
 import { hashAccessToken, newId } from "./id";
+import { hydrateCase } from "./factory";
+import { emptyMockPayment } from "@/lib/payment/mock";
 
 const DB_NAME = "praja-rti-applications";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const CASE_STORE = "cases";
 const BLOB_STORE = "attachmentBlobs";
+const TOKEN_STORE = "accessTokens";
 const META_STORE = "meta";
 const OLD_STORE = "applications";
 const MIGRATION_KEY = "cases-v2-imported";
+
+export interface StoredAccessToken {
+  caseId: string;
+  token: string;
+  prajaReference: string;
+}
 
 export interface AttachmentBlob {
   id: string;
@@ -47,6 +56,10 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE, { keyPath: "key" });
       }
+      if (!db.objectStoreNames.contains(TOKEN_STORE)) {
+        const tokens = db.createObjectStore(TOKEN_STORE, { keyPath: "caseId" });
+        tokens.createIndex("prajaReference", "prajaReference", { unique: false });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("Could not open the case database."));
@@ -62,9 +75,20 @@ function txDone(tx: IDBTransaction): Promise<void> {
 }
 
 export async function saveCaseLocal(record: CaseRecord): Promise<void> {
+  const hydrated = hydrateCase(record);
   const db = await openDb();
-  const tx = db.transaction(CASE_STORE, "readwrite");
-  tx.objectStore(CASE_STORE).put(record);
+  const stores = hydrated.accessToken ? [CASE_STORE, TOKEN_STORE] : [CASE_STORE];
+  const tx = db.transaction(stores, "readwrite");
+  const persistable = { ...hydrated };
+  delete persistable.accessToken;
+  tx.objectStore(CASE_STORE).put(persistable);
+  if (hydrated.accessToken && tx.objectStoreNames.contains(TOKEN_STORE)) {
+    tx.objectStore(TOKEN_STORE).put({
+      caseId: hydrated.id,
+      token: hydrated.accessToken,
+      prajaReference: hydrated.prajaReference,
+    } satisfies StoredAccessToken);
+  }
   await txDone(tx);
   db.close();
 }
@@ -78,7 +102,7 @@ export async function getCaseLocal(id: string): Promise<CaseRecord | null> {
     request.onerror = () => reject(request.error ?? new Error("Could not read the case."));
   });
   db.close();
-  return record;
+  return record ? hydrateCase(record) : null;
 }
 
 async function getCaseByReferenceRaw(reference: string): Promise<CaseRecord | null> {
@@ -105,7 +129,46 @@ async function getCaseByReferenceRaw(reference: string): Promise<CaseRecord | nu
     request.onerror = () => reject(request.error ?? new Error("Could not look up the reference."));
   });
   db.close();
-  return record;
+  return record ? hydrateCase(record) : null;
+}
+
+export async function rememberAccessToken(caseId: string, token: string, prajaReference: string): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction(TOKEN_STORE, "readwrite");
+  tx.objectStore(TOKEN_STORE).put({ caseId, token, prajaReference });
+  await txDone(tx);
+  db.close();
+}
+
+export async function getAccessToken(caseId: string): Promise<string | null> {
+  const db = await openDb();
+  const row = await new Promise<StoredAccessToken | null>((resolve, reject) => {
+    if (!db.objectStoreNames.contains(TOKEN_STORE)) {
+      resolve(null);
+      return;
+    }
+    const request = db.transaction(TOKEN_STORE, "readonly").objectStore(TOKEN_STORE).get(caseId);
+    request.onsuccess = () => resolve((request.result as StoredAccessToken | undefined) ?? null);
+    request.onerror = () => reject(request.error ?? new Error("Could not read the recovery token."));
+  });
+  db.close();
+  return row?.token ?? null;
+}
+
+export async function getAccessTokenByReference(reference: string): Promise<string | null> {
+  const needle = reference.trim().toUpperCase();
+  const db = await openDb();
+  const row = await new Promise<StoredAccessToken | null>((resolve, reject) => {
+    if (!db.objectStoreNames.contains(TOKEN_STORE)) {
+      resolve(null);
+      return;
+    }
+    const request = db.transaction(TOKEN_STORE, "readonly").objectStore(TOKEN_STORE).index("prajaReference").get(needle);
+    request.onsuccess = () => resolve((request.result as StoredAccessToken | undefined) ?? null);
+    request.onerror = () => reject(request.error ?? new Error("Could not read the recovery token."));
+  });
+  db.close();
+  return row?.token ?? null;
 }
 
 export async function getCaseByReferenceLocal(reference: string): Promise<CaseRecord | null> {
@@ -313,6 +376,9 @@ async function caseFromLegacyApplication(application: StoredApplication): Promis
       ruleVersion: "migrated",
     },
     remindersEnabled: true,
+    reminderPreferences: { inApp: true, email: false, sms: false },
+    photoEvidence: [],
+    mockPayment: emptyMockPayment(),
     legacyAcknowledgementNumber: application.acknowledgementNumber,
     ruleDestination: application.report.jurisdiction === "central" ? "rti-online-central" : "guidance",
   };
@@ -383,15 +449,65 @@ export function jsonOk(res: Response): boolean {
   return (res.headers.get("content-type") ?? "").includes("application/json");
 }
 
+function bytesToBase64(bytes: ArrayBuffer): string {
+  const array = new Uint8Array(bytes);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < array.length; i += chunk) {
+    binary += String.fromCharCode(...array.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+export async function uploadAttachmentToServer(record: CaseRecord, attachmentId: string): Promise<boolean> {
+  const blob = await getAttachmentBlob(attachmentId);
+  const meta = record.attachments.find((item) => item.id === attachmentId);
+  if (!blob || !meta) return false;
+  try {
+    const res = await fetch(`/api/cases/${encodeURIComponent(record.id)}/attachments/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        originalName: meta.originalName,
+        mimeType: meta.mimeType,
+        kind: meta.kind,
+        base64: bytesToBase64(blob.bytes),
+        clientId: meta.id,
+      }),
+    });
+    return res.ok || res.status === 409;
+  } catch {
+    return false;
+  }
+}
+
+async function syncAttachments(record: CaseRecord): Promise<void> {
+  for (const attachment of record.attachments.filter((item) => !item.deletedAt)) {
+    await uploadAttachmentToServer(record, attachment.id);
+  }
+}
+
 export async function saveCase(record: CaseRecord): Promise<"server-and-device" | "device-only"> {
+  const previous = await getCaseLocal(record.id);
   await saveCaseLocal(record);
   try {
     const res = await fetch("/api/cases", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(record),
+      headers: {
+        "Content-Type": "application/json",
+        ...(previous ? { "If-Match": previous.updatedAt } : {}),
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({ ...record, accessToken: record.accessToken ?? (await getAccessToken(record.id)) ?? undefined }),
     });
-    if (res.ok && jsonOk(res)) return "server-and-device";
+    if (res.ok && jsonOk(res)) {
+      const payload = (await res.json()) as { accessToken?: string; case?: CaseRecord };
+      if (payload.accessToken) await rememberAccessToken(record.id, payload.accessToken, record.prajaReference);
+      if (record.accessToken) await rememberAccessToken(record.id, record.accessToken, record.prajaReference);
+      await syncAttachments(record);
+      return "server-and-device";
+    }
   } catch {
     // IndexedDB remains the working copy.
   }
@@ -400,12 +516,12 @@ export async function saveCase(record: CaseRecord): Promise<"server-and-device" 
 
 export async function fetchCase(id: string): Promise<CaseRecord | null> {
   try {
-    const res = await fetch(`/api/cases/${encodeURIComponent(id)}`, { cache: "no-store" });
+    const res = await fetch(`/api/cases/${encodeURIComponent(id)}`, { cache: "no-store", credentials: "same-origin" });
     if (res.ok && jsonOk(res)) {
       const payload = (await res.json()) as { case?: CaseRecord };
       if (payload.case) {
         await saveCaseLocal(payload.case);
-        return payload.case;
+        return hydrateCase(payload.case);
       }
     }
   } catch {
@@ -414,20 +530,81 @@ export async function fetchCase(id: string): Promise<CaseRecord | null> {
   return getCaseLocal(id);
 }
 
-export async function fetchCaseByReference(reference: string): Promise<CaseRecord | null> {
+export async function deleteCase(id: string, purge = false): Promise<void> {
   try {
-    const res = await fetch(`/api/cases?ref=${encodeURIComponent(reference.trim().toUpperCase())}`, { cache: "no-store" });
-    if (res.ok && jsonOk(res)) {
-      const payload = (await res.json()) as { case?: CaseRecord };
-      if (payload.case) {
-        await saveCaseLocal(payload.case);
-        return payload.case;
-      }
-    }
+    await fetch(`/api/cases/${encodeURIComponent(id)}${purge ? "?purge=1" : ""}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
   } catch {
-    // Fall through.
+    // Local delete still proceeds.
   }
-  return getCaseByReferenceLocal(reference);
+  await deleteCaseLocal(id);
+}
+
+export async function downloadAttachmentBytes(caseId: string, attachmentId: string): Promise<AttachmentBlob | null> {
+  const local = await getAttachmentBlob(attachmentId);
+  if (local) return local;
+  try {
+    const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/attachments/${encodeURIComponent(attachmentId)}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (!res.ok) return null;
+    const bytes = await res.arrayBuffer();
+    const mimeType = res.headers.get("content-type") || "application/octet-stream";
+    const blob: AttachmentBlob = { id: attachmentId, caseId, mimeType, bytes };
+    await putAttachmentBlob(blob);
+    return blob;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchCaseByReference(reference: string, token?: string): Promise<CaseRecord | null> {
+  const local = await getCaseByReferenceLocal(reference);
+  const recovery = token ?? (await getAccessTokenByReference(reference)) ?? (local ? await getAccessToken(local.id) : null);
+  if (recovery) {
+    try {
+      const res = await fetch(
+        `/api/cases?ref=${encodeURIComponent(reference.trim().toUpperCase())}&token=${encodeURIComponent(recovery)}`,
+        { cache: "no-store", credentials: "same-origin" },
+      );
+      if (res.ok && jsonOk(res)) {
+        const payload = (await res.json()) as { case?: CaseRecord };
+        if (payload.case) {
+          await saveCaseLocal(payload.case);
+          await rememberAccessToken(payload.case.id, recovery, payload.case.prajaReference);
+          return hydrateCase(payload.case);
+        }
+      }
+    } catch {
+      // Fall through to the device copy.
+    }
+  }
+  return local;
+}
+
+export async function copyAttachments(
+  from: CaseRecord,
+  to: CaseRecord,
+  kinds: AttachmentRecord["kind"][],
+): Promise<CaseRecord> {
+  const next = { ...to, attachments: [...to.attachments] };
+  for (const attachment of from.attachments.filter((item) => !item.deletedAt && kinds.includes(item.kind))) {
+    const blob = await getAttachmentBlob(attachment.id);
+    const copy: AttachmentRecord = {
+      ...attachment,
+      id: newId(),
+      caseId: to.id,
+      createdAt: new Date().toISOString(),
+    };
+    if (blob) {
+      await putAttachmentBlob({ id: copy.id, caseId: to.id, mimeType: blob.mimeType, bytes: blob.bytes });
+    }
+    next.attachments.push(copy);
+  }
+  return next;
 }
 
 export async function fetchCaseList(email?: string): Promise<CaseSummary[]> {

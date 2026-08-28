@@ -186,7 +186,7 @@ export default function EmailVerification({
       {notice && !devCode && <p className="verify-notice">{notice}</p>}
       {devCode && (
         <p className="verify-devcode" role="status">
-          Demo label: verification code is <strong>{devCode}</strong>. This bypass is off in production.
+          {notice ? `${notice} ` : ""}Verification OTP: <strong>{devCode}</strong>
         </p>
       )}
       {error && <p className="verify-error" role="alert">{error}</p>}

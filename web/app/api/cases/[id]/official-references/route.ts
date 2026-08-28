@@ -3,9 +3,8 @@ import { z } from "zod";
 import { saveCaseRecord } from "@/lib/storage/cases.server";
 import { newId } from "@/lib/storage/id";
 import { guardWrite, ownerCase, readJson } from "@/lib/storage/api-helpers";
-import { filingRulesFor } from "@/lib/filing-rules/registry";
-import { toDeadlineRecord } from "@/lib/deadlines/calculate";
-import type { DeadlineKind } from "@/lib/domain/case";
+import { applyCaseEvent } from "@/lib/deadlines/lifecycle";
+import { stripClientSecrets } from "@/lib/storage/case-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +34,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     id: newId(),
     caseId: id,
     registrationNumber: parsed.data.registrationNumber.trim(),
-    referenceKind: parsed.data.referenceKind ?? "ORIGINAL_REQUEST",
+    referenceKind: parsed.data.referenceKind ?? defaultKind(loaded.record.caseType),
     source: "USER_REPORTED" as const,
     filedAt: parsed.data.filedAt,
     receivedAt: parsed.data.receivedAt ?? parsed.data.filedAt,
@@ -43,44 +42,29 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     isPrimary: parsed.data.isPrimary ?? loaded.record.officialReferences.length === 0,
     createdAt: now,
   };
-  const rules = filingRulesFor({ caseType: loaded.record.caseType, jurisdiction: loaded.record.jurisdiction });
-  const kind: DeadlineKind =
-    loaded.record.caseType === "FIRST_APPEAL"
-      ? "FAA_DECISION"
-      : loaded.record.caseType === "SECOND_APPEAL"
-        ? "SECOND_APPEAL_LIMITATION"
-        : "REQUEST_RESPONSE";
-  const deadline = toDeadlineRecord(newId(), {
-    kind,
-    startDate: parsed.data.filedAt,
-    rule: rules,
-    source: "USER_REPORTED",
+  const event = {
+    id: newId(),
     caseId: id,
     officialReferenceId: reference.id,
-  });
-  const record = {
-    ...loaded.record,
-    filingStatus: "USER_REPORTED_FILED" as const,
-    outcomeStatus: "AWAITING_RESPONSE" as const,
-    officialReferences: [...loaded.record.officialReferences, reference],
-    deadlines: [...loaded.record.deadlines, deadline],
-    updatedAt: now,
-    events: [
-      ...loaded.record.events,
-      {
-        id: newId(),
-        caseId: id,
-        officialReferenceId: reference.id,
-        eventType: "FILING_RECORDED" as const,
-        source: "USER_REPORTED" as const,
-        occurredAt: parsed.data.filedAt,
-        recordedAt: now,
-        payload: parsed.data,
-        createdBy: loaded.email,
-        idempotencyKey: `filing:${id}:${reference.registrationNumber}`,
-      },
-    ],
+    eventType: "FILING_RECORDED" as const,
+    source: "USER_REPORTED" as const,
+    occurredAt: parsed.data.filedAt,
+    recordedAt: now,
+    payload: { ...parsed.data },
+    createdBy: loaded.email,
+    idempotencyKey: `filing:${id}:${reference.registrationNumber}`,
   };
-  await saveCaseRecord(record);
-  return NextResponse.json({ case: record });
+  const record = applyCaseEvent(
+    { ...loaded.record, officialReferences: [...loaded.record.officialReferences, reference] },
+    event,
+  );
+  await saveCaseRecord(record, loaded.email, loaded.record.updatedAt);
+  return NextResponse.json({ case: stripClientSecrets(record) });
+}
+
+function defaultKind(caseType: string) {
+  if (caseType === "FIRST_APPEAL") return "FIRST_APPEAL" as const;
+  if (caseType === "SECOND_APPEAL") return "SECOND_APPEAL" as const;
+  if (caseType === "SECTION_18_COMPLAINT") return "COMPLAINT" as const;
+  return "ORIGINAL_REQUEST" as const;
 }

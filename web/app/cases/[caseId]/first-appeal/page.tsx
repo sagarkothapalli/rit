@@ -1,9 +1,9 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useCaseId } from "@/hooks/useCaseId";
 import FirstAppealWizard from "@/components/appeals/FirstAppealWizard";
 
 export default function FirstAppealPage() {
-  const params = useParams<{ caseId: string }>();
-  return <FirstAppealWizard parentId={params.caseId} />;
+  const caseId = useCaseId();
+  return <FirstAppealWizard parentId={caseId} />;
 }

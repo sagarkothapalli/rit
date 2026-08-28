@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useCaseId } from "@/hooks/useCaseId";
 import RequestWizard from "@/components/request/RequestWizard";
 import FirstAppealWizard from "@/components/appeals/FirstAppealWizard";
 import SecondAppealWizard from "@/components/appeals/SecondAppealWizard";
@@ -12,12 +12,12 @@ import { fetchCase } from "@/lib/storage/cases.client";
 import type { CaseRecord } from "@/lib/domain/case";
 
 export default function CaseEditPage() {
-  const params = useParams<{ caseId: string }>();
+  const caseId = useCaseId();
   const [record, setRecord] = useState<CaseRecord | null | undefined>(undefined);
 
   useEffect(() => {
-    void fetchCase(params.caseId).then(setRecord);
-  }, [params.caseId]);
+    void fetchCase(caseId).then(setRecord);
+  }, [caseId]);
 
   if (record === undefined) return null;
   if (!record) {
@@ -33,13 +33,13 @@ export default function CaseEditPage() {
     );
   }
   if (record.caseType === "FIRST_APPEAL") {
-    return <FirstAppealWizard parentId={record.parentCaseId ?? record.id} />;
+    return <FirstAppealWizard editCaseId={record.id} parentId={record.parentCaseId ?? undefined} />;
   }
   if (record.caseType === "SECOND_APPEAL") {
-    return <SecondAppealWizard parentId={record.parentCaseId ?? record.id} />;
+    return <SecondAppealWizard editCaseId={record.id} parentId={record.parentCaseId ?? undefined} />;
   }
   if (record.caseType === "SECTION_18_COMPLAINT") {
-    return <ComplaintWizard parentId={record.parentCaseId ?? undefined} />;
+    return <ComplaintWizard editCaseId={record.id} parentId={record.parentCaseId ?? undefined} />;
   }
   return <RequestWizard />;
 }

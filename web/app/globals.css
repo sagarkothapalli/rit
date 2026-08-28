@@ -4907,6 +4907,34 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   padding-left: 1.2rem;
 }
 
+.voice-extract,
+.photo-evidence,
+.reminder-prefs {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 16px;
+  padding: 12px 14px;
+}
+
+.voice-extract p,
+.photo-evidence span,
+.reminder-prefs legend {
+  color: var(--fg-soft);
+  font-size: 0.85rem;
+  margin: 4px 0;
+}
+
+.reminder-prefs {
+  display: grid;
+  gap: 8px;
+}
+
+.reminder-prefs legend {
+  color: var(--heading);
+  font-weight: 700;
+}
+
 @media (max-width: 1000px) {
   .case-detail-grid {
     grid-template-columns: 1fr;

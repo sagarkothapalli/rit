@@ -1,6 +1,8 @@
 import type { ApplicantDetails } from "@/lib/applicant";
 import type { Draft, Notes } from "@/lib/cage/schemas";
 import type { ApplicationReport } from "@/lib/report";
+import type { PhotoEvidenceItem } from "@/lib/evidence/photos";
+import type { MockPayment } from "@/lib/payment/mock";
 import type { AttachmentRecord } from "./attachments";
 import type { CaseEvent } from "./events";
 import type {
@@ -109,6 +111,12 @@ export interface FirstAppealDraftPayload {
   originalRegistrationNumber: string;
   originalFilingChannel: "online" | "physical" | "";
   targetOfficialReferenceId: string | null;
+  originalRequestSummary: string;
+  chronology: string;
+  pioName: string;
+  pioDesignation: string;
+  faaName: string;
+  faaDesignation: string;
 }
 
 export interface SecondAppealDraftPayload {
@@ -127,6 +135,14 @@ export interface SecondAppealDraftPayload {
   noFaaDecision: boolean;
   destination: "CIC" | "SIC" | "";
   furnishedCopyToAuthority: boolean;
+  originalRegistrationNumber: string;
+  firstAppealRegistrationNumber: string;
+  firstAppealFiledAt: string | null;
+  chronology: string;
+  pioName: string;
+  pioDesignation: string;
+  faaName: string;
+  faaDesignation: string;
 }
 
 export interface ComplaintDraftPayload {
@@ -139,6 +155,11 @@ export interface ComplaintDraftPayload {
   facts: string;
   relief: string;
   furnishedCopyToAuthority: boolean;
+  relatedRegistrationNumber: string;
+  chronology: string;
+  pioName: string;
+  publicAuthorityAddress: string;
+  destination: "CIC" | "SIC" | "";
 }
 
 export type CaseDraftPayload =
@@ -165,11 +186,19 @@ export interface PacketMeta {
   ruleVersion: string;
 }
 
+export interface ReminderPreferences {
+  inApp: boolean;
+  email: boolean;
+  sms: boolean;
+}
+
 export interface CaseRecord {
   id: string;
   ownerEmail: string;
   prajaReference: string;
   accessTokenHash: string;
+  /** Client-only recovery token. Never persist on the server. */
+  accessToken?: string;
   caseType: CaseType;
   parentCaseId: string | null;
   targetOfficialReferenceId: string | null;
@@ -195,6 +224,9 @@ export interface CaseRecord {
   deadlines: DeadlineRecord[];
   packet: PacketMeta | null;
   remindersEnabled: boolean;
+  reminderPreferences: ReminderPreferences;
+  photoEvidence: PhotoEvidenceItem[];
+  mockPayment: MockPayment;
   legacyAcknowledgementNumber: string | null;
   ruleDestination: string;
 }

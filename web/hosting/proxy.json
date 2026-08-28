@@ -8,5 +8,10 @@
       },
       "rateLimit": "240/hour/ip"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/cases/:caseId", "destination": "/cases/open" },
+    { "source": "/cases/:caseId/:page", "destination": "/cases/open" },
+    { "source": "/cases/:caseId/:page/:rest", "destination": "/cases/open" }
+  ]
 }

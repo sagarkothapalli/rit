@@ -90,6 +90,29 @@ export function validateAttachment(file: AttachmentCandidate, rules: FilingRuleS
   if (rules.attachments.filenameNoSpaces && /\s/.test(file.name)) {
     problems.push({ code: "FILENAME_SPACES", message: `The portal rejects spaces in filenames. It will be stored as ${normalizeFilingFilename(file.name)}.`, blocking: false });
   }
+  if (file.kind && rules.documents.requiredKinds.length === 0) {
+    // kind is informational here; count is enforced at packet time.
+  }
+  return problems;
+}
+
+export function validateAttachmentBytes(
+  file: AttachmentCandidate & { bytes?: Uint8Array },
+  rules: FilingRuleSet,
+  existingShas: string[] = [],
+  sha256?: string,
+): RuleProblem[] {
+  const problems = validateAttachment(file, rules);
+  if (file.bytes && (rules.attachments.pdfOnly || file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name))) {
+    if (!sniffPdf(file.bytes)) {
+      problems.push({ code: "NOT_PDF", message: "The file is not a PDF.", blocking: true });
+    } else if (isEncryptedPdf(file.bytes)) {
+      problems.push({ code: "ENCRYPTED_PDF", message: "Encrypted PDFs are not accepted.", blocking: true });
+    }
+  }
+  if (sha256 && existingShas.includes(sha256)) {
+    problems.push({ code: "DUPLICATE_DOCUMENT", message: "This document is already attached to the case.", blocking: true });
+  }
   return problems;
 }
 

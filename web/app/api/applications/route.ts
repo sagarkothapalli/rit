@@ -112,14 +112,15 @@ export async function GET(req: Request) {
   if (!rl.ok) return NextResponse.json({ error: "RATE_LIMITED", retryAfter: rl.retryAfter }, { status: 429 });
   const url = new URL(req.url);
 
-  // Acknowledgement lookup stays open: the number itself is the secret, it is
-  // printed only on the citizen's own receipt, and a citizen who has cleared
-  // their cookies must still be able to retrieve their copy.
   const ack = url.searchParams.get("ack")?.trim().toUpperCase();
   if (ack) {
     if (!Ack.safeParse(ack).success) return NextResponse.json({ error: "INVALID_ACKNOWLEDGEMENT" }, { status: 400 });
+    const verified = verifiedEmailFromRequest(req);
+    if (!verified) return NextResponse.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 401 });
     const application = await getStoredApplication(ack);
-    if (!application) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    if (!application || application.applicant.email !== verified) {
+      return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    }
     return NextResponse.json({ application });
   }
 

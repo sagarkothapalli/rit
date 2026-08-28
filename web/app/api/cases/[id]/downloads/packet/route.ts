@@ -28,8 +28,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       }
     }
   }
-  const files = await assemblePacketFiles(loaded.record);
-  const zip = await packetZip(files);
+  const assembled = await assemblePacketFiles(loaded.record, [], async (attachment) => {
+    const stored = await getAttachmentBytes(attachment.storageKey);
+    return stored ? new Uint8Array(stored.bytes) : null;
+  });
+  const zip = await packetZip(assembled.files);
   const bytes = await blobToBytes(zip);
   return new NextResponse(Buffer.from(bytes), {
     headers: {

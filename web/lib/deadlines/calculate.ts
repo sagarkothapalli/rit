@@ -145,7 +145,7 @@ export function toDeadlineRecord(id: string, input: DeadlineInput, result = calc
 }
 
 export function refreshDeadlineStatus(record: DeadlineRecord, asOf = new Date().toISOString()): DeadlineRecord {
-  if (record.status === "SATISFIED") return record;
+  if (record.status === "SATISFIED" || record.status === "NOT_STARTED") return record;
   return { ...record, status: statusOn(record.dueAt.slice(0, 10), asOf.slice(0, 10)) };
 }
 

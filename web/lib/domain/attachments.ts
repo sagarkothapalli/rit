@@ -13,7 +13,8 @@ export type AttachmentKind =
   | "INDEX"
   | "SERVICE_COPY"
   | "OFFICIAL_RECEIPT"
-  | "PACKET_ZIP";
+  | "PACKET_ZIP"
+  | "PHOTO";
 
 export type AttachmentVerification = "UNVERIFIED_REVIEW_REQUIRED" | "VALID" | "INVALID" | "UNCLEAR";
 
@@ -33,6 +34,7 @@ export const ATTACHMENT_KIND_LABEL: Record<AttachmentKind, string> = {
   SERVICE_COPY: "Service copy",
   OFFICIAL_RECEIPT: "Official receipt",
   PACKET_ZIP: "Filing packet",
+  PHOTO: "Photograph",
 };
 
 export interface AttachmentRecord {

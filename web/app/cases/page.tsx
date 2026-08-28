@@ -8,6 +8,7 @@ import EmailVerification from "@/components/EmailVerification";
 import type { CaseSummary } from "@/lib/domain/case";
 import { CASE_TYPE_LABEL, FILING_LABEL, OUTCOME_LABEL, PREPARATION_LABEL, type CaseType } from "@/lib/domain/status";
 import { fetchCase, fetchCaseByReference, fetchCaseList } from "@/lib/storage/cases.client";
+import { casePath } from "@/lib/storage/paths";
 import { verifiedEmail } from "@/lib/application-records";
 import { remindersForCase } from "@/lib/notifications/reminders";
 
@@ -34,6 +35,7 @@ export default function CasesPage() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [reminders, setReminders] = useState<string[]>([]);
+  const [recovery, setRecovery] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -70,12 +72,12 @@ export default function CasesPage() {
 
   async function openReference(value: string) {
     setError(null);
-    const record = await fetchCaseByReference(value);
+    const record = await fetchCaseByReference(value, recovery || undefined);
     if (!record) {
-      setError("No Praja case matched that number.");
+      setError("No Praja case matched that number and recovery token.");
       return;
     }
-    router.push(`/cases/${record.id}`);
+    router.push(casePath(record.id));
   }
 
   return (
@@ -106,6 +108,15 @@ export default function CasesPage() {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") void openReference((event.target as HTMLInputElement).value);
                 }}
+              />
+            </label>
+            <label className="applicant-field">
+              <span className="applicant-label">Recovery token</span>
+              <input
+                value={recovery}
+                onChange={(event) => setRecovery(event.target.value.toUpperCase())}
+                placeholder="Shown on the Praja acknowledgement"
+                autoComplete="off"
               />
             </label>
           </div>
@@ -157,7 +168,7 @@ export default function CasesPage() {
             <ul className="case-list">
               {visible.map((row) => (
                 <li key={row.id}>
-                  <Link href={`/cases/${row.id}`}>
+                  <Link href={casePath(row.id)}>
                     <strong>{row.title}</strong>
                     <small>
                       {CASE_TYPE_LABEL[row.caseType as CaseType]} · {row.prajaReference}

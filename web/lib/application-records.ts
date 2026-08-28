@@ -1,5 +1,11 @@
 import type { ApplicantDetails } from "@/lib/applicant";
 import type { ApplicationReport } from "@/lib/report";
+import {
+  clearFirebaseSession,
+  getFirebaseVerifiedEmail,
+  requestFirebaseEmailOtp,
+  verifyFirebaseEmailOtp,
+} from "@/lib/firebase/otp";
 
 export type { ApplicantDetails };
 
@@ -180,58 +186,72 @@ export async function findApplication(acknowledgementNumber: string): Promise<St
 export interface CodeRequestOutcome {
   delivery: "email" | "console";
   notice?: string;
-  /** Present only in local development with no email provider configured. */
+  /** Present in preview/development to verify the generated OTP. */
   devCode?: string;
   demoBypass?: boolean;
 }
 
-/** Ask the server to email a six digit code. */
 export async function requestEmailCode(email: string): Promise<CodeRequestOutcome> {
-  const res = await fetch("/api/auth/email/request", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: email.trim().toLowerCase() }),
-  });
-  if (!jsonResponse(res)) {
-    throw new Error("Email verification is not available in this static preview.");
-  }
-  const payload = (await res.json()) as {
-    error?: string;
-    retryAfter?: number;
-    delivery?: "email" | "console";
-    notice?: string;
-    devCode?: string;
-    demoBypass?: boolean;
-  };
-  if (!res.ok) {
-    if (payload.error === "COOLDOWN" || payload.error === "RATE_LIMITED") {
-      throw new Error(`Please wait ${payload.retryAfter ?? 60} seconds before requesting another code.`);
+  const normalized = email.trim().toLowerCase();
+  try {
+    const res = await fetch("/api/auth/email/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalized }),
+    });
+    if (!jsonResponse(res)) {
+      return await requestFirebaseEmailOtp(normalized);
     }
-    if (payload.error === "INVALID_EMAIL") throw new Error("Enter a valid email address.");
-    throw new Error("The verification code could not be sent. Try again.");
+    const payload = (await res.json()) as {
+      error?: string;
+      retryAfter?: number;
+      delivery?: "email" | "console";
+      notice?: string;
+      devCode?: string;
+      demoBypass?: boolean;
+    };
+    if (!res.ok) {
+      if (payload.error === "COOLDOWN" || payload.error === "RATE_LIMITED") {
+        throw new Error(`Please wait ${payload.retryAfter ?? 60} seconds before requesting another code.`);
+      }
+      if (payload.error === "INVALID_EMAIL") throw new Error("Enter a valid email address.");
+      throw new Error("The verification code could not be sent. Try again.");
+    }
+    return {
+      delivery: payload.delivery ?? "console",
+      notice: payload.notice,
+      devCode: payload.devCode,
+      demoBypass: payload.demoBypass,
+    };
+  } catch (cause) {
+    if (cause instanceof Error && /wait|valid email|could not be sent/i.test(cause.message)) throw cause;
+    return await requestFirebaseEmailOtp(normalized);
   }
-  return {
-    delivery: payload.delivery ?? "console",
-    notice: payload.notice,
-    devCode: payload.devCode,
-    demoBypass: payload.demoBypass,
-  };
 }
 
-/** Verify the code. On success the browser holds a signed verified-email cookie. */
+/** Verify the code. On success the browser holds a signed verified-email cookie or Firebase verified session. */
 export async function verifyEmailCode(email: string, code: string): Promise<void> {
-  const res = await fetch("/api/auth/email/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: email.trim().toLowerCase(), code }),
-  });
-  if (!jsonResponse(res)) {
-    throw new Error("Email verification is not available in this static preview.");
-  }
-  const payload = (await res.json()) as { error?: string; message?: string; attemptsLeft?: number };
-  if (!res.ok) {
-    const suffix = typeof payload.attemptsLeft === "number" ? ` ${payload.attemptsLeft} attempts left.` : "";
-    throw new Error(`${payload.message ?? "That code could not be verified."}${suffix}`);
+  const normalized = email.trim().toLowerCase();
+  try {
+    const res = await fetch("/api/auth/email/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalized, code }),
+    });
+    if (!jsonResponse(res)) {
+      await verifyFirebaseEmailOtp(normalized, code);
+      return;
+    }
+    const payload = (await res.json()) as { error?: string; message?: string; attemptsLeft?: number };
+    if (!res.ok) {
+      const suffix = typeof payload.attemptsLeft === "number" ? ` ${payload.attemptsLeft} attempts left.` : "";
+      throw new Error(`${payload.message ?? "That code could not be verified."}${suffix}`);
+    }
+  } catch (cause) {
+    if (cause instanceof Error && (cause.message.includes("attempt") || /not correct|expired|pending|valid/i.test(cause.message))) {
+      throw cause;
+    }
+    await verifyFirebaseEmailOtp(normalized, code);
   }
 }
 
@@ -239,19 +259,22 @@ export async function verifyEmailCode(email: string, code: string): Promise<void
 export async function verifiedEmail(): Promise<string | null> {
   try {
     const res = await fetch("/api/auth/email/session", { cache: "no-store" });
-    if (!res.ok || !jsonResponse(res)) return null;
-    const payload = (await res.json()) as { email?: string | null };
-    return payload.email ?? null;
+    if (res.ok && jsonResponse(res)) {
+      const payload = (await res.json()) as { email?: string | null };
+      if (payload.email) return payload.email;
+    }
   } catch {
-    return null;
+    // Static previews keep a Firebase session in this browser.
   }
+  return getFirebaseVerifiedEmail();
 }
 
 export async function signOutEmail(): Promise<void> {
+  clearFirebaseSession();
   try {
     await fetch("/api/auth/email/session", { method: "DELETE" });
   } catch {
-    // Nothing to clean up if the route is unavailable.
+    // Hosted fallback does not need server invalidation.
   }
 }
 

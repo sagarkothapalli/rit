@@ -15,6 +15,7 @@ const Body = z.object({
   mimeType: z.string().max(100),
   kind: z.string().max(40),
   base64: z.string().min(8).max(16_000_000),
+  clientId: z.string().uuid().optional(),
 });
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -40,11 +41,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!sniffPdf(bytes)) return NextResponse.json({ error: "NOT_PDF" }, { status: 400 });
     if (isEncryptedPdf(bytes)) return NextResponse.json({ error: "ENCRYPTED_PDF" }, { status: 400 });
   }
-  const attachmentId = newId();
   const sha = await sha256Hex(bytes);
-  if (loaded.record.attachments.some((item) => item.sha256 === sha && !item.deletedAt)) {
-    return NextResponse.json({ error: "DUPLICATE_DOCUMENT" }, { status: 409 });
+  const duplicate = loaded.record.attachments.find((item) => item.sha256 === sha && !item.deletedAt);
+  if (duplicate) {
+    return NextResponse.json({ case: loaded.record, attachment: duplicate, duplicate: true });
   }
+  const liveCount = loaded.record.attachments.filter((item) => !item.deletedAt).length;
+  if (liveCount >= rules.attachments.maxCount) {
+    return NextResponse.json({ error: "TOO_MANY_DOCUMENTS" }, { status: 400 });
+  }
+  const attachmentId = parsed.data.clientId ?? newId();
   const storageKey = storageKeyFor(sha, attachmentId);
   await putAttachmentBytes(storageKey, bytes, parsed.data.mimeType);
   const now = new Date().toISOString();
@@ -70,6 +76,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     attachments: [...loaded.record.attachments, attachment],
     updatedAt: now,
   };
-  await saveCaseRecord(record);
+  await saveCaseRecord(record, loaded.email, loaded.record.updatedAt);
   return NextResponse.json({ case: record, attachment });
 }

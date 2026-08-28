@@ -33,6 +33,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       confirmedAt: null,
     },
   };
-  await saveCaseRecord(record);
+  await saveCaseRecord(record, loaded.email, loaded.record.updatedAt);
   return NextResponse.json({ case: record });
 }

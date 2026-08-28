@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CaseSummary } from "@/lib/domain/case";
 import { CASE_TYPE_LABEL } from "@/lib/domain/status";
+import { casePath } from "@/lib/storage/paths";
 
 export default function CaseChain({
   currentId,
@@ -20,7 +21,7 @@ export default function CaseChain({
                 {CASE_TYPE_LABEL[item.caseType]} · {item.prajaReference}
               </span>
             ) : (
-              <Link href={`/cases/${item.id}`}>
+              <Link href={casePath(item.id)}>
                 {CASE_TYPE_LABEL[item.caseType]} · {item.prajaReference}
               </Link>
             )}

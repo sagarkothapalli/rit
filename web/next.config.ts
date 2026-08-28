@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const staticExport = process.env.STATIC_EXPORT === "1";
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_STATIC_HOST: staticExport ? "1" : "",
+  },
   ...(staticExport
     ? {
         output: "export" as const,

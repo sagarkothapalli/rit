@@ -31,6 +31,10 @@ interface DescribeStepProps {
   error: string | null;
   onContinue: () => void;
   onBack: () => void;
+  photos?: Array<{ fileName: string; scene: string; confirmed: boolean; mode: string }>;
+  photoError?: string | null;
+  onAddPhoto?: (file: File) => void;
+  onConfirmPhoto?: (index: number, confirmed: boolean) => void;
 }
 
 export default function DescribeStep({
@@ -47,6 +51,10 @@ export default function DescribeStep({
   error,
   onContinue,
   onBack,
+  photos = [],
+  photoError = null,
+  onAddPhoto,
+  onConfirmPhoto,
 }: DescribeStepProps) {
   const fromAssistant = intakeMode === "assistant";
 
@@ -110,6 +118,33 @@ export default function DescribeStep({
         />
         <small className="describe-count">{correction.trim().length} characters</small>
       </label>
+
+      {onAddPhoto && (
+        <div className="photo-evidence">
+          <span className="applicant-label">Photographs of the incident (optional, up to 3)</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onAddPhoto(file);
+            }}
+          />
+          {photoError && <p className="step-error">{photoError}</p>}
+          {photos.map((photo, index) => (
+            <label key={`${photo.fileName}-${index}`} className="applicant-check">
+              <input
+                type="checkbox"
+                checked={photo.confirmed}
+                onChange={(event) => onConfirmPhoto?.(index, event.target.checked)}
+              />
+              <span>
+                {photo.fileName}: {photo.scene} {photo.mode === "DETERMINISTIC_DEMO" ? "(demo analysis)" : ""}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
 
       {error && <p className="step-error" role="alert">{error}</p>}
 

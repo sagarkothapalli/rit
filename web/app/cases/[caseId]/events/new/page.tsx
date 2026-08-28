@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useCaseId } from "@/hooks/useCaseId";
 import WorkspaceShell from "@/components/cases/WorkspaceShell";
 import AttachmentUploader from "@/components/attachments/AttachmentUploader";
 import type { AttachmentKind } from "@/lib/domain/attachments";
 import type { CaseEventType } from "@/lib/domain/events";
 import type { CaseRecord } from "@/lib/domain/case";
+import { applyCaseEvent } from "@/lib/deadlines/lifecycle";
 import { filingRulesFor } from "@/lib/filing-rules/registry";
-import { fetchCase, saveCase } from "@/lib/storage/cases.client";
+import { fetchCase, jsonOk, saveCase } from "@/lib/storage/cases.client";
 import { newId } from "@/lib/storage/id";
+import { casePath } from "@/lib/storage/paths";
 
 const EVENTS: Array<{ type: CaseEventType; label: string; kind?: AttachmentKind }> = [
   { type: "REPLY_RECEIVED", label: "Reply received", kind: "CPIO_REPLY" },
@@ -27,7 +30,7 @@ const EVENTS: Array<{ type: CaseEventType; label: string; kind?: AttachmentKind 
 ];
 
 export default function NewEventPage() {
-  const params = useParams<{ caseId: string }>();
+  const caseId = useCaseId();
   const router = useRouter();
   const [record, setRecord] = useState<CaseRecord | null>(null);
   const [eventType, setEventType] = useState<CaseEventType>("REPLY_RECEIVED");
@@ -38,11 +41,11 @@ export default function NewEventPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void fetchCase(params.caseId).then((found) => {
+    void fetchCase(caseId).then((found) => {
       setRecord(found);
       setBranchId(found?.officialReferences.find((item) => item.isPrimary)?.id ?? found?.officialReferences[0]?.id ?? "");
     });
-  }, [params.caseId]);
+  }, [caseId]);
 
   if (!record) {
     return (
@@ -63,12 +66,41 @@ export default function NewEventPage() {
   async function submit() {
     if (!record || !occurredAt) return;
     setBusy(true);
-    const now = new Date().toISOString();
-    const next: CaseRecord = {
-      ...record,
-      updatedAt: now,
-      events: [
-        ...record.events,
+    try {
+      const res = await fetch(`/api/cases/${encodeURIComponent(record.id)}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          eventType,
+          occurredAt,
+          officialReferenceId: branchId || null,
+          transferNumber,
+          payload: { note },
+        }),
+      });
+      if (res.ok && jsonOk(res)) {
+        router.push(casePath(record.id));
+        return;
+      }
+      const now = new Date().toISOString();
+      const newReference =
+        (eventType === "REQUEST_TRANSFERRED" || eventType === "REQUEST_PART_TRANSFERRED") && transferNumber.trim()
+          ? {
+              id: newId(),
+              caseId: record.id,
+              registrationNumber: transferNumber.trim(),
+              referenceKind: eventType === "REQUEST_PART_TRANSFERRED" ? "PART_TRANSFER" as const : "TRANSFER" as const,
+              source: "USER_REPORTED" as const,
+              filedAt: occurredAt,
+              receivedAt: occurredAt,
+              parentOfficialReferenceId: branchId || null,
+              isPrimary: eventType === "REQUEST_TRANSFERRED",
+              createdAt: now,
+            }
+          : undefined;
+      const next = applyCaseEvent(
+        record,
         {
           id: newId(),
           caseId: record.id,
@@ -81,35 +113,13 @@ export default function NewEventPage() {
           createdBy: record.ownerEmail,
           idempotencyKey: `event:${record.id}:${eventType}:${occurredAt}:${transferNumber}`,
         },
-      ],
-    };
-    if (eventType === "REPLY_RECEIVED" || eventType === "FAA_DECISION_RECEIVED") next.outcomeStatus = "REPLY_RECEIVED";
-    if (eventType === "ADDITIONAL_FEE_DEMAND" || eventType === "SUPPORTING_DOCUMENT_REQUESTED") {
-      next.outcomeStatus = "ACTION_REQUIRED";
+        { newReference },
+      );
+      await saveCase(next);
+      router.push(casePath(record.id));
+    } finally {
+      setBusy(false);
     }
-    if (eventType === "CASE_DISPOSED") next.outcomeStatus = "DISPOSED";
-    if (eventType === "CASE_CLOSED") next.outcomeStatus = "CLOSED";
-    if (eventType === "REQUEST_RETURNED") next.filingStatus = "RETURNED";
-    if ((eventType === "REQUEST_TRANSFERRED" || eventType === "REQUEST_PART_TRANSFERRED") && transferNumber.trim()) {
-      next.officialReferences = [
-        ...next.officialReferences,
-        {
-          id: newId(),
-          caseId: record.id,
-          registrationNumber: transferNumber.trim(),
-          referenceKind: eventType === "REQUEST_PART_TRANSFERRED" ? "PART_TRANSFER" : "TRANSFER",
-          source: "USER_REPORTED",
-          filedAt: occurredAt,
-          receivedAt: occurredAt,
-          parentOfficialReferenceId: branchId || null,
-          isPrimary: eventType === "REQUEST_TRANSFERRED",
-          createdAt: now,
-        },
-      ];
-    }
-    await saveCase(next);
-    setBusy(false);
-    router.push(`/cases/${record.id}`);
   }
 
   return (
@@ -161,6 +171,8 @@ export default function NewEventPage() {
               kind={selected.kind}
               rules={rules}
               label="Attach the official document"
+              existing={record.attachments}
+              record={record}
               onAdded={(attachment) => {
                 setRecord({ ...record, attachments: [...record.attachments, attachment] });
               }}
@@ -170,7 +182,7 @@ export default function NewEventPage() {
             <button type="button" className="primary-button" onClick={() => void submit()} disabled={busy || !occurredAt}>
               {busy ? "Saving…" : "Save event"}
             </button>
-            <Link className="ghost-button" href={`/cases/${record.id}`}>Back</Link>
+            <Link className="ghost-button" href={casePath(record.id)}>Back</Link>
           </div>
         </div>
       </article>

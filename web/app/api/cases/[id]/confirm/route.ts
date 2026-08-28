@@ -17,6 +17,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     updatedAt: now,
     draft: { ...loaded.record.draft, confirmedAt: now },
   };
-  await saveCaseRecord(record);
+  await saveCaseRecord(record, loaded.email, loaded.record.updatedAt);
   return NextResponse.json({ case: record });
 }

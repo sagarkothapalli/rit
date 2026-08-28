@@ -42,3 +42,10 @@ export async function getAttachmentBytes(storageKey: string): Promise<StoredByte
 export function storageKeyFor(sha256: string, id: string): string {
   return createHash("sha256").update(`${sha256}:${id}`).digest("hex");
 }
+
+export async function deleteAttachmentBytes(storageKey: string): Promise<void> {
+  const target = keyPath(storageKey);
+  await fs.rm(target, { force: true });
+  await fs.rm(`${target}.meta.json`, { force: true });
+  await fs.rm(`${target}.tmp`, { force: true });
+}

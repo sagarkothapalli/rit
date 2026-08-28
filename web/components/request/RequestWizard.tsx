@@ -68,8 +68,14 @@ import { validateApplicantAgainstRules } from "@/lib/filing-rules/validate";
 import { jurisdictionFromNotes } from "@/lib/domain/status";
 import { saveCase } from "@/lib/storage/cases.client";
 import { createBlankCase } from "@/lib/storage/factory";
-import { hashAccessToken } from "@/lib/storage/id";
-import { putAttachmentBlob } from "@/lib/storage/cases.client";
+import { putAttachmentBlob, rememberAccessToken } from "@/lib/storage/cases.client";
+import {
+  confirmedPhotoFacts,
+  MAX_PHOTOS,
+  photoAllowed,
+  photoEvidenceFallback,
+  type PhotoEvidenceItem,
+} from "@/lib/evidence/photos";
 import { createFullRequestPdf } from "@/lib/packets/request";
 import { attachmentMeta } from "@/lib/packets";
 import { blobToBytes } from "@/lib/packets/zip";
@@ -219,6 +225,8 @@ export default function RequestWorkspace() {
   const [applicationPdf, setApplicationPdf] = useState<Blob | null>(null);
   const [savedApplication, setSavedApplication] = useState<StoredApplication | null>(null);
   const [savedCase, setSavedCase] = useState<CaseRecord | null>(null);
+  const [photos, setPhotos] = useState<PhotoEvidenceItem[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [storageMessage, setStorageMessage] = useState<string | null>(null);
   const [savingApplication, setSavingApplication] = useState(false);
   const [useTextAttachment, setUseTextAttachment] = useState(false);
@@ -378,8 +386,9 @@ export default function RequestWorkspace() {
       return;
     }
     setErr(null);
-    setTranscript(final);
-    void runNotes(final);
+    const withPhotos = [final, confirmedPhotoFacts(photos)].filter(Boolean).join("\n\n");
+    setTranscript(withPhotos);
+    void runNotes(withPhotos);
   }
 
   async function checkEligibility() {
@@ -578,8 +587,8 @@ export default function RequestWorkspace() {
         title: draft.title,
       });
       caseRecord.prajaReference = acknowledgementNumber;
-      caseRecord.accessTokenHash = await hashAccessToken(acknowledgementNumber);
       caseRecord.legacyAcknowledgementNumber = acknowledgementNumber;
+      caseRecord.photoEvidence = photos;
       caseRecord.authorityCode = picked;
       caseRecord.filingChannel = rules.filingChannel;
       caseRecord.preparationStatus = "PACKET_GENERATED";
@@ -630,6 +639,9 @@ export default function RequestWorkspace() {
         zipAttachmentId: null,
         ruleVersion: rules.id,
       };
+      if (caseRecord.accessToken) {
+        await rememberAccessToken(caseRecord.id, caseRecord.accessToken, caseRecord.prajaReference);
+      }
       await saveCase(caseRecord);
       setApplicationPdf(finalPdf);
       setSavedApplication(record);
@@ -742,6 +754,24 @@ export default function RequestWorkspace() {
                   listening={listening}
                   speech={speech}
                   correction={correction}
+                  photos={photos}
+                  photoError={photoError}
+                  onAddPhoto={(file) => {
+                    const problem = photoAllowed(file);
+                    if (problem) {
+                      setPhotoError(problem);
+                      return;
+                    }
+                    if (photos.length >= MAX_PHOTOS) {
+                      setPhotoError("Attach up to three photographs.");
+                      return;
+                    }
+                    setPhotoError(null);
+                    setPhotos((current) => [...current, photoEvidenceFallback(file.name, file.size, file.type || "image/jpeg")]);
+                  }}
+                  onConfirmPhoto={(index, confirmed) => {
+                    setPhotos((current) => current.map((item, i) => (i === index ? { ...item, confirmed } : item)));
+                  }}
                   onCorrection={(value) => {
                     setUserCorrected(true);
                     setManualText(value);

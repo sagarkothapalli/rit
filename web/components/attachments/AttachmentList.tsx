@@ -3,20 +3,22 @@
 import type { AttachmentRecord } from "@/lib/domain/attachments";
 import { ATTACHMENT_KIND_LABEL } from "@/lib/domain/attachments";
 import { downloadBlob } from "@/lib/application-records";
-import { getAttachmentBlob } from "@/lib/storage/cases.client";
+import { downloadAttachmentBytes } from "@/lib/storage/cases.client";
 
 export default function AttachmentList({
   items,
+  caseId,
   onRemove,
 }: {
   items: AttachmentRecord[];
+  caseId?: string;
   onRemove?: (id: string) => void;
 }) {
   const live = items.filter((item) => !item.deletedAt);
   if (live.length === 0) return <p className="step-hint">No documents attached yet.</p>;
 
   async function download(item: AttachmentRecord) {
-    const blob = await getAttachmentBlob(item.id);
+    const blob = await downloadAttachmentBytes(caseId ?? item.caseId, item.id);
     if (!blob) return;
     downloadBlob(item.storedName, new Blob([blob.bytes], { type: item.mimeType }));
   }

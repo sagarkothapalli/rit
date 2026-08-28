@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { saveCaseRecord } from "@/lib/storage/cases.server";
-import { getAttachmentBytes } from "@/lib/storage/attachments.server";
+import { deleteAttachmentBytes, getAttachmentBytes } from "@/lib/storage/attachments.server";
 import { guardWrite, ownerCase } from "@/lib/storage/api-helpers";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +34,8 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string; 
     attachments: loaded.record.attachments.map((item) => (item.id === fileId ? { ...item, deletedAt: now } : item)),
     updatedAt: now,
   };
-  await saveCaseRecord(record);
+  await saveCaseRecord(record, loaded.email, loaded.record.updatedAt);
+  const removed = loaded.record.attachments.find((item) => item.id === fileId);
+  if (removed) await deleteAttachmentBytes(removed.storageKey).catch(() => undefined);
   return NextResponse.json({ case: record });
 }

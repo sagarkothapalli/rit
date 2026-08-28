@@ -9,12 +9,12 @@ const OPTIONS = [
     body: "Ask a public authority for records that already exist on an official file.",
   },
   {
-    href: "/cases?start=first-appeal",
+    href: "/cases/new/first-appeal",
     title: "First appeal",
     body: "Challenge no response, or an unsatisfactory CPIO or SPIO decision, under Section 19(1).",
   },
   {
-    href: "/cases?start=second-appeal",
+    href: "/cases/new/second-appeal",
     title: "Second appeal",
     body: "Take a first-appeal outcome, or silence, to the CIC or the applicable SIC under Section 19(3).",
   },

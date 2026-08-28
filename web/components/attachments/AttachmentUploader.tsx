@@ -4,9 +4,10 @@ import { useRef, useState } from "react";
 import type { AttachmentKind, AttachmentRecord } from "@/lib/domain/attachments";
 import { normalizeFilingFilename } from "@/lib/domain/attachments";
 import type { FilingRuleSet } from "@/lib/filing-rules/schema";
-import { validateAttachment, type RuleProblem } from "@/lib/filing-rules/validate";
+import { isEncryptedPdf, sniffPdf, validateAttachmentBytes, type RuleProblem } from "@/lib/filing-rules/validate";
 import { newId, sha256Hex } from "@/lib/storage/id";
-import { putAttachmentBlob } from "@/lib/storage/cases.client";
+import { putAttachmentBlob, uploadAttachmentToServer } from "@/lib/storage/cases.client";
+import type { CaseRecord } from "@/lib/domain/case";
 import AttachmentValidation from "./AttachmentValidation";
 
 export default function AttachmentUploader({
@@ -15,32 +16,44 @@ export default function AttachmentUploader({
   rules,
   label,
   onAdded,
+  existing = [],
+  record,
 }: {
   caseId: string;
   kind: AttachmentKind;
   rules: FilingRuleSet;
   label: string;
   onAdded: (record: AttachmentRecord) => void;
+  existing?: AttachmentRecord[];
+  record?: CaseRecord;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [problems, setProblems] = useState<RuleProblem[]>([]);
   const [busy, setBusy] = useState(false);
 
   async function handleFile(file: File) {
-    const found = validateAttachment(
-      { name: file.name, mimeType: file.type || "application/octet-stream", byteSize: file.size, kind },
+    const live = existing.filter((item) => !item.deletedAt);
+    if (live.length >= rules.attachments.maxCount) {
+      setProblems([{ code: "TOO_MANY", message: `This destination accepts at most ${rules.attachments.maxCount} files.`, blocking: true }]);
+      return;
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const sha = await sha256Hex(bytes);
+    const found = validateAttachmentBytes(
+      { name: file.name, mimeType: file.type || "application/octet-stream", byteSize: file.size, kind, bytes },
       rules,
+      live.map((item) => item.sha256),
+      sha,
     );
     setProblems(found);
     if (found.some((item) => item.blocking)) return;
+    if (rules.attachments.pdfOnly && (!sniffPdf(bytes) || isEncryptedPdf(bytes))) return;
     setBusy(true);
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
       const id = newId();
-      const sha = await sha256Hex(bytes);
       const storedName = normalizeFilingFilename(file.name);
       await putAttachmentBlob({ id, caseId, mimeType: file.type || "application/pdf", bytes: bytes.buffer });
-      onAdded({
+      const meta: AttachmentRecord = {
         id,
         caseId,
         eventId: null,
@@ -56,7 +69,11 @@ export default function AttachmentUploader({
         verificationStatus: "UNVERIFIED_REVIEW_REQUIRED",
         createdAt: new Date().toISOString(),
         deletedAt: null,
-      });
+      };
+      if (record) {
+        await uploadAttachmentToServer({ ...record, attachments: [...record.attachments, meta] }, id);
+      }
+      onAdded(meta);
     } finally {
       setBusy(false);
     }

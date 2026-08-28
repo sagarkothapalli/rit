@@ -71,7 +71,7 @@ export const CIC_SECOND_APPEAL_RULES: FilingRuleSet = {
   text: { ...CENTRAL_TEXT, maxCharacters: 12000 },
   attachments: { mimeTypes: ["application/pdf"], maxBytes: 5_000_000, maxCount: 12, filenameNoSpaces: true, pdfOnly: true },
   fee: { amountRupees: 0, bplExempt: true, payableOn: "No second-appeal fee at the Commission in this rule set" },
-  documents: { requiredKinds: ["APPLICATION_PDF", "FIRST_APPEAL"], bplProofRequiredIfClaimed: false, bplCollectCardDetails: false },
+  documents: { requiredKinds: ["APPLICATION_PDF", "FIRST_APPEAL", "FAA_ORDER"], bplProofRequiredIfClaimed: false, bplCollectCardDetails: false },
   filingChannel: "Central Information Commission",
   portalUrl: CIC,
 };

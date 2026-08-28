@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { FilingRuleSet } from "@/lib/filing-rules/schema";
+import { casePath } from "@/lib/storage/paths";
 
 export default function ExternalFilingHandoff({
   rules,
@@ -65,10 +66,10 @@ export default function ExternalFilingHandoff({
             Use the State or physical channel named above. There is no Central-portal submission for this packet.
           </span>
         )}
-        <Link className="secondary-button" href={`/cases/${caseId}/record-filing`}>
+        <Link className="secondary-button" href={casePath(caseId, "record-filing")}>
           I have filed this
         </Link>
-        <Link className="ghost-button" href={`/cases/${caseId}`}>
+        <Link className="ghost-button" href={casePath(caseId)}>
           I will file later
         </Link>
       </div>

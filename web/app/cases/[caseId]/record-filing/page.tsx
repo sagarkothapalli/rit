@@ -2,26 +2,26 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useCaseId } from "@/hooks/useCaseId";
 import WorkspaceShell from "@/components/cases/WorkspaceShell";
 import OfficialReferenceForm, { type OfficialFilingValues } from "@/components/cases/OfficialReferenceForm";
 import type { CaseRecord } from "@/lib/domain/case";
-import { filingRulesFor } from "@/lib/filing-rules/registry";
-import { toDeadlineRecord } from "@/lib/deadlines/calculate";
-import { fetchCase, saveCase } from "@/lib/storage/cases.client";
+import { applyCaseEvent } from "@/lib/deadlines/lifecycle";
+import { fetchCase, jsonOk, saveCase } from "@/lib/storage/cases.client";
 import { newId } from "@/lib/storage/id";
-import type { DeadlineKind } from "@/lib/domain/case";
+import { casePath } from "@/lib/storage/paths";
 
 export default function RecordFilingPage() {
-  const params = useParams<{ caseId: string }>();
+  const caseId = useCaseId();
   const router = useRouter();
   const [record, setRecord] = useState<CaseRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetchCase(params.caseId).then(setRecord);
-  }, [params.caseId]);
+    void fetchCase(caseId).then(setRecord);
+  }, [caseId]);
 
   if (!record) {
     return (
@@ -41,6 +41,16 @@ export default function RecordFilingPage() {
     setBusy(true);
     setError(null);
     try {
+      const res = await fetch(`/api/cases/${encodeURIComponent(record.id)}/official-references`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(values),
+      });
+      if (res.ok && jsonOk(res)) {
+        router.push(casePath(record.id));
+        return;
+      }
       const now = new Date().toISOString();
       const reference = {
         id: newId(),
@@ -54,46 +64,23 @@ export default function RecordFilingPage() {
         isPrimary: record.officialReferences.length === 0,
         createdAt: now,
       };
-      const rules = filingRulesFor({ caseType: record.caseType, jurisdiction: record.jurisdiction });
-      const kind: DeadlineKind =
-        record.caseType === "FIRST_APPEAL"
-          ? "FAA_DECISION"
-          : record.caseType === "SECOND_APPEAL"
-            ? "SECOND_APPEAL_LIMITATION"
-            : "REQUEST_RESPONSE";
-      const deadline = toDeadlineRecord(newId(), {
-        kind,
-        startDate: values.filedAt,
-        rule: rules,
-        source: "USER_REPORTED",
-        caseId: record.id,
-        officialReferenceId: reference.id,
-      });
-      const next: CaseRecord = {
-        ...record,
-        filingStatus: "USER_REPORTED_FILED",
-        outcomeStatus: "AWAITING_RESPONSE",
-        officialReferences: [...record.officialReferences, reference],
-        deadlines: [...record.deadlines, deadline],
-        updatedAt: now,
-        events: [
-          ...record.events,
-          {
-            id: newId(),
-            caseId: record.id,
-            officialReferenceId: reference.id,
-            eventType: "FILING_RECORDED",
-            source: "USER_REPORTED",
-            occurredAt: values.filedAt,
-            recordedAt: now,
-            payload: { ...values },
-            createdBy: record.ownerEmail,
-            idempotencyKey: `filing:${record.id}:${reference.registrationNumber}`,
-          },
-        ],
-      };
+      const next = applyCaseEvent(
+        { ...record, officialReferences: [...record.officialReferences, reference] },
+        {
+          id: newId(),
+          caseId: record.id,
+          officialReferenceId: reference.id,
+          eventType: "FILING_RECORDED",
+          source: "USER_REPORTED",
+          occurredAt: values.filedAt,
+          recordedAt: now,
+          payload: { ...values },
+          createdBy: record.ownerEmail,
+          idempotencyKey: `filing:${record.id}:${reference.registrationNumber}`,
+        },
+      );
       await saveCase(next);
-      router.push(`/cases/${record.id}`);
+      router.push(casePath(record.id));
     } catch {
       setError("The filing details could not be saved.");
     } finally {
@@ -124,7 +111,7 @@ export default function RecordFilingPage() {
                     : "ORIGINAL_REQUEST"
             }
           />
-          <Link className="ghost-button" href={`/cases/${record.id}`}>Back</Link>
+          <Link className="ghost-button" href={casePath(record.id)}>Back</Link>
         </div>
       </article>
     </WorkspaceShell>

@@ -33,6 +33,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   });
   child.targetOfficialReferenceId = parsed.data.targetOfficialReferenceId ?? loaded.record.officialReferences.find((item) => item.isPrimary)?.id ?? null;
   child.applicant = { ...loaded.record.applicant };
-  await saveCaseRecord(child);
-  return NextResponse.json({ case: child });
+  const accessToken = child.accessToken;
+  await saveCaseRecord(child, loaded.email);
+  return NextResponse.json({ case: { ...child, accessToken: undefined }, accessToken });
 }

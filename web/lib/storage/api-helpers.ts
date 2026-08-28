@@ -4,6 +4,7 @@ import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
 import { csrfFailure } from "@/lib/security/csrf";
 import type { CaseRecord } from "@/lib/domain/case";
 import { getCaseRecord } from "./cases.server";
+import { isCaseId } from "./id";
 
 export function limited(req: Request, name: string, max = 40, windowMs = 10 * 60_000): NextResponse | null {
   const rl = rateLimit(clientKey(req, name), max, windowMs);
@@ -24,8 +25,9 @@ export function requireOwner(req: Request): { email: string } | NextResponse {
 export async function ownerCase(req: Request, id: string): Promise<{ email: string; record: CaseRecord } | NextResponse> {
   const owner = requireOwner(req);
   if (owner instanceof NextResponse) return owner;
+  if (!isCaseId(id)) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   const record = await getCaseRecord(id);
-  if (!record) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  if (!record || record.archivedAt) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   if (record.ownerEmail !== owner.email) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   return { email: owner.email, record };
 }

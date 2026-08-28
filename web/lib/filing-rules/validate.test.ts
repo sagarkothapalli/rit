@@ -20,6 +20,20 @@ describe("filing rules", () => {
     expect(prepared.portalText.length).toBeLessThan(CENTRAL_REQUEST_RULES.text.maxCharacters);
   });
 
+  it("sniffs encrypted and non-PDF bytes", async () => {
+    const { sniffPdf, isEncryptedPdf, validateAttachmentBytes } = await import("./validate");
+    expect(sniffPdf(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]))).toBe(true);
+    expect(sniffPdf(new Uint8Array([0x00, 0x01]))).toBe(false);
+    expect(isEncryptedPdf(new TextEncoder().encode("%PDF-1.4\n/Encrypt /Standard"))).toBe(true);
+    const problems = validateAttachmentBytes(
+      { name: "dup.pdf", mimeType: "application/pdf", byteSize: 20, bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]) },
+      CENTRAL_REQUEST_RULES,
+      ["deadbeef"],
+      "deadbeef",
+    );
+    expect(problems.some((item) => item.code === "DUPLICATE_DOCUMENT" && item.blocking)).toBe(true);
+  });
+
   it("rejects an oversized supporting PDF for the Central portal", () => {
     const problems = validateAttachment(
       { name: "support.pdf", mimeType: "application/pdf", byteSize: 1_500_000 },
