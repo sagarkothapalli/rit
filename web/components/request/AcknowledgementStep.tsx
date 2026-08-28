@@ -60,38 +60,10 @@ export default function AcknowledgementStep({
         </div>
       </dl>
 
-      <section className="ack-next">
-        <h2>What to do next</h2>
-        <ol>
-          {stateMatter ? (
-            <>
-              <li>
-                Download the application PDF and take it to{" "}
-                <strong>{record.report.authority.name}</strong>
-                {record.report.filing_channel ? <> via {record.report.filing_channel}</> : null}.
-              </li>
-              <li>Pay the fee your State prescribes — it is usually Rs 10, and nil if you are below the poverty line.</li>
-              <li>Keep the receipt they issue. The 30 day reply clock starts from the date they accept it.</li>
-            </>
-          ) : (
-            <>
-              <li>Open rtionline.gov.in and start a new request for this authority.</li>
-              <li>Paste the application text from the last page of the PDF into the request field.</li>
-              <li>Pay the Rs 10 fee, or upload your BPL certificate instead if it applies.</li>
-              <li>Save the registration number the portal issues. That is the number the authority tracks.</li>
-            </>
-          )}
-        </ol>
-        <p className="ack-clock">
-          The authority must reply within 30 days. If a third party has to be consulted first, that becomes 40
-          days. Silence past the deadline is itself a refusal you can appeal.
-        </p>
-      </section>
-
       <div className="step-actions">
         <button
           type="button"
-          className="primary-button"
+          className="secondary-button"
           onClick={() => downloadPdfBase64("praja-rti-application.pdf", record.applicationPdfBase64)}
         >
           Download application PDF
@@ -109,7 +81,9 @@ export default function AcknowledgementStep({
           </a>
         )}
         <button type="button" className="ghost-button" onClick={onBack}>Back</button>
-        <button type="button" className="ghost-button" onClick={onStartOver}>Prepare another</button>
+        <button type="button" className="primary-button" onClick={onStartOver}>
+          Thank you
+        </button>
       </div>
     </div>
   );
