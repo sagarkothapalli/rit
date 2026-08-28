@@ -58,7 +58,7 @@ import {
   saveApplication,
   type StoredApplication,
 } from "@/lib/application-records";
-import { emptyApplicant, validateApplicant, type ApplicantDetails, type FieldProblem } from "@/lib/applicant";
+import { emptyApplicant, lookupPincode, validateApplicant, type ApplicantDetails, type FieldProblem } from "@/lib/applicant";
 import { createApplicationPdf, createReceiptPdf } from "@/lib/application-pdf";
 
 /* ---------- the nine steps ---------- */
@@ -292,6 +292,19 @@ export default function RequestWorkspace() {
       if (captured.isBpl !== null) {
         next.isBpl = captured.isBpl;
         touched.add("isBpl");
+      }
+      if (next.pincode && next.pincode.length === 6) {
+        const lookup = lookupPincode(next.pincode);
+        if (lookup) {
+          if (!next.state) {
+            next.state = lookup.state;
+            touched.add("state");
+          }
+          if (previous.areaStatus === emptyApplicant().areaStatus && !captured.areaStatus) {
+            next.areaStatus = lookup.areaStatus;
+            touched.add("areaStatus");
+          }
+        }
       }
       return next;
     });

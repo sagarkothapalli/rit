@@ -5,6 +5,7 @@ import {
   COUNTRIES,
   EDUCATIONAL_STATUSES,
   GENDERS,
+  lookupPincode,
   problemFor,
   STATES,
   type ApplicantDetails,
@@ -36,6 +37,23 @@ export default function ApplicantForm({
 }: ApplicantFormProps) {
   function set<K extends keyof ApplicantDetails>(key: K, next: ApplicantDetails[K]) {
     onChange({ ...value, [key]: next });
+  }
+
+  function handlePincodeChange(raw: string) {
+    const pincode = raw.replace(/\D/g, "").slice(0, 6);
+    if (pincode.length === 6) {
+      const match = lookupPincode(pincode);
+      if (match) {
+        onChange({
+          ...value,
+          pincode,
+          state: match.state,
+          areaStatus: match.areaStatus,
+        });
+        return;
+      }
+    }
+    set("pincode", pincode);
   }
 
   const err = (field: keyof ApplicantDetails) => problemFor(problems, field);
@@ -89,7 +107,7 @@ export default function ApplicantForm({
           <Field label="PIN code" error={err("pincode")}>
             <input
               value={value.pincode}
-              onChange={(event) => set("pincode", event.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(event) => handlePincodeChange(event.target.value)}
               inputMode="numeric"
               autoComplete="postal-code"
             />
@@ -104,7 +122,12 @@ export default function ApplicantForm({
             </select>
           </Field>
 
-          <Field label="Country" required error={err("country")}>
+          <Field
+            label="Country"
+            required
+            note="(Change if you are not from India)"
+            error={err("country")}
+          >
             <select
               value={value.country}
               onChange={(event) => set("country", event.target.value as ApplicantDetails["country"])}
@@ -139,24 +162,14 @@ export default function ApplicantForm({
       <fieldset>
         <legend>Contact</legend>
 
-        <div className="applicant-row">
-          <Field label="Mobile number" required error={err("mobile")} hint="Used for SMS alerts on the official portal.">
-            <input
-              value={value.mobile}
-              onChange={(event) => set("mobile", event.target.value.replace(/\D/g, "").slice(0, 10))}
-              inputMode="tel"
-              autoComplete="tel"
-            />
-          </Field>
-
-          <Field label="Landline" error={err("phone")}>
-            <input
-              value={value.phone}
-              onChange={(event) => set("phone", event.target.value.replace(/[^\d+\-\s]/g, "").slice(0, 20))}
-              inputMode="tel"
-            />
-          </Field>
-        </div>
+        <Field label="Mobile number" required error={err("mobile")} hint="Used for SMS alerts on the official portal.">
+          <input
+            value={value.mobile}
+            onChange={(event) => set("mobile", event.target.value.replace(/\D/g, "").slice(0, 10))}
+            inputMode="tel"
+            autoComplete="tel"
+          />
+        </Field>
 
         <Field
           label="Email address"
@@ -209,12 +222,14 @@ export default function ApplicantForm({
 function Field({
   label,
   required = false,
+  note,
   error,
   hint,
   children,
 }: {
   label: string;
   required?: boolean;
+  note?: string;
   error?: string | null;
   hint?: string;
   children: React.ReactNode;
@@ -225,6 +240,7 @@ function Field({
         {label}
         {required && <em aria-hidden="true"> *</em>}
         {required && <span className="sr-only"> (required)</span>}
+        {note && <span className="applicant-label-note"> {note}</span>}
       </span>
       {children}
       {hint && !error && <small className="applicant-hint">{hint}</small>}

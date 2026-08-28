@@ -3606,6 +3606,13 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   font-style: normal;
 }
 
+.applicant-label-note {
+  color: var(--fg-soft);
+  font-size: 0.78rem;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
 .applicant-field input,
 .applicant-field select,
 .applicant-field textarea {

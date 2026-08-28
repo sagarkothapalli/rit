@@ -15,7 +15,7 @@ const ApplicantSchema = z.object({
   address: z.string().trim().min(5).max(800),
   pincode: z.string().trim().max(10),
   state: z.string().trim().max(80),
-  country: z.enum(["India", "Other"]),
+  country: z.string().trim().min(2).max(100),
   areaStatus: z.enum(["Rural", "Urban"]),
   educationalStatus: z.enum(["Literate", "Illiterate"]),
   phone: z.string().trim().max(20),
