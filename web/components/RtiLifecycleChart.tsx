@@ -154,14 +154,25 @@ export default function RtiLifecycleChart() {
       viewport.scrollLeft = Math.max(0, Math.min(target, viewport.scrollWidth - viewport.clientWidth));
     }
 
-    function onMove(event: PointerEvent | MouseEvent) {
-      if ("pointerType" in event && event.pointerType === "touch") return;
-      const id = nodeIdFromTarget(event.target);
-      setHovered((current) => (current === id ? current : id));
+    let hoverFrame = 0;
+    let nextHover: string | null = null;
+    function queueHover(id: string | null) {
+      nextHover = id;
+      if (hoverFrame) return;
+      hoverFrame = window.requestAnimationFrame(() => {
+        hoverFrame = 0;
+        const id = nextHover;
+        setHovered((current) => (current === id ? current : id));
+      });
+    }
+
+    function onMove(event: PointerEvent) {
+      if (event.pointerType === "touch") return;
+      queueHover(nodeIdFromTarget(event.target));
     }
 
     function onLeave() {
-      setHovered(null);
+      queueHover(null);
     }
 
     function onClick(event: MouseEvent) {
@@ -180,19 +191,16 @@ export default function RtiLifecycleChart() {
       if (!userPanned) frameStart();
     });
     resize.observe(viewport);
-    viewport.addEventListener("pointermove", onMove);
-    viewport.addEventListener("mousemove", onMove);
+    viewport.addEventListener("pointermove", onMove, { passive: true });
     viewport.addEventListener("pointerleave", onLeave);
-    viewport.addEventListener("mouseleave", onLeave);
     viewport.addEventListener("click", onClick);
     return () => {
       window.cancelAnimationFrame(ready);
+      if (hoverFrame) window.cancelAnimationFrame(hoverFrame);
       resize.disconnect();
       viewport.removeEventListener("scroll", onScroll);
       viewport.removeEventListener("pointermove", onMove);
-      viewport.removeEventListener("mousemove", onMove);
       viewport.removeEventListener("pointerleave", onLeave);
-      viewport.removeEventListener("mouseleave", onLeave);
       viewport.removeEventListener("click", onClick);
     };
   }, []);

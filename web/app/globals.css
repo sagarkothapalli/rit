@@ -151,6 +151,8 @@ html {
   color-scheme: light;
   scroll-behavior: smooth;
   scroll-padding-top: 7rem;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html[data-theme="dark"] {
@@ -165,8 +167,15 @@ body {
   line-height: 1.55;
   margin: 0;
   min-width: 320px;
-  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+  text-rendering: auto;
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -181,8 +190,10 @@ select {
 }
 
 button,
-a {
+a,
+[role="button"] {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 svg {
@@ -205,7 +216,8 @@ svg {
 
 .site-shell {
   min-height: 100vh;
-  overflow: hidden;
+  min-height: 100dvh;
+  overflow-x: clip;
 }
 
 .site-container {
@@ -481,10 +493,12 @@ html[data-theme="dark"] .a11y-theme-on-dark {
   transition: background 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
-.header-action:hover {
-  background: var(--masthead-action-hover);
-  color: var(--navy-deep);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .header-action:hover {
+    background: var(--masthead-action-hover);
+    color: var(--navy-deep);
+    transform: translateY(-1px);
+  }
 }
 
 .header-inner-compact {
@@ -595,8 +609,13 @@ html[data-theme="dark"] .a11y-theme-on-dark {
 
 .primary-button:hover {
   background: var(--navy-deep);
-  box-shadow: 0 16px 30px -19px rgba(8, 47, 91, 0.9);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary-button:hover {
+    box-shadow: 0 16px 30px -19px rgba(8, 47, 91, 0.9);
+    transform: translateY(-2px);
+  }
 }
 
 .text-link {
@@ -668,6 +687,8 @@ html[data-theme="dark"] .a11y-theme-on-dark {
 .example-band {
   background: var(--surface);
   border-bottom: 1px solid var(--line);
+  contain-intrinsic-size: auto 640px;
+  content-visibility: auto;
   padding-block: clamp(56px, 7vw, 92px);
 }
 
@@ -788,6 +809,8 @@ html[data-theme="dark"] .a11y-theme-on-dark {
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   border-top: 1px solid var(--line);
+  contain-intrinsic-size: auto 280px;
+  content-visibility: auto;
 }
 
 .principles-grid {
@@ -830,6 +853,11 @@ html[data-theme="dark"] .a11y-theme-on-dark {
 .process-section,
 .safeguards-section {
   padding-block: clamp(60px, 7.5vw, 100px);
+}
+
+.safeguards-section {
+  contain-intrinsic-size: auto 640px;
+  content-visibility: auto;
 }
 
 .section-intro {
@@ -935,7 +963,12 @@ html[data-theme="dark"] .a11y-theme-on-dark {
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: var(--shadow-panel);
+  contain: layout style;
   overflow: hidden;
+}
+
+.rti-chart-skeleton {
+  min-height: min(68vw, 640px);
 }
 
 .rti-chart-toolbar {
@@ -1233,16 +1266,18 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   opacity: 1;
 }
 
-.rti-node.is-lit .rti-shape {
-  filter: drop-shadow(0 8px 14px rgba(8, 47, 91, 0.16));
-}
+@media (hover: hover) and (pointer: fine) {
+  .rti-node.is-lit .rti-shape {
+    filter: drop-shadow(0 8px 14px rgba(8, 47, 91, 0.16));
+  }
 
-.rti-node.is-hot {
-  transform: translateY(-1px);
-}
+  .rti-node.is-hot {
+    transform: translateY(-1px);
+  }
 
-.rti-node.is-hot .rti-shape {
-  filter: drop-shadow(0 10px 18px rgba(8, 47, 91, 0.22));
+  .rti-node.is-hot .rti-shape {
+    filter: drop-shadow(0 10px 18px rgba(8, 47, 91, 0.22));
+  }
 }
 
 .rti-node.is-hot .rti-hit {
@@ -1434,6 +1469,8 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
 .official-next-step {
   background: var(--masthead);
   color: var(--masthead-text);
+  contain-intrinsic-size: auto 220px;
+  content-visibility: auto;
 }
 
 .next-step-inner {
@@ -1482,6 +1519,8 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
 .site-footer {
   background: var(--navy-deep);
   color: var(--footer-text);
+  contain-intrinsic-size: auto 280px;
+  content-visibility: auto;
   padding-top: 54px;
 }
 
@@ -3789,7 +3828,7 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   gap: 8px;
   padding: 24px 16px;
   text-align: center;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .bpl-dropzone:hover,
@@ -3919,7 +3958,7 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   font-size: 0.78rem;
   font-weight: 600;
   padding: 5px 10px;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .bpl-action-btn:hover {

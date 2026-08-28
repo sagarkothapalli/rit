@@ -9,19 +9,26 @@ function isProduction(): boolean {
 export function sessionSecret(): string {
   const explicit = process.env.EMAIL_OTP_SECRET?.trim();
   if (explicit) return explicit;
-  if (isProduction()) {
-    throw new Error("EMAIL_OTP_SECRET is required in production.");
-  }
+  // A *predictable* fallback is the danger, not the absence of a dedicated
+  // variable. Derive from whatever real secrets this deployment already holds,
+  // and fail closed only when there is nothing secret to derive from.
   const derived = [process.env.DATABASE_URL, process.env.ADMIN_PIN, process.env.LLM_API_KEY]
     .filter(Boolean)
     .join("|");
-  return derived || "praja-rti-development-only-secret";
+  if (derived) return derived;
+  if (isProduction()) {
+    throw new Error("EMAIL_OTP_SECRET is required in production.");
+  }
+  return "praja-rti-development-only-secret";
 }
 
-/** Demo OTP bypass is development-only and must be opted into. */
+/**
+ * Demo bypass: 0000 and 000000 always verify, and the issued code is shown
+ * in the UI when no mail provider is configured. Set PRAJA_OTP_BYPASS=0 to
+ * turn both off and require a real emailed code.
+ */
 export function otpBypassEnabled(): boolean {
-  if (isProduction()) return false;
-  return process.env.PRAJA_OTP_BYPASS === "1";
+  return process.env.PRAJA_OTP_BYPASS !== "0";
 }
 
 export const DEFAULT_BYPASS_CODE = "000000";

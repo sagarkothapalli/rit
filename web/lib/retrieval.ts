@@ -143,22 +143,37 @@ interface IndexedDoc {
   kw: string[];
   text: string[];
   rawName: string;
+  tf: Map<string, number>;
 }
 
 const LOCAL_BODY_CODES = new Set(LOCAL_BODIES.map((body) => body.pa_code));
 
 const INDEX: IndexedDoc[] = [...JURISDICTION_AUTHORITIES, ...DIRECTORY].map((pa) => {
   const kw = pa.keywords.map((k) => k.toLowerCase());
+  const text = tokenize(`${pa.name} ${pa.ministry} ${kw.join(" ")}`);
+  const tf = new Map<string, number>();
+  for (const token of text) tf.set(token, (tf.get(token) ?? 0) + 1);
   return {
     pa,
     kw,
-    text: tokenize(`${pa.name} ${pa.ministry} ${kw.join(" ")}`),
+    text,
     rawName: `${pa.name} ${pa.ministry}`.toLowerCase(),
+    tf,
   };
+});
+
+const POSTINGS = new Map<string, number[]>();
+INDEX.forEach((doc, index) => {
+  for (const token of doc.tf.keys()) {
+    const list = POSTINGS.get(token);
+    if (list) list.push(index);
+    else POSTINGS.set(token, [index]);
+  }
 });
 
 const N = INDEX.length;
 const AVG_LEN = INDEX.reduce((s, d) => s + d.text.length, 0) / Math.max(N, 1);
+const MSRDC_QUERY = /\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b/i;
 
 export interface ScoredDoc {
   pa: PublicAuthority;
@@ -183,25 +198,40 @@ export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]
   const verdict = classifyJurisdiction(query);
   const anchorCode = verdict.level === "state" ? verdict.localBody?.pa_code : undefined;
 
+  const uniqueTokens = [...new Set(qTokens)];
   const df = new Map<string, number>();
-  for (const t of new Set(qTokens)) {
-    df.set(t, INDEX.filter((d) => d.text.includes(t)).length);
+  const candidate = new Set<number>();
+  for (const token of uniqueTokens) {
+    const posting = POSTINGS.get(token);
+    df.set(token, posting?.length ?? 0);
+    if (posting) for (const index of posting) candidate.add(index);
+  }
+  if (anchorCode) {
+    const anchor = INDEX.findIndex((doc) => doc.pa.pa_code === anchorCode);
+    if (anchor >= 0) candidate.add(anchor);
+  }
+  if (MSRDC_QUERY.test(query)) {
+    const msrdc = INDEX.findIndex((doc) => doc.pa.pa_code === "STATE-MSRDC");
+    if (msrdc >= 0) candidate.add(msrdc);
   }
 
   const k1 = 1.5;
   const b = 0.75;
-  const scored: ScoredDoc[] = INDEX.map((d) => {
+  const joined = qTokens.join(" ");
+  const scored: ScoredDoc[] = [];
+  for (const index of candidate) {
+    const d = INDEX[index];
     let score = 0;
     const matched = new Set<string>();
     for (const t of qTokens) {
-      const f = d.text.filter((x) => x === t).length;
+      const f = d.tf.get(t) ?? 0;
       if (f === 0) continue;
       matched.add(t);
       const idf = Math.log(1 + (N - (df.get(t) ?? 0) + 0.5) / ((df.get(t) ?? 0) + 0.5));
       score += idf * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (d.text.length / AVG_LEN))));
     }
     for (const kw of d.kw) {
-      if (kw.includes(" ") && qTokens.join(" ").includes(kw)) {
+      if (kw.includes(" ") && joined.includes(kw)) {
         score += 4;
         kw.split(" ").forEach((w) => matched.add(w));
       }
@@ -213,7 +243,7 @@ export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]
       }
     }
     if (d.pa.boost) score *= 1.4;
-    if (d.pa.pa_code === "STATE-MSRDC" && /\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b/i.test(query)) {
+    if (d.pa.pa_code === "STATE-MSRDC" && MSRDC_QUERY.test(query)) {
       score += 18;
       matched.add("mumbai-pune corridor");
     }
@@ -233,8 +263,8 @@ export function searchDirectory(query: string, topK = 3): { results: ScoredDoc[]
       const named = qTokens.some((t) => t.length > 3 && d.rawName.includes(t) && !["india", "national", "authority"].includes(t));
       if (!named) score *= 0.32;
     }
-    return { pa: d.pa, score, matched: [...matched] };
-  });
+    scored.push({ pa: d.pa, score, matched: [...matched] });
+  }
 
   scored.sort((a, b2) => b2.score - a.score);
   const positive = scored.filter((s) => s.score > 0);

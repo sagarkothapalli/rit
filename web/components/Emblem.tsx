@@ -23,10 +23,13 @@ export default function Emblem({
   size = 46,
   /** Decorative next to the wordmark; labelled when it stands alone. */
   decorative = true,
+  /** Load immediately in the masthead; lazy-load repeats in the footer. */
+  priority = true,
 }: {
   className?: string;
   size?: number;
   decorative?: boolean;
+  priority?: boolean;
 }) {
   const height = Math.round(size);
   const width = Math.round(height * ASPECT);
@@ -41,8 +44,9 @@ export default function Emblem({
       aria-hidden={decorative || undefined}
       className={className}
       decoding="async"
+      fetchPriority={priority ? "high" : "low"}
       height={height}
-      loading="eager"
+      loading={priority ? "eager" : "lazy"}
       src="/emblem/state-emblem-white.png"
       srcSet="/emblem/state-emblem-white.png 1x, /emblem/state-emblem-white@2x.png 2x"
       width={width}

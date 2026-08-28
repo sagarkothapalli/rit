@@ -188,6 +188,11 @@ export default function EmailVerification({
       )}
 
       {notice && <p className="verify-notice">{notice}</p>}
+      {devCode && (
+        <p className="verify-devcode">
+          Your code is <strong>{devCode}</strong>
+        </p>
+      )}
       {error && <p className="verify-error" role="alert">{error}</p>}
     </div>
   );

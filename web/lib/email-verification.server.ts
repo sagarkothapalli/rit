@@ -79,24 +79,39 @@ interface Challenge {
   issuedAt: number;
 }
 
-/* ---------- file store ---------- */
+/* ---------- file store ----------
+   ponytail: process memory is the store, the file only a mirror so a
+   `next dev` restart keeps pending codes. Serverless has a read-only disk and
+   more than one instance, so set DATABASE_URL there if a code must survive an
+   instance switch. */
+
+const memory = new Map<string, Challenge>();
 
 async function readFileStore(): Promise<Record<string, Challenge>> {
+  const now = Date.now();
+  const rows: Record<string, Challenge> = {};
   try {
-    const raw = await fs.readFile(FILE_STORE, "utf8");
-    const parsed = JSON.parse(raw) as Record<string, Challenge>;
-    const now = Date.now();
-    return Object.fromEntries(Object.entries(parsed).filter(([, row]) => row.expiresAt > now));
+    const parsed = JSON.parse(await fs.readFile(FILE_STORE, "utf8")) as Record<string, Challenge>;
+    for (const [key, row] of Object.entries(parsed)) if (row.expiresAt > now) rows[key] = row;
   } catch {
-    return {};
+    // No file yet, or nothing readable here. Memory below is the store.
   }
+  for (const [key, row] of memory) if (row.expiresAt > now) rows[key] = row;
+  return rows;
 }
 
 async function writeFileStore(rows: Record<string, Challenge>): Promise<void> {
-  await fs.mkdir(path.dirname(FILE_STORE), { recursive: true });
-  const tmp = `${FILE_STORE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(rows), { mode: 0o600 });
-  await fs.rename(tmp, FILE_STORE);
+  const now = Date.now();
+  memory.clear();
+  for (const [key, row] of Object.entries(rows)) if (row.expiresAt > now) memory.set(key, row);
+  try {
+    await fs.mkdir(path.dirname(FILE_STORE), { recursive: true });
+    const tmp = `${FILE_STORE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(rows), { mode: 0o600 });
+    await fs.rename(tmp, FILE_STORE);
+  } catch {
+    // Read-only filesystem: the in-process map still serves this instance.
+  }
 }
 
 /* ---------- postgres store ---------- */
@@ -361,11 +376,6 @@ async function deliverCode(email: string, code: string): Promise<DeliveryOutcome
     code,
     reason: resendKey ? "The email provider rejected the message." : "No email provider is configured.",
   };
-}
-
-/** Expose demo code to client when no email provider is configured. */
-export function exposeCodeToClient(): boolean {
-  return !process.env.RESEND_API_KEY?.trim();
 }
 
 /** Stable, non-reversible identifier for logging without recording the address. */

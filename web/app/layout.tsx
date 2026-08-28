@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Noto_Sans_Devanagari, Public_Sans } from "next/font/google";
 import { PREFS_SCRIPT } from "@/lib/prefs-script";
@@ -8,12 +8,18 @@ const publicSans = Public_Sans({
   variable: "--font-body",
   subsets: ["latin"],
   display: "swap",
+  preload: true,
+  adjustFontFallback: true,
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
 const devanagari = Noto_Sans_Devanagari({
   variable: "--font-devanagari",
   subsets: ["devanagari"],
   display: "swap",
+  preload: false,
+  adjustFontFallback: true,
+  fallback: ["Noto Sans Devanagari", "Noto Sans", "ui-sans-serif", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -24,6 +30,12 @@ export const metadata: Metadata = {
     icon: [{ url: "/favicon.ico", sizes: "any" }],
     apple: [{ url: "/apple-touch-icon.png" }],
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#082f5b",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

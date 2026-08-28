@@ -1,5 +1,4 @@
 import { classifyJurisdiction } from "@/lib/jurisdiction";
-import { searchDirectory } from "@/lib/retrieval";
 
 export interface NotesLike {
   records_sought: string[];
@@ -211,8 +210,6 @@ export function inferBodyHint(transcript: string): string | null {
   for (const pattern of PATTERNS) {
     if (pattern.body && pattern.test.test(transcript)) return pattern.body;
   }
-  const { results, reviewRequired } = searchDirectory(transcript, 1);
-  if (!reviewRequired && results[0]) return results[0].pa.name;
   return null;
 }
 

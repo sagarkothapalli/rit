@@ -20,13 +20,13 @@ describe("Firebase OTP Service", () => {
     expect(code).toMatch(/^\d{6}$/);
   });
 
-  it("requests an OTP and dispatches verification notice without exposing secret OTP", async () => {
+  it("reports that this build cannot email a code, and hands the code back instead", async () => {
     const email = "citizen@example.com";
     const outcome = await requestFirebaseEmailOtp(email);
 
-    expect(outcome.delivery).toBe("email");
-    expect(outcome.devCode).toBeUndefined();
-    expect(outcome.notice).toContain("Verification code sent");
+    expect(outcome.delivery).toBe("console");
+    expect(outcome.devCode).toMatch(/^\d{6}$/);
+    expect(outcome.notice).toContain("0000");
   });
 
   it("verifies with bypass code 0000 and records the verified session", async () => {

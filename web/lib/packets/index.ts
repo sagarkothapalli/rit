@@ -3,10 +3,10 @@ import type { AttachmentKind, AttachmentRecord } from "@/lib/domain/attachments"
 import { normalizeFilingFilename } from "@/lib/domain/attachments";
 import type { CaseRecord } from "@/lib/domain/case";
 import { filingRulesFor } from "@/lib/filing-rules/registry";
-import { newId } from "@/lib/storage/id";
 import { createComplaintPdf } from "./complaint";
 import { createFirstAppealPdf } from "./first-appeal";
 import { createIndexPdf } from "./shared";
+import type { PacketFile } from "./meta";
 import { createFullRequestPdf, receiptFromCase } from "./request";
 import { createSecondAppealPdf } from "./second-appeal";
 import { blobToBytes, zipStore } from "./zip";
@@ -19,12 +19,7 @@ export { createFullRequestPdf, receiptFromCase } from "./request";
 export { createIndexPdf } from "./shared";
 export { zipStore } from "./zip";
 export { missingRequiredDocuments } from "./required";
-
-export interface PacketFile {
-  name: string;
-  kind: AttachmentRecord["kind"];
-  blob: Blob;
-}
+export { attachmentMeta, type PacketFile } from "./meta";
 
 export type BytesResolver = (attachment: AttachmentRecord) => Promise<Uint8Array | null>;
 
@@ -134,32 +129,6 @@ export async function packetZip(files: PacketFile[]): Promise<Blob> {
     })),
   );
   return zipStore(entries);
-}
-
-export function attachmentMeta(
-  record: CaseRecord,
-  file: PacketFile,
-  byteSize: number,
-): AttachmentRecord {
-  const id = newId();
-  const stored = normalizeFilingFilename(file.name);
-  return {
-    id,
-    caseId: record.id,
-    eventId: null,
-    kind: file.kind,
-    originalName: file.name,
-    storedName: stored,
-    mimeType: file.blob.type || "application/pdf",
-    byteSize,
-    sha256: "",
-    storageKey: id,
-    pageCount: null,
-    language: record.language,
-    verificationStatus: "VALID",
-    createdAt: new Date().toISOString(),
-    deletedAt: null,
-  };
 }
 
 export function packedKinds(files: PacketFile[]): AttachmentKind[] {

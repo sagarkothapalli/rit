@@ -193,65 +193,61 @@ export interface CodeRequestOutcome {
 
 export async function requestEmailCode(email: string): Promise<CodeRequestOutcome> {
   const normalized = email.trim().toLowerCase();
-  try {
-    const res = await fetch("/api/auth/email/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: normalized }),
-    });
-    if (!jsonResponse(res)) {
-      return await requestFirebaseEmailOtp(normalized);
+  const res = await fetch("/api/auth/email/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: normalized }),
+  }).catch(() => null);
+
+  // No route handler here (static export): the browser-side flow takes over.
+  if (!res || !jsonResponse(res)) return requestFirebaseEmailOtp(normalized);
+
+  const payload = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    retryAfter?: number;
+    delivery?: "email" | "console";
+    notice?: string;
+    devCode?: string;
+    demoBypass?: boolean;
+  };
+  if (!res.ok) {
+    if (payload.error === "COOLDOWN" || payload.error === "RATE_LIMITED") {
+      throw new Error(`Please wait ${payload.retryAfter ?? 60} seconds before requesting another code.`);
     }
-    const payload = (await res.json()) as {
-      error?: string;
-      retryAfter?: number;
-      delivery?: "email" | "console";
-      notice?: string;
-      devCode?: string;
-      demoBypass?: boolean;
-    };
-    if (!res.ok) {
-      if (payload.error === "COOLDOWN" || payload.error === "RATE_LIMITED") {
-        throw new Error(`Please wait ${payload.retryAfter ?? 60} seconds before requesting another code.`);
-      }
-      if (payload.error === "INVALID_EMAIL") throw new Error("Enter a valid email address.");
-      throw new Error("The verification code could not be sent. Try again.");
-    }
-    return {
-      delivery: payload.delivery ?? "console",
-      notice: payload.notice,
-      devCode: payload.devCode,
-      demoBypass: payload.demoBypass,
-    };
-  } catch (cause) {
-    if (cause instanceof Error && /wait|valid email|could not be sent/i.test(cause.message)) throw cause;
-    return await requestFirebaseEmailOtp(normalized);
+    if (payload.error === "INVALID_EMAIL") throw new Error("Enter a valid email address.");
+    throw new Error("The verification code could not be sent. Try again.");
   }
+  return {
+    delivery: payload.delivery ?? "console",
+    notice: payload.notice,
+    devCode: payload.devCode,
+    demoBypass: payload.demoBypass,
+  };
 }
 
 /** Verify the code. On success the browser holds a signed verified-email cookie or Firebase verified session. */
 export async function verifyEmailCode(email: string, code: string): Promise<void> {
   const normalized = email.trim().toLowerCase();
-  try {
-    const res = await fetch("/api/auth/email/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: normalized, code }),
-    });
-    if (!jsonResponse(res)) {
-      await verifyFirebaseEmailOtp(normalized, code);
-      return;
-    }
-    const payload = (await res.json()) as { error?: string; message?: string; attemptsLeft?: number };
-    if (!res.ok) {
-      const suffix = typeof payload.attemptsLeft === "number" ? ` ${payload.attemptsLeft} attempts left.` : "";
-      throw new Error(`${payload.message ?? "That code could not be verified."}${suffix}`);
-    }
-  } catch (cause) {
-    if (cause instanceof Error && (cause.message.includes("attempt") || /not correct|expired|pending|valid/i.test(cause.message))) {
-      throw cause;
-    }
+  const res = await fetch("/api/auth/email/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: normalized, code }),
+  }).catch(() => null);
+
+  // No route handler here (static export): the browser-side flow takes over.
+  if (!res || !jsonResponse(res)) {
     await verifyFirebaseEmailOtp(normalized, code);
+    return;
+  }
+
+  const payload = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    message?: string;
+    attemptsLeft?: number;
+  };
+  if (!res.ok) {
+    const suffix = typeof payload.attemptsLeft === "number" ? ` ${payload.attemptsLeft} attempts left.` : "";
+    throw new Error(`${payload.message ?? "That code could not be verified."}${suffix}`);
   }
 }
 

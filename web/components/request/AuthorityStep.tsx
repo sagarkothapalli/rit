@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import DirectoryBrowser from "@/components/DirectoryBrowser";
+import dynamic from "next/dynamic";
 import type { Notes } from "@/lib/cage/schemas";
 import { searchDirectory } from "@/lib/retrieval";
+
+const DirectoryBrowser = dynamic(() => import("@/components/DirectoryBrowser"));
 
 /* ============================================================
    Step 6. Choosing the public authority.

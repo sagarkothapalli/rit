@@ -1,5 +1,5 @@
-import { sendSignInLinkToEmail } from "firebase/auth";
-import { firebaseConfig, getFirebaseAuth } from "./config";
+const FIREBASE_PROJECT_ID =
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "prod-app-tracker";
 
 /* ============================================================
    Firebase Email Verification & OTP Service
@@ -148,7 +148,7 @@ export async function requestFirebaseEmailOtp(email: string): Promise<FirebaseOt
 
   const code = generateOtpCode();
   const salt = generateSalt();
-  const hash = await computeHash(`${normalized}:${code}:${salt}:${firebaseConfig.projectId}`);
+  const hash = await computeHash(`${normalized}:${code}:${salt}:${FIREBASE_PROJECT_ID}`);
 
   const challenge: FirebaseOtpChallenge = {
     email: normalized,
@@ -161,27 +161,35 @@ export async function requestFirebaseEmailOtp(email: string): Promise<FirebaseOt
 
   saveChallenge(challenge);
 
-  // Connect to Firebase Authentication to send real email
+  // Firebase Auth only ever emails a sign-in *link*, never a numeric code, and
+  // nothing in this app handles the link's return. So this dispatch is a
+  // liveness signal for the console setup, not the delivery of `code`.
+  // ponytail: a real six digit code needs the server route plus RESEND_API_KEY.
   if (typeof window !== "undefined") {
     try {
+      const [{ sendSignInLinkToEmail }, { getFirebaseAuth }] = await Promise.all([
+        import("firebase/auth"),
+        import("./config"),
+      ]);
       const auth = getFirebaseAuth();
       if (auth) {
         const origin = window.location.origin || "https://praja-rti.vercel.app";
-        const actionCodeSettings = {
+        await sendSignInLinkToEmail(auth, normalized, {
           url: `${origin}/request?email=${encodeURIComponent(normalized)}`,
           handleCodeInApp: true,
-        };
-        await sendSignInLinkToEmail(auth, normalized, actionCodeSettings);
-        console.info(`[Firebase Auth] Verification email dispatched to ${normalized}`);
+        });
       }
     } catch (err) {
-      console.info("[Firebase Auth] Dispatch note:", err);
+      // Usually auth/operation-not-allowed (email link sign-in is off) or
+      // auth/unauthorized-continue-uri (this host is not an authorized domain).
+      console.error("[Firebase Auth] could not send the sign-in email:", err);
     }
   }
 
   return {
-    delivery: "email",
-    notice: "Verification code sent to your email. Check your inbox (or use bypass 0000).",
+    delivery: "console",
+    notice: "This build has no server mailer, so no code was emailed. Use 0000 to continue.",
+    devCode: code,
     demoBypass: true,
   };
 }
@@ -219,7 +227,7 @@ export async function verifyFirebaseEmailOtp(email: string, inputCode: string): 
     throw new Error("Too many incorrect attempts. Request a new code.");
   }
 
-  const inputHash = await computeHash(`${normalized}:${given}:${challenge.salt}:${firebaseConfig.projectId}`);
+  const inputHash = await computeHash(`${normalized}:${given}:${challenge.salt}:${FIREBASE_PROJECT_ID}`);
 
   if (inputHash !== challenge.hash) {
     challenge.attempts += 1;

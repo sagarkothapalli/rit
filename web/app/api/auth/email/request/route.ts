@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
-import {
-  DEFAULT_BYPASS_CODE,
-  emailFingerprint,
-  exposeCodeToClient,
-  issueCode,
-  otpBypassEnabled,
-} from "@/lib/email-verification.server";
+import { emailFingerprint, issueCode, otpBypassEnabled } from "@/lib/email-verification.server";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +39,10 @@ export async function POST(req: Request) {
   console.info(`[praja-rti] verification code issued for ${emailFingerprint(parsed.data.email)}`);
 
   const delivered = result.delivery.channel === "email";
-  const showDemoBypass = otpBypassEnabled() && exposeCodeToClient();
-  const actualCode = result.delivery.channel === "console" ? result.delivery.code : undefined;
-  const devCode = showDemoBypass ? DEFAULT_BYPASS_CODE : process.env.NODE_ENV === "production" ? undefined : actualCode;
+  const bypass = otpBypassEnabled();
+  // No mail went out: show the code rather than leave the citizen with nothing.
+  // PRAJA_OTP_BYPASS=0 turns this off once a provider is configured.
+  const devCode = !delivered && bypass && result.delivery.channel === "console" ? result.delivery.code : undefined;
 
   return NextResponse.json({
     ok: true,
@@ -56,9 +51,9 @@ export async function POST(req: Request) {
     devCode,
     notice: delivered
       ? "A six digit code has been emailed to you. It expires in ten minutes."
-      : showDemoBypass
-        ? "Demo verification is on. Use the labelled demo code. This is not available in production."
-        : undefined,
-    demoBypass: showDemoBypass || undefined,
+      : devCode
+        ? "No email provider is configured, so the code is shown here instead of being emailed."
+        : "The code could not be emailed. Ask the operator to configure RESEND_API_KEY.",
+    demoBypass: bypass || undefined,
   });
 }

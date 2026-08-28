@@ -1,10 +1,9 @@
 import Link from "next/link";
 import ApplicationAccess from "@/components/ApplicationAccess";
 import Emblem from "@/components/Emblem";
-import RtiLifecycleChart from "@/components/RtiLifecycleChart";
+import LazyRtiLifecycleChart from "@/components/LazyRtiLifecycleChart";
 import SiteMasthead from "@/components/SiteMasthead";
-import { directoryStats } from "@/lib/directory-tree";
-import { PORTAL_TOTAL } from "@/lib/retrieval";
+import { MINISTRY_COUNT, PORTAL_TOTAL } from "@/lib/directory-meta";
 
 /* ============================================================
    Home. One job: explain what this is, show what it produces,
@@ -87,7 +86,6 @@ function ScaleIcon() {
 }
 
 export default function Page() {
-  const stats = directoryStats();
   const portalTotal = PORTAL_TOTAL.toLocaleString("en-IN");
 
   return (
@@ -142,7 +140,7 @@ export default function Page() {
               <span>authorities listed on rtionline.gov.in</span>
             </div>
             <div>
-              <strong>{stats.ministries}</strong>
+              <strong>{MINISTRY_COUNT}</strong>
               <span>ministries and departments covered</span>
             </div>
             <div>
@@ -254,7 +252,7 @@ export default function Page() {
               stages that follow it — reply, transfer, appeal, or complaint.
             </p>
           </div>
-          <RtiLifecycleChart />
+          <LazyRtiLifecycleChart />
         </div>
       </section>
 
@@ -319,7 +317,7 @@ export default function Page() {
       <footer className="site-footer" id="accessibility">
         <div className="site-container footer-grid">
           <div className="footer-brand">
-            <Emblem className="footer-emblem" size={44} />
+            <Emblem className="footer-emblem" priority={false} size={44} />
             <div>
               <strong>Praja RTI</strong>
               <span>Independent citizen assistance</span>

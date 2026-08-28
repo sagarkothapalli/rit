@@ -10,24 +10,21 @@
    ============================================================ */
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import SiteMasthead from "@/components/SiteMasthead";
 import Advancing from "@/components/request/Advancing";
-import AcknowledgementStep from "@/components/request/AcknowledgementStep";
-import ApplicantStep from "@/components/request/ApplicantStep";
 import ApplicationStep from "@/components/request/ApplicationStep";
-import AuthorityStep from "@/components/request/AuthorityStep";
 import DescribeStep from "@/components/request/DescribeStep";
 import EligibilityStep from "@/components/request/EligibilityStep";
 import LanguageStep from "@/components/request/LanguageStep";
 import ProgressCard from "@/components/request/ProgressCard";
 import RecordsStep from "@/components/request/RecordsStep";
-import ReviewStep from "@/components/request/ReviewStep";
 import StepBar from "@/components/request/StepBar";
 import { STEP_IDS, type Step } from "@/components/request/steps";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useLiveIntake } from "@/hooks/useLiveIntake";
-import { searchDirectory, type PublicAuthority } from "@/lib/retrieval";
+import type { PublicAuthority } from "@/lib/retrieval";
 import {
   draftFallback,
   explainFallback,
@@ -42,7 +39,6 @@ import {
 import { clearIntakeRecord, composeIntakeTranscript, loadIntakeRecord } from "@/lib/live/intakeMemory";
 import { hasApplicantData, type IntakeHandoff } from "@/lib/live/intakePrompt";
 import { normalizeNotes, routingQuery } from "@/lib/intake";
-import { hostedGate } from "@/lib/cage/hosted";
 import {
   applicationLength,
   applicationText,
@@ -60,7 +56,6 @@ import {
   type StoredApplication,
 } from "@/lib/application-records";
 import { emptyApplicant, lookupPincode, validateApplicant, type ApplicantDetails, type FieldProblem } from "@/lib/applicant";
-import { createApplicationPdf, createReceiptPdf } from "@/lib/application-pdf";
 import ExternalFilingHandoff from "@/components/cases/ExternalFilingHandoff";
 import { coveringStatement } from "@/lib/filing-rules/portal-text";
 import { filingRulesFor } from "@/lib/filing-rules/registry";
@@ -76,10 +71,23 @@ import {
   photoEvidenceFallback,
   type PhotoEvidenceItem,
 } from "@/lib/evidence/photos";
-import { createFullRequestPdf } from "@/lib/packets/request";
-import { attachmentMeta } from "@/lib/packets";
+import { attachmentMeta } from "@/lib/packets/meta";
 import { blobToBytes } from "@/lib/packets/zip";
 import type { CaseRecord } from "@/lib/domain/case";
+
+function StepFallback() {
+  return (
+    <div className="working-strip" role="status">
+      <span className="working-dot" aria-hidden="true" />
+      Loading this step
+    </div>
+  );
+}
+
+const AuthorityStep = dynamic(() => import("@/components/request/AuthorityStep"), { loading: StepFallback });
+const ApplicantStep = dynamic(() => import("@/components/request/ApplicantStep"), { loading: StepFallback });
+const ReviewStep = dynamic(() => import("@/components/request/ReviewStep"), { loading: StepFallback });
+const AcknowledgementStep = dynamic(() => import("@/components/request/AcknowledgementStep"), { loading: StepFallback });
 
 /* ---------- the nine steps ---------- */
 
@@ -91,7 +99,7 @@ function spokenTranscript(finalText: string, interimText: string) {
   return [finalText, interimText].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
-function localFallback(url: string, body: unknown): unknown {
+async function localFallback(url: string, body: unknown): Promise<unknown> {
   if (url.endsWith("/notes")) {
     const request = body as { transcript?: string; intake?: IntakeHints };
     const transcript = request.transcript ?? "";
@@ -112,6 +120,7 @@ function localFallback(url: string, body: unknown): unknown {
       notes: request.notes,
       draft: request.draft,
     });
+    const { searchDirectory } = await import("@/lib/retrieval");
     const { results, reviewRequired } = searchDirectory(query, 3);
     const retrieved = results.map((result) => ({
       id: result.pa.pa_code,
@@ -165,11 +174,12 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
     }
   }
   try {
+    const { hostedGate } = await import("@/lib/cage/hosted");
     return (await hostedGate(url, body)) as T;
   } catch {
     // Proxy or model unavailable — same deterministic path as no-key mode.
   }
-  return localFallback(url, body) as T;
+  return (await localFallback(url, body)) as T;
 }
 
 interface NotesResp { mode: Mode; model?: string; data: Notes }
@@ -547,8 +557,15 @@ export default function RequestWorkspace() {
     setErr(null);
     setSavedApplication(null);
     setStorageMessage(null);
-    setApplicationPdf(createApplicationPdf({ report, applicant }));
-    setStep("review");
+    void (async () => {
+      try {
+        const { createApplicationPdf } = await import("@/lib/application-pdf");
+        setApplicationPdf(createApplicationPdf({ report, applicant }));
+        setStep("review");
+      } catch {
+        setErr("The application preview could not be prepared. Try again.");
+      }
+    })();
   }
 
   async function createAcknowledgement() {
@@ -570,6 +587,7 @@ export default function RequestWorkspace() {
         applicant: { ...applicant, email: applicant.email.trim().toLowerCase() },
         report,
       };
+      const { createApplicationPdf, createReceiptPdf } = await import("@/lib/application-pdf");
       const finalPdf = createApplicationPdf({ report, applicant: seed.applicant, acknowledgementNumber });
       const receiptPdf = createReceiptPdf(seed);
       const record: StoredApplication = {
@@ -628,6 +646,7 @@ export default function RequestWorkspace() {
         caseRecord.attachments.push(bplMeta);
       }
       if (useTextAttachment || overLimit) {
+        const { createFullRequestPdf } = await import("@/lib/packets/request");
         const full = createFullRequestPdf(caseRecord);
         const fullMeta = attachmentMeta(caseRecord, { name: "full-request.pdf", kind: "FULL_REQUEST_PDF", blob: full }, full.size);
         await putAttachmentBlob({ id: fullMeta.id, caseId: caseRecord.id, mimeType: "application/pdf", bytes: await blobToBytes(full).then((b) => b.buffer as ArrayBuffer) });

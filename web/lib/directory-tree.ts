@@ -35,7 +35,19 @@ function byNameAndDepth(a: PublicAuthority, b: PublicAuthority): number {
   return a.name.localeCompare(b.name, "en");
 }
 
+interface IndexedAuthority {
+  authority: PublicAuthority;
+  haystack: string;
+}
+
+interface IndexedGroup {
+  group: MinistryGroup;
+  ministryHay: string;
+  rows: IndexedAuthority[];
+}
+
 let cache: MinistryGroup[] | null = null;
+let searchCache: IndexedGroup[] | null = null;
 
 /** Alphabetical ministry groups. Computed once per process. */
 export function ministryGroups(): MinistryGroup[] {
@@ -93,22 +105,33 @@ export interface MinistryMatch {
  * Deliberately not the BM25 ranker used for routing: browsing a directory
  * wants predictable "contains" behaviour, not relevance scoring.
  */
+function directorySearchIndex(): IndexedGroup[] {
+  if (searchCache) return searchCache;
+  searchCache = ministryGroups().map((group) => ({
+    group,
+    ministryHay: group.ministry.toLowerCase(),
+    rows: group.authorities.map((authority) => ({
+      authority,
+      haystack: `${authority.name} ${authority.pa_code} ${authority.keywords.join(" ")}`.toLowerCase(),
+    })),
+  }));
+  return searchCache;
+}
+
 export function filterDirectory(query: string): MinistryMatch[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return ministryGroups().map((group) => ({ group, matches: group.authorities, ministryMatched: false }));
 
   const out: MinistryMatch[] = [];
-  for (const group of ministryGroups()) {
-    const ministryMatched = group.ministry.toLowerCase().includes(needle);
-    const matches = group.authorities.filter((authority) =>
-      authority.name.toLowerCase().includes(needle)
-      || authority.pa_code === needle
-      || authority.keywords.some((keyword) => keyword.toLowerCase().includes(needle)),
-    );
+  for (const item of directorySearchIndex()) {
+    const ministryMatched = item.ministryHay.includes(needle);
+    const matches = item.rows
+      .filter((row) => row.haystack.includes(needle))
+      .map((row) => row.authority);
     if (ministryMatched || matches.length > 0) {
       out.push({
-        group,
-        matches: ministryMatched && matches.length === 0 ? group.authorities : matches,
+        group: item.group,
+        matches: ministryMatched && matches.length === 0 ? item.group.authorities : matches,
         ministryMatched,
       });
     }

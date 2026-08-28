@@ -14,7 +14,8 @@ describe("email verification server", () => {
     delete process.env.PRAJA_OTP_BYPASS;
   });
 
-  it("does not accept 000000 unless the development bypass flag is on", async () => {
+  it("rejects 000000 when PRAJA_OTP_BYPASS=0", async () => {
+    process.env.PRAJA_OTP_BYPASS = "0";
     expect(otpBypassEnabled()).toBe(false);
     const result = await verifyCode(`no-bypass-${Date.now()}@example.com`, "000000");
     expect(result.ok).toBe(false);
@@ -24,11 +25,11 @@ describe("email verification server", () => {
     expect(normalizeEmail("  User@Example.COM  ")).toBe("user@example.com");
   });
 
-  it("accepts the demo bypass code only when PRAJA_OTP_BYPASS=1", async () => {
-    process.env.PRAJA_OTP_BYPASS = "1";
+  it("accepts 000000 and 0000 by default, with no challenge pending", async () => {
+    expect(otpBypassEnabled()).toBe(true);
     expect(DEFAULT_BYPASS_CODE).toBe("000000");
-    const result = await verifyCode(`bypass-${Date.now()}@example.com`, "000000");
-    expect(result.ok).toBe(true);
+    expect((await verifyCode(`bypass-${Date.now()}@example.com`, "000000")).ok).toBe(true);
+    expect((await verifyCode(`bypass-short-${Date.now()}@example.com`, "0000")).ok).toBe(true);
   });
 
   it("mints and verifies signed session tokens", () => {
