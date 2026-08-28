@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { verifiedEmailFromRequest } from "@/lib/email-verification.server";
 import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
 import { csrfFailure } from "@/lib/security/csrf";
 import type { CaseRecord } from "@/lib/domain/case";
@@ -16,14 +15,18 @@ export function guardWrite(req: Request, name: string): NextResponse | null {
   return csrfFailure(req) ?? limited(req, name);
 }
 
-export function requireOwner(req: Request): { email: string } | NextResponse {
-  const email = verifiedEmailFromRequest(req);
-  if (!email) return NextResponse.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 401 });
-  return { email };
+/**
+ * There are no server sessions any more: verification happens on the device.
+ * Every owner-scoped route therefore refuses, and the client works from
+ * IndexedDB, which is what it already falls back to.
+ * ponytail: fails closed rather than trusting a caller-supplied address.
+ */
+export function requireOwner(): { email: string } | NextResponse {
+  return NextResponse.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 401 });
 }
 
 export async function ownerCase(req: Request, id: string): Promise<{ email: string; record: CaseRecord } | NextResponse> {
-  const owner = requireOwner(req);
+  const owner = requireOwner();
   if (owner instanceof NextResponse) return owner;
   if (!isCaseId(id)) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   const record = await getCaseRecord(id);

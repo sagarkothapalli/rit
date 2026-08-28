@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  requestEmailCode,
-  signOutEmail,
-  verifiedEmail,
-  verifyEmailCode,
-} from "@/lib/application-records";
+import { requestEmailCode, signOutEmail, verifyEmailCode } from "@/lib/application-records";
 
 /* ============================================================
    Email verification. Mirrors the official portal's first step:
@@ -35,23 +30,7 @@ export default function EmailVerification({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
-
-  // A verified cookie may already exist from an earlier visit.
-  useEffect(() => {
-    let active = true;
-    void verifiedEmail().then((found) => {
-      if (!active || !found) return;
-      onEmailChange(found);
-      setPhase("verified");
-      onVerified(found);
-    });
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -63,11 +42,9 @@ export default function EmailVerification({
     setBusy(true);
     setError(null);
     setNotice(null);
-    setDevCode(null);
     try {
       const outcome = await requestEmailCode(email);
       setNotice(outcome.notice ?? null);
-      setDevCode(outcome.devCode ?? null);
       setPhase("code");
       setCooldown(60);
     } catch (cause) {
@@ -85,7 +62,6 @@ export default function EmailVerification({
       setPhase("verified");
       setCode("");
       setNotice(null);
-      setDevCode(null);
       onVerified(email.trim().toLowerCase());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That code could not be verified.");
@@ -109,7 +85,7 @@ export default function EmailVerification({
         <div>
           <span className="verify-badge">Email verified</span>
           <strong>{email}</strong>
-          <p>Your application will be saved against this address so you can reopen it later.</p>
+          <p>Your application is saved against this address on this device so you can reopen it later.</p>
         </div>
         <button type="button" className="verify-secondary" onClick={() => void changeAddress()}>
           Use a different address
@@ -124,8 +100,8 @@ export default function EmailVerification({
         <>
           <label htmlFor="verify-email">Email address</label>
           <p className="verify-hint">
-            The official portal sends a one time code to your email before it accepts an application. This step
-            does the same, so your saved copy is protected.
+            The official portal verifies your address before it accepts an application. This step stands in for
+            that. Nothing is emailed and nothing is kept after you close the page.
           </p>
           <div className="verify-row">
             <input
@@ -146,27 +122,28 @@ export default function EmailVerification({
         </>
       ) : (
         <>
-          <label htmlFor="verify-code">Six digit code</label>
+          <label htmlFor="verify-code">Verification code</label>
           <p className="verify-hint">
-            Sent to <strong>{email}</strong>. It expires in ten minutes and can be used once.
+            Verifying <strong>{email}</strong>. This build sends no mail: enter <strong>0000</strong> or{" "}
+            <strong>4000</strong>.
           </p>
           <div className="verify-row">
             <input
               id="verify-code"
               value={code}
-              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 4))}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && (code.length === 6 || code === "0000")) void submitCode();
+                if (event.key === "Enter" && code.length === 4) void submitCode();
               }}
               inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="000000"
+              autoComplete="off"
+              placeholder="0000"
               className="verify-code-input"
             />
             <button
               type="button"
               onClick={() => void submitCode()}
-              disabled={busy || (code.length !== 6 && code !== "0000")}
+              disabled={busy || code.length !== 4}
             >
               {busy ? "Checking…" : "Verify"}
             </button>
@@ -188,11 +165,6 @@ export default function EmailVerification({
       )}
 
       {notice && <p className="verify-notice">{notice}</p>}
-      {devCode && (
-        <p className="verify-devcode">
-          Your code is <strong>{devCode}</strong>
-        </p>
-      )}
       {error && <p className="verify-error" role="alert">{error}</p>}
     </div>
   );

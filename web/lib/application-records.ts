@@ -1,12 +1,6 @@
 import type { ApplicantDetails } from "@/lib/applicant";
 import type { ApplicationReport } from "@/lib/report";
 import { openDb } from "@/lib/storage/cases.client";
-import {
-  clearFirebaseSession,
-  getFirebaseVerifiedEmail,
-  requestFirebaseEmailOtp,
-  verifyFirebaseEmailOtp,
-} from "@/lib/firebase/otp";
 
 export type { ApplicantDetails };
 
@@ -82,10 +76,6 @@ function toSummary(record: StoredApplication): ApplicationSummary {
   };
 }
 
-function jsonResponse(res: Response): boolean {
-  return (res.headers.get("content-type") ?? "").includes("application/json");
-}
-
 export function makeAcknowledgementNumber(date = new Date()): string {
   const bytes = new Uint8Array(9);
   crypto.getRandomValues(bytes);
@@ -134,153 +124,60 @@ export function downloadBlob(filename: string, blob: Blob): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function saveApplication(record: StoredApplication): Promise<"server-and-device" | "device-only"> {
-  const normalized: StoredApplication = {
+export async function saveApplication(record: StoredApplication): Promise<void> {
+  await localPut({
     ...record,
     applicant: { ...record.applicant, email: record.applicant.email.trim().toLowerCase() },
-  };
-  await localPut(normalized);
-  try {
-    const res = await fetch("/api/applications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(normalized),
-    });
-    if (res.ok && jsonResponse(res)) return "server-and-device";
-  } catch {
-    // Static builds and offline use retain the IndexedDB copy.
-  }
-  return "device-only";
+  });
 }
 
 export async function findApplication(acknowledgementNumber: string): Promise<StoredApplication | null> {
-  const ack = acknowledgementNumber.trim().toUpperCase();
-  try {
-    const res = await fetch(`/api/applications?ack=${encodeURIComponent(ack)}`, { cache: "no-store" });
-    if (res.ok && jsonResponse(res)) {
-      const payload = (await res.json()) as { application?: StoredApplication };
-      if (payload.application) {
-        await localPut(payload.application);
-        return payload.application;
-      }
-    }
-  } catch {
-    // Fall back to this browser's database.
-  }
-  return localGet(ack);
+  return localGet(acknowledgementNumber.trim().toUpperCase());
 }
 
-/* ---------- email verification ---------- */
+/* ---------- email verification ----------
+   Demo verification, on this device and nowhere else. No provider, no server,
+   no session that outlives the page: reload and the citizen verifies again.
+   ponytail: DEMO_CODES is the whole auth story. A real one needs a mailer and
+   a signed server session. */
+
+const DEMO_CODES = new Set(["0000", "4000"]);
+
+/** Module state, so nothing survives a reload, a new tab, or a new visit. */
+let verifiedAddress: string | null = null;
 
 export interface CodeRequestOutcome {
   delivery: "email" | "console";
   notice?: string;
-  /** Present in preview/development to verify the generated OTP. */
-  devCode?: string;
   demoBypass?: boolean;
 }
 
 export async function requestEmailCode(email: string): Promise<CodeRequestOutcome> {
-  const normalized = email.trim().toLowerCase();
-  const res = await fetch("/api/auth/email/request", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: normalized }),
-  }).catch(() => null);
-
-  // No route handler here (static export): the browser-side flow takes over.
-  if (!res || !jsonResponse(res)) return requestFirebaseEmailOtp(normalized);
-
-  const payload = (await res.json().catch(() => ({}))) as {
-    error?: string;
-    retryAfter?: number;
-    delivery?: "email" | "console";
-    notice?: string;
-    devCode?: string;
-    demoBypass?: boolean;
-  };
-  if (!res.ok) {
-    if (payload.error === "COOLDOWN" || payload.error === "RATE_LIMITED") {
-      throw new Error(`Please wait ${payload.retryAfter ?? 60} seconds before requesting another code.`);
-    }
-    if (payload.error === "INVALID_EMAIL") throw new Error("Enter a valid email address.");
-    throw new Error("The verification code could not be sent. Try again.");
-  }
+  if (!email.trim().includes("@")) throw new Error("Enter a valid email address.");
   return {
-    delivery: payload.delivery ?? "console",
-    notice: payload.notice,
-    devCode: payload.devCode,
-    demoBypass: payload.demoBypass,
+    delivery: "console",
+    notice: "No code is emailed in this build. Enter 0000 or 4000 to continue.",
+    demoBypass: true,
   };
 }
 
-/** Verify the code. On success the browser holds a signed verified-email cookie or Firebase verified session. */
 export async function verifyEmailCode(email: string, code: string): Promise<void> {
-  const normalized = email.trim().toLowerCase();
-  const res = await fetch("/api/auth/email/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: normalized, code }),
-  }).catch(() => null);
-
-  // No route handler here (static export): the browser-side flow takes over.
-  if (!res || !jsonResponse(res)) {
-    await verifyFirebaseEmailOtp(normalized, code);
-    return;
+  if (!DEMO_CODES.has(code.replace(/\D/g, ""))) {
+    throw new Error("That code is not correct. Enter 0000 or 4000.");
   }
-
-  const payload = (await res.json().catch(() => ({}))) as {
-    error?: string;
-    message?: string;
-    attemptsLeft?: number;
-  };
-  if (!res.ok) {
-    const suffix = typeof payload.attemptsLeft === "number" ? ` ${payload.attemptsLeft} attempts left.` : "";
-    throw new Error(`${payload.message ?? "That code could not be verified."}${suffix}`);
-  }
+  verifiedAddress = email.trim().toLowerCase();
 }
 
-/** The email this browser has verified, or null. */
+/** The address verified in this page view, or null. Never read from storage. */
 export async function verifiedEmail(): Promise<string | null> {
-  try {
-    const res = await fetch("/api/auth/email/session", { cache: "no-store" });
-    if (res.ok && jsonResponse(res)) {
-      const payload = (await res.json()) as { email?: string | null };
-      if (payload.email) return payload.email;
-    }
-  } catch {
-    // Static previews keep a Firebase session in this browser.
-  }
-  return getFirebaseVerifiedEmail();
+  return verifiedAddress;
 }
 
 export async function signOutEmail(): Promise<void> {
-  clearFirebaseSession();
-  try {
-    await fetch("/api/auth/email/session", { method: "DELETE" });
-  } catch {
-    // Hosted fallback does not need server invalidation.
-  }
+  verifiedAddress = null;
 }
 
-/**
- * Applications stored against the verified address. The server decides which
- * address that is from the signed cookie, so this cannot be pointed at
- * someone else's history.
- */
+/** Applications saved on this device against the given address. */
 export async function listApplications(email: string): Promise<ApplicationSummary[]> {
-  const normalized = email.trim().toLowerCase();
-  try {
-    const res = await fetch("/api/applications", { cache: "no-store" });
-    if (res.ok && jsonResponse(res)) {
-      const payload = (await res.json()) as { applications?: ApplicationSummary[] };
-      if (payload.applications) return payload.applications;
-    } else if (res.status === 401) {
-      throw new Error("Verify your email address first.");
-    }
-  } catch (cause) {
-    if (cause instanceof Error && cause.message === "Verify your email address first.") throw cause;
-    // Static builds and offline use search the current browser.
-  }
-  return localList(normalized);
+  return localList(email.trim().toLowerCase());
 }

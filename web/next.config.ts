@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
   },
-  experimental: {
-    optimizePackageImports: ["firebase", "firebase/auth", "firebase/app"],
-  },
   env: {
     NEXT_PUBLIC_STATIC_HOST: staticExport ? "1" : "",
   },

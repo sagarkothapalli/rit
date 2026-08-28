@@ -595,7 +595,7 @@ export default function RequestWorkspace() {
         applicationPdfBase64: await blobToBase64(finalPdf),
         receiptPdfBase64: await blobToBase64(receiptPdf),
       };
-      const storage = await saveApplication(record);
+      await saveApplication(record);
       const caseRecord = await createBlankCase({
         caseType: "RTI_REQUEST",
         ownerEmail: seed.applicant.email,
@@ -665,11 +665,7 @@ export default function RequestWorkspace() {
       setApplicationPdf(finalPdf);
       setSavedApplication(record);
       setSavedCase(caseRecord);
-      setStorageMessage(
-        storage === "server-and-device"
-          ? "Saved to the case database and to this device."
-          : "Saved on this device only. The server database was unavailable in this session.",
-      );
+      setStorageMessage("Saved on this device. Nothing was sent anywhere.");
       setStep("acknowledgement");
     } catch (cause) {
       // A bare catch here hid a VersionError from the local database for days.

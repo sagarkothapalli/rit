@@ -30,7 +30,7 @@ export async function GET(req: Request) {
     if (!record) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
     return NextResponse.json({ case: stripClientSecrets(record) });
   }
-  const owner = requireOwner(req);
+  const owner = requireOwner();
   if (owner instanceof NextResponse) return owner;
   return NextResponse.json({ cases: await listCaseRecords(owner.email), email: owner.email });
 }
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const blocked = guardWrite(req, "cases-write");
   if (blocked) return blocked;
-  const owner = requireOwner(req);
+  const owner = requireOwner();
   if (owner instanceof NextResponse) return owner;
   const body = await readJson(req);
   if (body instanceof NextResponse) return body;
