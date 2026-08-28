@@ -279,7 +279,7 @@ export function routingQuery(input: {
 
 const MUMBAI_PUNE_EXPRESSWAY = /\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b[\s\S]{0,50}\b(expressway|toll)|\b(expressway|toll)\b[\s\S]{0,50}\b(mumbai\s*[-–—]?\s*pune|pune\s*[-–—]?\s*mumbai)\b/i;
 const NATIONAL_HIGHWAY = /\b(nhai|nh-?\d|national highway|highways?|राजमार्ग|हाईवे)\b/i;
-const STATE_BODY = /\b(pwd|public works|municipal|nagar|panchayat|discom|jal board)\b/i;
+const STATE_BODY = /\b(pwd|public works|municipal|nagar|panchayat|discom|jal board|corporation of|local body|collector|tehsil|mandal)\b/i;
 
 /** Structured hints handed off by the live intake agent (already confirmed by the citizen). */
 export interface IntakeHintsLike {
@@ -331,7 +331,20 @@ export function normalizeNotes(transcript: string, notes: NotesLike, intake?: In
     body = verdict.recommendedBody;
   }
 
-  if (corridorMatter) {
+  /*
+   * The mirror image, and the bug this guards: the citizen named a Central
+   * authority ("NHAI", "EPFO", "this is a central government matter") and the
+   * model still proposed a municipal corporation as the records holder. A
+   * named authority is the citizen's own statement about who holds the file,
+   * so it overrides a State body the model guessed.
+   */
+  if (verdict.level === "central" && verdict.namedAuthority && verdict.recommendedBody) {
+    if (!body || STATE_BODY.test(body)) body = verdict.recommendedBody;
+  }
+
+  const namedCentral = verdict.level === "central" && verdict.namedAuthority;
+
+  if (corridorMatter && !namedCentral) {
     jurisdiction = "state";
     stateName = "Maharashtra";
     body = "Maharashtra State Road Development Corporation (MSRDC)";

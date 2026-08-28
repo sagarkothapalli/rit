@@ -8,6 +8,7 @@ import {
 } from "@/lib/live/intakePrompt";
 import { createPlaybackQueue, int16ToBase64, type PlaybackQueue } from "@/lib/live/audio";
 import { saveIntakeRecord, clearIntakeRecord } from "@/lib/live/intakeMemory";
+import { createSessionMemory, type SessionMemory } from "@/lib/live/sessionMemory";
 import {
   detectHoldIntent,
   detectProceedIntent,
@@ -17,10 +18,14 @@ import {
 import { detectIdentityProbe, IDENTITY_NUDGE, redactIdentity } from "@/lib/live/identity";
 import { classifyJurisdiction, type JurisdictionVerdict } from "@/lib/jurisdiction";
 import {
+  BRIEFING_INTERVAL_MS,
   LIVE_VOICE,
   INPUT_MIME,
   SESSION_HARD_CLOSE_MS,
   SESSION_SOFT_WRAP_MS,
+  TURN_SILENCE_MS,
+  VAD_PREFIX_PADDING_MS,
+  VAD_SILENCE_MS,
   WORKLET_PATH,
 } from "@/lib/live/constants";
 
@@ -29,6 +34,24 @@ import {
    detects the citizen's language, takes their complaint, and
    ends with the submit_intake handoff. Every failure path
    keeps the captured text so the citizen can continue typing.
+
+   Two rules govern everything the app injects into the
+   conversation, both learned the hard way:
+
+   1. ONE TURN. Every note the app wants the agent to act on —
+      the identity answer, the jurisdiction verdict, the memory
+      briefing, the handoff order — is coalesced by
+      `SessionMemory` into a single injected turn. Sending them
+      separately made the agent talk over itself.
+
+   2. ONLY IN A GAP. Notes are injected at a turn boundary and
+      only after the citizen has been quiet for TURN_SILENCE_MS.
+      Injecting mid-sentence is what made the agent interrupt
+      the citizen and then wander off on its own thread.
+
+   The memory itself is per-session and in-process: created in
+   start(), discarded on stop(). Nothing about the conversation
+   in progress is written to storage.
    ============================================================ */
 
 export type LiveStatus =
@@ -117,22 +140,48 @@ const FALLBACK_HINT = "Pick a language below and continue instead.";
  * Deterministic backstop for the jurisdiction flag. The system prompt asks
  * the model to volunteer that a ward road or municipal complaint is a State
  * matter, but the citizen must be told even when the model forgets. As soon
- * as the running transcript classifies as a State matter, we inject the
- * verdict as a system turn so the agent speaks it in the citizen's language.
+ * as the running transcript classifies as a State matter, we queue the
+ * verdict so the agent speaks it in the citizen's language.
  */
-function jurisdictionNudge(verdict: JurisdictionVerdict): string {
+function stateFlagNote(verdict: JurisdictionVerdict): string {
   const body = verdict.localBody?.name ?? verdict.recommendedBody ?? "the relevant State department or local body";
   const state = verdict.stateName ? ` in ${verdict.stateName}` : "";
   return [
-    "(System note, not spoken by the citizen. Jurisdiction triage has run on what the citizen just said:",
+    "(System note, not spoken by the citizen. Jurisdiction triage has run on what the citizen has said so far:",
     `this is a STATE / local-body matter${state}, not a Central government one.`,
     `The records are held by ${body}.`,
-    "In your very next turn, in the citizen's language and in one or two short sentences, tell them:",
+    "Once the citizen has finished speaking, in the citizen's language and in one or two short sentences, tell them:",
     "(1) this is not a Central government matter, (2) RTI Online — this Central portal — cannot accept it,",
     `(3) they must approach ${body}.`,
     "Then reassure them you will still prepare the complete application addressed to that authority, and continue the intake.",
     "Do not repeat this flag later in the conversation. When you call submit_intake, set jurisdiction to \"state\"",
     `and authority_hint to "${body}".)`,
+  ].join(" ");
+}
+
+/**
+ * The correction that was missing, and the reason this file changed: the
+ * citizen names a Central authority — "NHAI", "EPFO", "this is a central
+ * government complaint" — and the agent still announces it as a municipal
+ * issue, because the surrounding words are all civic ones. The classifier
+ * settles it deterministically; this tells the agent so, before it guesses.
+ *
+ * Sent whenever the verdict is Central by name, so it lands both as a
+ * pre-emptive instruction and as a correction if the agent already misspoke.
+ */
+function centralFlagNote(verdict: JurisdictionVerdict): string {
+  const body = verdict.recommendedBody ?? "the Central public authority the citizen named";
+  const aside = verdict.alsoMentioned
+    ? ` The citizen also mentioned ${verdict.alsoMentioned}; that does NOT make this a municipal or State matter, because they named the authority that holds these records.`
+    : "";
+  return [
+    "(System note, not spoken by the citizen. Jurisdiction triage has run on what the citizen has said so far:",
+    `the citizen has NAMED a CENTRAL public authority — ${body} — so this is a CENTRAL government matter and it CAN be filed on RTI Online.${aside}`,
+    "Do NOT tell the citizen this is a municipal, corporation, ward, panchayat, or State government issue.",
+    "Do NOT suggest they approach a municipal corporation or a State department.",
+    "If you have already said any of that, correct yourself in one short sentence in their language — say that these",
+    `records are held by ${body} and the application will be addressed there — then carry straight on with the intake.`,
+    `When you call submit_intake, set jurisdiction to "central" and authority_hint to "${body}".)`,
   ].join(" ");
 }
 
@@ -143,10 +192,22 @@ function jurisdictionNudge(verdict: JurisdictionVerdict): string {
  */
 function reconcileJurisdiction(handoff: IntakeHandoff, verdict: JurisdictionVerdict): IntakeHandoff {
   if (verdict.level === "unclear") return handoff;
-  if (verdict.level === "central" && handoff.jurisdiction !== "state") {
-    return { ...handoff, jurisdiction: "central" };
+  if (verdict.level === "central") {
+    /*
+     * A named Central authority overrules the model outright, including a
+     * "state" label and a municipal authority_hint it may have written.
+     * Anything less confident only fills a gap.
+     */
+    if (verdict.namedAuthority) {
+      return {
+        ...handoff,
+        jurisdiction: "central",
+        jurisdiction_note: handoff.jurisdiction_note ?? (verdict.reasons.join(" ") || null),
+        authority_hint: verdict.recommendedBody ?? handoff.authority_hint,
+      };
+    }
+    return handoff.jurisdiction === "state" ? handoff : { ...handoff, jurisdiction: "central" };
   }
-  if (verdict.level !== "state") return handoff;
   const body = verdict.localBody?.name ?? verdict.recommendedBody;
   return {
     ...handoff,
@@ -179,22 +240,29 @@ export function useLiveIntake() {
   const hardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const proceedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Retries an injection that arrived while the citizen was still speaking. */
+  const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<LiveMessage[]>([]);
   const userTextRef = useRef("");
   const agentTextRef = useRef("");
   const handoffRef = useRef<IntakeHandoff | null>(null);
   const closingRef = useRef(false);
   const jurisdictionRef = useRef<JurisdictionVerdict | null>(null);
+  /**
+   * Per-session working memory. Created in start(), dropped on reset() — it
+   * is never persisted, and a new request always begins with a blank one.
+   */
+  const memoryRef = useRef<SessionMemory>(createSessionMemory());
+  /** True once the jurisdiction has been stated to the citizen, either way. */
   const flaggedRef = useRef(false);
-  const pendingFlagRef = useRef<JurisdictionVerdict | null>(null);
+  /** When the memory briefing was last injected. */
+  const briefedAtRef = useRef(0);
   /** Set when the citizen says they are finished; cleared once acted on. */
   const pendingProceedRef = useRef(false);
   /** Transcript length already scanned for a confirmation. */
   const proceedConsumedRef = useRef(0);
   /** How many times we have had to push the model towards the handoff. */
   const proceedNudgesRef = useRef(0);
-  /** Set when the citizen asks what model or company is behind the voice. */
-  const pendingIdentityRef = useRef(false);
   /** Transcript length already scanned for an identity question. */
   const identityConsumedRef = useRef(0);
 
@@ -219,8 +287,11 @@ export function useLiveIntake() {
     userTextRef.current = `${userTextRef.current} ${text}`.replace(/\s+/g, " ").trim().slice(0, 6000);
     setUserText(userTextRef.current);
 
-    // Re-triage on every transcription chunk. The verdict is cheap and the
-    // citizen may only name their city several sentences in.
+    // The session memory re-derives the established facts on every chunk.
+    // The verdict is cheap, and the citizen may only name their city several
+    // sentences in.
+    const memory = memoryRef.current;
+    memory.noteCitizen(text);
     const verdict = classifyJurisdiction(userTextRef.current);
     if (verdict.level !== jurisdictionRef.current?.level
       || verdict.localBody?.pa_code !== jurisdictionRef.current?.localBody?.pa_code) {
@@ -228,10 +299,18 @@ export function useLiveIntake() {
       setJurisdiction(verdict);
     }
 
-    // Queue the backstop flag. It is sent on turn completion, never mid-turn,
-    // so it cannot interrupt the agent while it is already speaking.
-    if (verdict.level === "state" && verdict.confidence >= 0.6 && !flaggedRef.current) {
-      pendingFlagRef.current = verdict;
+    /*
+     * Queue the jurisdiction verdict, in whichever direction it points. Both
+     * directions matter: a ward drain must be flagged as a State matter, and
+     * a citizen who names NHAI must not be told their complaint is municipal.
+     * Queued only — it is injected in a gap between turns, never mid-sentence.
+     */
+    if (!flaggedRef.current && verdict.confidence >= 0.6) {
+      if (verdict.level === "state") {
+        memory.queue("jurisdiction", stateFlagNote(verdict));
+      } else if (verdict.level === "central" && verdict.namedAuthority) {
+        memory.queue("jurisdiction", centralFlagNote(verdict));
+      }
     }
 
     // "What model are you?" Recognised here so the answer comes from an
@@ -242,7 +321,7 @@ export function useLiveIntake() {
       && detectIdentityProbe(text)
     ) {
       identityConsumedRef.current = userTextRef.current.length;
-      pendingIdentityRef.current = true;
+      memory.queue("identity", IDENTITY_NUDGE);
     }
 
     // "That's it, proceed." Recognised here rather than left to the model,
@@ -253,6 +332,7 @@ export function useLiveIntake() {
       if (detectHoldIntent(text)) {
         // "Wait, one more thing" after a confirmation cancels it.
         pendingProceedRef.current = false;
+        memory.cancel("proceed");
         if (proceedTimerRef.current) {
           clearTimeout(proceedTimerRef.current);
           proceedTimerRef.current = null;
@@ -267,43 +347,53 @@ export function useLiveIntake() {
     }
   }, []);
 
-  /** Send the queued jurisdiction flag once the turn is free. */
-  const flushJurisdictionFlag = useCallback(() => {
-    const verdict = pendingFlagRef.current;
-    if (!verdict || flaggedRef.current || closingRef.current) return;
-    if (statusRef.current !== "active" && statusRef.current !== "wrapup") return;
-    pendingFlagRef.current = null;
-    flaggedRef.current = true;
-    try {
-      sessionRef.current?.sendClientContent({
-        turns: { role: "user", parts: [{ text: jurisdictionNudge(verdict) }] },
-      });
-    } catch {
-      /* session may be closing — the notes gate flags it again downstream */
-    }
-  }, []);
-
   /**
-   * Re-states the one permitted answer about identity, at the turn
-   * boundary, before the model has to improvise one. Sent every
-   * time the citizen asks — persistence is exactly the case the
-   * system prompt alone tends to lose.
+   * The one place the app speaks to the model outside a real turn.
+   *
+   * Everything queued — the identity answer, the jurisdiction verdict, the
+   * memory briefing, the handoff order — goes out as a SINGLE turn, and only
+   * once the citizen has been quiet for TURN_SILENCE_MS. Sending each note as
+   * it was raised is what made the agent interrupt the citizen and then talk
+   * over its own previous thought.
+   *
+   * If the citizen is still speaking, the injection is re-armed rather than
+   * dropped: the note is still needed, just not yet.
    */
-  const flushIdentityProbe = useCallback(() => {
-    if (!pendingIdentityRef.current || closingRef.current) return;
-    if (statusRef.current !== "active" && statusRef.current !== "wrapup") return;
-    pendingIdentityRef.current = false;
-    try {
-      sessionRef.current?.sendClientContent({
-        turns: { role: "user", parts: [{ text: IDENTITY_NUDGE }] },
-      });
-    } catch {
-      /* session may be closing — the prompt's own rule still stands */
-    }
+  const flushNotes = useCallback(() => {
+    /*
+     * Named inner function so the retry can re-enter it. Re-arming beats
+     * dropping: the note is still needed, we are only waiting for a gap.
+     */
+    const attempt = () => {
+      if (noteTimerRef.current) {
+        clearTimeout(noteTimerRef.current);
+        noteTimerRef.current = null;
+      }
+      const memory = memoryRef.current;
+      if (closingRef.current) return;
+      if (statusRef.current !== "active" && statusRef.current !== "wrapup") return;
+      if (!memory.pending()) return;
+      // Transcription lags the audio, so a turn boundary is not proof of silence.
+      if (memory.silenceMs() < TURN_SILENCE_MS) {
+        noteTimerRef.current = setTimeout(attempt, TURN_SILENCE_MS);
+        return;
+      }
+      const text = memory.drain();
+      if (!text) return;
+      try {
+        sessionRef.current?.sendClientContent({ turns: { role: "user", parts: [{ text }] } });
+      } catch {
+        /* session may be closing — the notes gate re-checks jurisdiction downstream */
+      }
+    };
+    attempt();
   }, []);
 
   const appendAgent = useCallback((text: string) => {
     if (!text) return;
+    // The memory keeps the agent's questions so the briefing can forbid a
+    // repeat — the raw stream, because a question can straddle two chunks.
+    memoryRef.current.noteAgent(text);
     // Accumulate the raw stream, but redact the whole of it before it is
     // rendered. Transcription arrives in fragments, so a vendor name can
     // straddle two chunks — redacting a chunk in isolation would miss it.
@@ -312,7 +402,7 @@ export function useLiveIntake() {
   }, []);
 
   const clearTimers = useCallback(() => {
-    for (const ref of [softTimerRef, hardTimerRef, closeTimerRef, proceedTimerRef]) {
+    for (const ref of [softTimerRef, hardTimerRef, closeTimerRef, proceedTimerRef, noteTimerRef]) {
       if (ref.current) {
         clearTimeout(ref.current);
         ref.current = null;
@@ -437,8 +527,10 @@ export function useLiveIntake() {
   /**
    * Acted on at turn boundaries: ask the model once (twice at
    * most) to hand off, and start the timer that stops waiting.
+   * The order goes through the same single-turn queue as every
+   * other note, so it cannot arrive as a second interruption.
    */
-  const flushProceedIntent = useCallback(() => {
+  const queueProceedIntent = useCallback(() => {
     if (!pendingProceedRef.current || handoffRef.current || closingRef.current) return;
     if (statusRef.current !== "active" && statusRef.current !== "wrapup") return;
     if (!hasEnoughForHandoff(userTextRef.current)) {
@@ -451,17 +543,47 @@ export function useLiveIntake() {
       return;
     }
     proceedNudgesRef.current += 1;
-    try {
-      sessionRef.current?.sendClientContent({
-        turns: { role: "user", parts: [{ text: PROCEED_NUDGE }] },
-      });
-    } catch {
-      forceHandoff();
-      return;
-    }
+    memoryRef.current.queue("proceed", PROCEED_NUDGE);
     if (proceedTimerRef.current) clearTimeout(proceedTimerRef.current);
     proceedTimerRef.current = setTimeout(() => forceHandoff(), FORCE_HANDOFF_MS);
   }, [forceHandoff]);
+
+  /**
+   * Everything the app wants to say between turns, decided in one
+   * place so it can be sent as one turn.
+   *
+   * The memory briefing is the addition that stops the drift: it
+   * re-states the facts the citizen has already given and the
+   * questions the agent has already asked, so the agent continues
+   * the conversation instead of restarting its own version of it.
+   * It rides along with whatever else is queued, and otherwise goes
+   * out on its own at most every BRIEFING_INTERVAL_MS.
+   */
+  const onTurnBoundary = useCallback(() => {
+    const memory = memoryRef.current;
+    if (closingRef.current) return;
+    if (statusRef.current !== "active" && statusRef.current !== "wrapup") return;
+
+    queueProceedIntent();
+
+    // Once the verdict has been queued, the flag is spent: the agent is told
+    // once, and the briefing carries the standing fact from then on.
+    if (memory.pending()) {
+      flaggedRef.current = true;
+      memory.markJurisdictionSpoken();
+    }
+
+    const due = Date.now() - briefedAtRef.current >= BRIEFING_INTERVAL_MS;
+    if ((memory.pending() || due) && memory.briefingIsStale() && !handoffRef.current) {
+      const briefing = memory.briefing();
+      if (briefing) {
+        memory.queue("memory", briefing);
+        briefedAtRef.current = Date.now();
+      }
+    }
+
+    flushNotes();
+  }, [flushNotes, queueProceedIntent]);
 
   const beginAudio = useCallback(async () => {
     const session = sessionRef.current;
@@ -544,12 +666,9 @@ export function useLiveIntake() {
           }
         }
       }
-      // A completed turn is the only safe moment to inject a system turn.
-      if (content?.turnComplete) {
-        flushIdentityProbe();
-        flushJurisdictionFlag();
-        flushProceedIntent();
-      }
+      // A completed turn is the only safe moment to inject a system turn —
+      // and even then only if the citizen has actually stopped speaking.
+      if (content?.turnComplete) onTurnBoundary();
       if (msg.goAway && statusRef.current === "active") wrapUp();
       const calls = msg.toolCall?.functionCalls;
       if (calls) {
@@ -566,7 +685,7 @@ export function useLiveIntake() {
         }
       }
     },
-    [appendAgent, appendUser, beginAudio, commitHandoff, flushIdentityProbe, flushJurisdictionFlag, flushProceedIntent, wrapUp]
+    [appendAgent, appendUser, beginAudio, commitHandoff, onTurnBoundary, wrapUp]
   );
 
   const start = useCallback(async () => {
@@ -578,12 +697,18 @@ export function useLiveIntake() {
     agentTextRef.current = "";
     handoffRef.current = null;
     jurisdictionRef.current = null;
-    pendingFlagRef.current = null;
+    /*
+     * A brand-new memory for every request. The intake is allowed to remember
+     * everything within one conversation and nothing across two: this line is
+     * the whole of that policy, and it is why the memory is never written to
+     * sessionStorage or the server.
+     */
+    memoryRef.current = createSessionMemory();
     flaggedRef.current = false;
+    briefedAtRef.current = Date.now();
     pendingProceedRef.current = false;
     proceedConsumedRef.current = 0;
     proceedNudgesRef.current = 0;
-    pendingIdentityRef.current = false;
     identityConsumedRef.current = 0;
     clearIntakeRecord();
     setUserText("");
@@ -603,7 +728,7 @@ export function useLiveIntake() {
         throw new Error(message);
       }
       const data = (await res.json()) as { token: string; model: string };
-      const { GoogleGenAI, Modality } = await import("@google/genai");
+      const { GoogleGenAI, EndSensitivity, Modality, StartSensitivity } = await import("@google/genai");
       const ai = new GoogleGenAI({ apiKey: data.token });
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -618,6 +743,21 @@ export function useLiveIntake() {
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: LIVE_VOICE } } },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          /*
+           * Turn taking, tuned for a citizen describing a problem rather than
+           * for quick back-and-forth. LOW end-of-speech sensitivity plus a
+           * long silence window means a pause for thought is not read as the
+           * end of the turn — the behaviour that had the agent answering half
+           * a sentence in and then losing the thread.
+           */
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
+              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+              prefixPaddingMs: VAD_PREFIX_PADDING_MS,
+              silenceDurationMs: VAD_SILENCE_MS,
+            },
+          },
           tools: [{ functionDeclarations: [submitIntakeDeclaration] }],
         },
         callbacks: {
@@ -709,12 +849,13 @@ export function useLiveIntake() {
     agentTextRef.current = "";
     handoffRef.current = null;
     jurisdictionRef.current = null;
-    pendingFlagRef.current = null;
+    // The working memory dies with the request it belonged to.
+    memoryRef.current = createSessionMemory();
     flaggedRef.current = false;
+    briefedAtRef.current = 0;
     pendingProceedRef.current = false;
     proceedConsumedRef.current = 0;
     proceedNudgesRef.current = 0;
-    pendingIdentityRef.current = false;
     identityConsumedRef.current = 0;
     clearIntakeRecord();
     setUserText("");

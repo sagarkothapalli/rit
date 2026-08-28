@@ -122,6 +122,47 @@ the final say. If the agent misses the flag, the app injects a system turn
 asking it to speak the verdict; if it gets it wrong, the app corrects the
 records holder before the application is written.
 
+**Named authority outranks civic vocabulary.** When the citizen names the
+public authority — NHAI, EPFO, the passport office, Indian Railways, a Union
+ministry, GVMC, GHMC, a nagar nigam, a panchayat, the collectorate — that
+body's level decides the jurisdiction. Civic words around it ("the road in
+my colony has potholes") describe the problem; the name describes the
+authority. The two never compete. The tiered scoring in `jurisdiction.ts`
+treats an authority hit as decisive regardless of how many subject or weak
+hits the transcript accumulates on the other side, and the system prompt
+in `intakePrompt.ts` tells the agent the same thing in plain words.
+
+## Memory and turn taking
+
+A voice intake is one conversation, and the agent holds all of it for the
+duration of the request. Three rules follow, and they are the reason the
+session used to feel like the agent was interrupting and then thinking on its
+own:
+
+**One request, one memory.** `web/lib/live/sessionMemory.ts` is created
+fresh in `start()` and dropped in `reset()`. It is never written to
+`sessionStorage`, `localStorage`, a cookie, or the server. The handoff
+record that *is* persisted (`web/lib/live/intakeMemory.ts`) is a different
+thing — the completed intake, used for workspace refresh — and lives
+alongside this rule, not against it. A second request always begins blank.
+
+**The briefing re-grounds the model.** The session memory keeps the
+established facts (concern, place, period, office, mobile, PIN, email) and
+the agent's own questions, verbatim in the citizen's language. The hook
+coalesces that briefing with every other system note (identity answer,
+jurisdiction flag, handoff order) into a single injected turn, sent only
+when the citizen has been quiet for at least `TURN_SILENCE_MS` so it never
+lands mid-sentence. The agent must not re-ask, must not restart, must not
+go back over ground the citizen has already covered.
+
+**A pause is not the end of a turn.** The VAD is tuned for a citizen
+describing a problem, not for snappy back-and-forth: `endOfSpeechSensitivity`
+is `LOW`, `silenceDurationMs` is `1200`, and `prefixPaddingMs` is `320`
+(`web/lib/live/constants.ts`). A breath, a pause to find a word, a moment
+to collect a thought — none of those cut the agent off. The agent answers
+when the citizen has actually finished, and the citizen controls when that
+is.
+
 ### B. The information need
 
 - Open with the introduction above, then listen.
