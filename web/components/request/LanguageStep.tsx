@@ -119,6 +119,9 @@ export default function LanguageStep({
               <button type="button" className="primary-button" onClick={() => void live.start()}>
                 Talk to the RTI agent
               </button>
+              <button type="button" className="secondary-button" onClick={onManual}>
+                Manual entry
+              </button>
               {finished && live.userText.trim() && (
                 <button type="button" className="link-button" onClick={onReviewSpoken}>
                   Review what I said
@@ -166,11 +169,13 @@ export default function LanguageStep({
           </p>
         )}
 
-        <div className="intake-actions">
-          <button type="button" className="secondary-button" onClick={onManual}>
-            Manual entry
-          </button>
-        </div>
+        {!liveReady && (
+          <div className="intake-actions">
+            <button type="button" className="secondary-button" onClick={onManual}>
+              Manual entry
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

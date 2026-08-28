@@ -2554,8 +2554,15 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
   margin-top: 20px;
+}
+
+.intake-actions .primary-button,
+.intake-actions .secondary-button {
+  font-size: 0.925rem;
+  min-height: 48px;
+  padding: 12px 20px;
 }
 
 .intake-live-status {
@@ -2646,12 +2653,13 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
 }
 
 .language-grid label:hover {
-  border-color: var(--navy);
+  border-color: var(--accent);
 }
 
 .language-grid label.is-selected {
   background: var(--navy-soft);
-  border-color: var(--navy);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .language-grid input {
@@ -2668,12 +2676,16 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
 }
 
 .language-grid label.is-selected .language-native {
-  color: var(--navy);
+  color: var(--accent);
 }
 
 .language-latin {
   color: var(--fg-faint);
   font-size: 0.72rem;
+}
+
+.language-grid label.is-selected .language-latin {
+  color: var(--fg-soft);
 }
 
 /* ---------- step 2: describe ---------- */
