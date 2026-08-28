@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStoredApplication, listStoredApplications, saveStoredApplication } from "@/lib/application-store.server";
 import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
 import { verifiedEmailFromRequest } from "@/lib/email-verification.server";
+import { csrfFailure } from "@/lib/security/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +24,16 @@ const ApplicantSchema = z.object({
   email: z.string().email().max(254).transform((value) => value.toLowerCase()),
   citizenship: z.literal("Indian"),
   isBpl: z.boolean(),
+  bplCardNumber: z.string().max(40).optional(),
+  bplYearOfIssue: z.string().max(4).optional(),
+  bplIssuingAuthority: z.string().max(160).optional(),
   bplDocument: z
     .object({
       name: z.string().max(200),
       size: z.number().max(20_000_000),
       type: z.string().max(100),
       dataUrl: z.string().optional(),
-      status: z.enum(["idle", "verifying", "valid", "flagged", "error"]),
+      status: z.enum(["idle", "verifying", "valid", "flagged", "error", "unverified"]),
       documentType: z.string().max(150).optional(),
       isForbiddenId: z.boolean().optional(),
       flagReason: z.string().max(600).nullable().optional(),
@@ -79,6 +83,8 @@ const StoredApplicationSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const csrf = csrfFailure(req);
+  if (csrf) return csrf;
   const rl = rateLimit(clientKey(req, "application-save"));
   if (!rl.ok) return NextResponse.json({ error: "RATE_LIMITED", retryAfter: rl.retryAfter }, { status: 429 });
   try {

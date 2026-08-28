@@ -6,6 +6,7 @@ import {
   emailFingerprint,
   exposeCodeToClient,
   issueCode,
+  otpBypassEnabled,
 } from "@/lib/email-verification.server";
 
 export const dynamic = "force-dynamic";
@@ -44,10 +45,9 @@ export async function POST(req: Request) {
   console.info(`[praja-rti] verification code issued for ${emailFingerprint(parsed.data.email)}`);
 
   const delivered = result.delivery.channel === "email";
-  const devCode =
-    result.delivery.channel === "console" && exposeCodeToClient()
-      ? DEFAULT_BYPASS_CODE
-      : undefined;
+  const showDemoBypass = otpBypassEnabled() && exposeCodeToClient();
+  const actualCode = result.delivery.channel === "console" ? result.delivery.code : undefined;
+  const devCode = showDemoBypass ? DEFAULT_BYPASS_CODE : process.env.NODE_ENV === "production" ? undefined : actualCode;
 
   return NextResponse.json({
     ok: true,
@@ -56,6 +56,9 @@ export async function POST(req: Request) {
     devCode,
     notice: delivered
       ? "A six digit code has been emailed to you. It expires in ten minutes."
-      : undefined,
+      : showDemoBypass
+        ? "Demo verification is on. Use the labelled demo code. This is not available in production."
+        : undefined,
+    demoBypass: showDemoBypass || undefined,
   });
 }

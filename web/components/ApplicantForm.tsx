@@ -29,6 +29,8 @@ interface ApplicantFormProps {
   prefilled?: ReadonlySet<keyof ApplicantDetails>;
   /** Email is locked once verified, so the record matches the verified address. */
   emailLocked?: boolean;
+  mobileRequired?: boolean;
+  maxAttachmentBytes?: number;
 }
 
 export default function ApplicantForm({
@@ -37,6 +39,8 @@ export default function ApplicantForm({
   problems,
   prefilled,
   emailLocked = false,
+  mobileRequired = true,
+  maxAttachmentBytes = 1_000_000,
 }: ApplicantFormProps) {
   function set<K extends keyof ApplicantDetails>(key: K, next: ApplicantDetails[K]) {
     onChange({ ...value, [key]: next });
@@ -173,12 +177,26 @@ export default function ApplicantForm({
       <fieldset>
         <legend>Contact</legend>
 
-        <Field label="Mobile number" required error={err("mobile")} hint="Used for SMS alerts on the official portal.">
+        <Field
+          label="Mobile number"
+          required={mobileRequired}
+          error={err("mobile")}
+          hint="Used for SMS alerts on the official portal."
+        >
           <input
             value={value.mobile}
             onChange={(event) => set("mobile", event.target.value.replace(/\D/g, "").slice(0, 10))}
             inputMode="tel"
             autoComplete="tel"
+          />
+        </Field>
+
+        <Field label="Landline" error={err("phone")} hint="Optional.">
+          <input
+            value={value.phone}
+            onChange={(event) => set("phone", event.target.value.replace(/[^\d+\-\s]/g, "").slice(0, 20))}
+            inputMode="tel"
+            autoComplete="tel-national"
           />
         </Field>
 
@@ -222,11 +240,37 @@ export default function ApplicantForm({
         </label>
 
         {value.isBpl && (
-          <BplDocumentUpload
-            document={value.bplDocument}
-            onChange={(nextDoc) => set("bplDocument", nextDoc)}
-            error={err("bplDocument")}
-          />
+          <>
+            <BplDocumentUpload
+              document={value.bplDocument}
+              onChange={(nextDoc) => set("bplDocument", nextDoc)}
+              error={err("bplDocument")}
+              maxBytes={maxAttachmentBytes}
+            />
+            <div className="applicant-row">
+            <Field label="BPL card / certificate number">
+              <input
+                value={value.bplCardNumber ?? ""}
+                onChange={(event) => set("bplCardNumber", event.target.value)}
+                maxLength={40}
+              />
+            </Field>
+            <Field label="Year of issue">
+              <input
+                value={value.bplYearOfIssue ?? ""}
+                onChange={(event) => set("bplYearOfIssue", event.target.value.replace(/\D/g, "").slice(0, 4))}
+                inputMode="numeric"
+              />
+            </Field>
+          </div>
+          <Field label="Issuing authority">
+            <input
+              value={value.bplIssuingAuthority ?? ""}
+              onChange={(event) => set("bplIssuingAuthority", event.target.value)}
+              maxLength={160}
+            />
+          </Field>
+          </>
         )}
       </fieldset>
 
@@ -310,14 +354,22 @@ function Choice<T extends string>({
   );
 }
 
+function statusFromVerdict(verdict: BplVerification["verdict"]): BplDocumentAttachment["status"] {
+  if (verdict === "VALID_BPL") return "valid";
+  if (verdict === "FLAGGED_WRONG_DOCUMENT") return "flagged";
+  return "unverified";
+}
+
 function BplDocumentUpload({
   document,
   onChange,
   error,
+  maxBytes,
 }: {
   document?: BplDocumentAttachment | null;
   onChange: (next: BplDocumentAttachment | null) => void;
   error?: string | null;
+  maxBytes: number;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -329,7 +381,7 @@ function BplDocumentUpload({
         name: file.name,
         size: file.size,
         type: file.type || (file.name.endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
-        dataUrl: file.type.startsWith("image/") ? dataUrl : undefined,
+        dataUrl,
         status: "verifying",
         documentType: "Document",
       });
@@ -354,39 +406,25 @@ function BplDocumentUpload({
         const data = json.data;
         if (!data) throw new Error("Invalid response");
 
-        if (data.verdict === "VALID_BPL") {
-          onChange({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            dataUrl: file.type.startsWith("image/") ? dataUrl : undefined,
-            status: "valid",
-            documentType: data.document_type,
-            isForbiddenId: false,
-            flagReason: data.reason_summary,
-            confidence: data.confidence,
-            extractedDetails: data.extracted_details
-              ? {
-                  cardNumber: data.extracted_details.card_number ?? undefined,
-                  holderName: data.extracted_details.holder_name ?? undefined,
-                  category: data.extracted_details.category ?? undefined,
-                  state: data.extracted_details.state ?? undefined,
-                }
-              : undefined,
-          });
-        } else {
-          onChange({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            dataUrl: file.type.startsWith("image/") ? dataUrl : undefined,
-            status: "flagged",
-            documentType: data.document_type,
-            isForbiddenId: data.is_forbidden_id,
-            flagReason: data.reason_summary,
-            confidence: data.confidence,
-          });
-        }
+        onChange({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          dataUrl,
+          status: statusFromVerdict(data.verdict),
+          documentType: data.document_type,
+          isForbiddenId: data.is_forbidden_id,
+          flagReason: data.reason_summary,
+          confidence: data.confidence,
+          extractedDetails: data.extracted_details
+            ? {
+                cardNumber: data.extracted_details.card_number ?? undefined,
+                holderName: data.extracted_details.holder_name ?? undefined,
+                category: data.extracted_details.category ?? undefined,
+                state: data.extracted_details.state ?? undefined,
+              }
+            : undefined,
+        });
       } catch {
         // Deterministic fallback screening
         const fallback = bplVerificationFallback(file.name);
@@ -394,8 +432,8 @@ function BplDocumentUpload({
           name: file.name,
           size: file.size,
           type: file.type,
-          dataUrl: file.type.startsWith("image/") ? dataUrl : undefined,
-          status: fallback.verdict === "VALID_BPL" ? "valid" : "flagged",
+          dataUrl,
+          status: statusFromVerdict(fallback.verdict),
           documentType: fallback.document_type,
           isForbiddenId: fallback.is_forbidden_id,
           flagReason: fallback.reason_summary,
@@ -424,8 +462,9 @@ function BplDocumentUpload({
         return;
       }
 
-      if (file.size > 5 * 1024 * 1024) {
-        setLocalError("File is larger than 5 MB. Please choose a smaller file.");
+      if (file.size > maxBytes) {
+        const mb = maxBytes / 1_000_000;
+        setLocalError(`This destination accepts files up to ${mb % 1 === 0 ? mb.toFixed(0) : mb.toFixed(1)} MB.`);
         return;
       }
 
@@ -439,7 +478,7 @@ function BplDocumentUpload({
       };
       reader.readAsDataURL(file);
     },
-    [verifyFile]
+    [verifyFile, maxBytes]
   );
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -627,6 +666,20 @@ function BplDocumentUpload({
                 {document.extractedDetails?.cardNumber && (
                   <span className="bpl-tag">Card No: {document.extractedDetails.cardNumber}</span>
                 )}
+              </div>
+            </div>
+          )}
+
+          {document.status === "unverified" && (
+            <div className="bpl-status-banner is-unverified" role="status">
+              <div className="bpl-status-text">
+                <div className="bpl-status-heading">
+                  <strong>Unverified — review required:</strong> {document.documentType || "Document"}
+                </div>
+                <p className="bpl-status-desc">
+                  {document.flagReason
+                    || "Automatic verification is unavailable. The file is stored with the packet and is not treated as proven BPL eligibility."}
+                </p>
               </div>
             </div>
           )}

@@ -182,6 +182,7 @@ export interface CodeRequestOutcome {
   notice?: string;
   /** Present only in local development with no email provider configured. */
   devCode?: string;
+  demoBypass?: boolean;
 }
 
 /** Ask the server to email a six digit code. */
@@ -200,6 +201,7 @@ export async function requestEmailCode(email: string): Promise<CodeRequestOutcom
     delivery?: "email" | "console";
     notice?: string;
     devCode?: string;
+    demoBypass?: boolean;
   };
   if (!res.ok) {
     if (payload.error === "COOLDOWN" || payload.error === "RATE_LIMITED") {
@@ -212,6 +214,7 @@ export async function requestEmailCode(email: string): Promise<CodeRequestOutcom
     delivery: payload.delivery ?? "console",
     notice: payload.notice,
     devCode: payload.devCode,
+    demoBypass: payload.demoBypass,
   };
 }
 

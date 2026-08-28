@@ -270,20 +270,22 @@ describe("bpl validation and document verification", () => {
       expect(bplVerificationFallback("driving_licence.png").is_forbidden_id).toBe(true);
     });
 
-    it("recognizes BPL certificates and Antyodaya cards as valid BPL proof", () => {
+    it("does not mark BPL-looking filenames as verified", () => {
       const bplRes = bplVerificationFallback("bpl_certificate_2026.pdf");
-      expect(bplRes.verdict).toBe("VALID_BPL");
-      expect(bplRes.is_bpl_proof).toBe(true);
-      expect(bplRes.is_forbidden_id).toBe(false);
+      expect(bplRes.verdict).toBe("UNVERIFIED_REVIEW_REQUIRED");
+      expect(bplRes.is_bpl_proof).toBe(false);
 
       const antyodayaRes = bplVerificationFallback("antyodaya_anna_yojana.jpg");
-      expect(antyodayaRes.verdict).toBe("VALID_BPL");
-      expect(antyodayaRes.is_bpl_proof).toBe(true);
-      expect(antyodayaRes.is_forbidden_id).toBe(false);
+      expect(antyodayaRes.verdict).toBe("UNVERIFIED_REVIEW_REQUIRED");
 
       const rationRes = bplVerificationFallback("ration_card_bpl.pdf");
-      expect(rationRes.verdict).toBe("VALID_BPL");
-      expect(rationRes.is_bpl_proof).toBe(true);
+      expect(rationRes.verdict).toBe("UNVERIFIED_REVIEW_REQUIRED");
+    });
+
+    it("does not mark an unknown file as valid BPL proof", () => {
+      const res = bplVerificationFallback("scan_001.pdf");
+      expect(res.verdict).toBe("UNVERIFIED_REVIEW_REQUIRED");
+      expect(res.is_bpl_proof).toBe(false);
     });
   });
 });

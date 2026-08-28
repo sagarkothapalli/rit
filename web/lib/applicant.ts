@@ -220,7 +220,7 @@ export interface BplDocumentAttachment {
   size: number;
   type: string;
   dataUrl?: string;
-  status: "idle" | "verifying" | "valid" | "flagged" | "error";
+  status: "idle" | "verifying" | "valid" | "flagged" | "error" | "unverified";
   documentType?: string;
   isForbiddenId?: boolean;
   flagReason?: string | null;
@@ -248,6 +248,9 @@ export interface ApplicantDetails {
   citizenship: "Indian";
   isBpl: boolean;
   bplDocument?: BplDocumentAttachment | null;
+  bplCardNumber?: string;
+  bplYearOfIssue?: string;
+  bplIssuingAuthority?: string;
 }
 
 export const GENDERS: readonly Gender[] = ["Male", "Female", "Transgender"];
@@ -489,6 +492,9 @@ export function emptyApplicant(): ApplicantDetails {
     citizenship: "Indian",
     isBpl: false,
     bplDocument: null,
+    bplCardNumber: "",
+    bplYearOfIssue: "",
+    bplIssuingAuthority: "",
   };
 }
 
@@ -502,16 +508,23 @@ export interface FieldProblem {
  * problem at once so the citizen fixes the whole form in one pass instead
  * of being told about one field at a time.
  */
-export function validateApplicant(applicant: ApplicantDetails): FieldProblem[] {
+export function validateApplicant(
+  applicant: ApplicantDetails,
+  options?: { mobileRequired?: boolean },
+): FieldProblem[] {
   const problems: FieldProblem[] = [];
   const add = (field: keyof ApplicantDetails, message: string) => problems.push({ field, message });
+  const mobileRequired = options?.mobileRequired ?? true;
 
   if (applicant.name.trim().length < 2) add("name", "Enter the applicant's full name.");
   if (applicant.address.trim().length < 5) add("address", "Enter the postal address for the reply.");
   if (!applicant.state.trim()) add("state", "Select the State or Union Territory.");
   if (!/^\S+@\S+\.\S+$/.test(applicant.email.trim())) add("email", "Enter a valid email address.");
-  if (!/^[0-9]{10}$/.test(applicant.mobile.replace(/\D/g, ""))) {
+  const mobile = applicant.mobile.replace(/\D/g, "");
+  if (mobileRequired && !/^[0-9]{10}$/.test(mobile)) {
     add("mobile", "Enter a 10-digit mobile number. The portal uses it for SMS alerts.");
+  } else if (mobile && !/^[0-9]{10}$/.test(mobile)) {
+    add("mobile", "Enter a 10-digit mobile number, or leave it blank.");
   }
   if (applicant.pincode.trim() && !/^[1-9][0-9]{5}$/.test(applicant.pincode.trim())) {
     add("pincode", "A PIN code is six digits and cannot start with zero.");

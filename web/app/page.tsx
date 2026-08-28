@@ -111,24 +111,24 @@ export default function Page() {
           <a href="#how-it-works">How it works</a>
           <Link href="/departments">Authorities</Link>
           <a href="#rti-lifecycle">The RTI process</a>
-          <a href="#saved-applications">Saved applications</a>
+          <Link href="/cases">My RTI cases</Link>
         </nav>
-        <Link className="header-action" href="/request">File a complaint</Link>
+        <Link className="header-action" href="/cases/new">Start an RTI request</Link>
       </SiteMasthead>
 
       <section className="hero" id="main-content">
         <div className="site-container hero-inner">
           <p className="hero-eyebrow">Independent RTI assistance · not a government portal</p>
-          <h1>Say it plainly. File it formally.</h1>
+          <h1>Say it plainly. Prepare it properly.</h1>
           <p className="hero-lede">
             Tell us what went wrong, in your own words and your own language. We turn it into a formal RTI
             application that asks for the exact records proving what happened — addressed to the authority that
             actually holds the file.
           </p>
           <div className="hero-actions">
-            <Link className="primary-button hero-cta" href="/request">
+            <Link className="primary-button hero-cta" href="/cases/new">
               <WaveformIcon />
-              File a complaint
+              Start an RTI request
             </Link>
             <Link className="text-link" href="/departments">
               Browse {portalTotal} public authorities
@@ -151,7 +151,7 @@ export default function Page() {
             </div>
             <div>
               <strong>Every step</strong>
-              <span>confirmed by you before anything is filed</span>
+              <span>confirmed by you before your filing packet is prepared</span>
             </div>
           </div>
         </div>
@@ -310,7 +310,7 @@ export default function Page() {
             <p>Prepare it here, review every detail, then file it on the official portal.</p>
           </div>
           <div className="next-step-actions">
-            <Link className="light-button" href="/request">File a complaint</Link>
+            <Link className="light-button" href="/cases/new">Start an RTI request</Link>
             <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Go to RTI Online</a>
           </div>
         </div>

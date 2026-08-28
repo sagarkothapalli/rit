@@ -24,6 +24,8 @@ interface ApplicantStepProps {
   error: string | null;
   onContinue: () => void;
   onBack: () => void;
+  mobileRequired?: boolean;
+  maxAttachmentBytes?: number;
 }
 
 export default function ApplicantStep({
@@ -37,6 +39,8 @@ export default function ApplicantStep({
   error,
   onContinue,
   onBack,
+  mobileRequired = true,
+  maxAttachmentBytes,
 }: ApplicantStepProps) {
   return (
     <div className="step-body">
@@ -62,6 +66,8 @@ export default function ApplicantStep({
         problems={problems}
         prefilled={prefilled}
         emailLocked={emailVerified}
+        mobileRequired={mobileRequired}
+        maxAttachmentBytes={maxAttachmentBytes}
       />
 
       {error && <p className="step-error" role="alert">{error}</p>}

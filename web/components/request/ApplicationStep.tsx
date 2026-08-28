@@ -3,22 +3,16 @@
 import { useState } from "react";
 import type { Draft } from "@/lib/cage/schemas";
 
-/* ============================================================
-   Step 5. The complete application text.
-
-   Earlier this step showed three request lines and claimed a
-   3,000 character budget, which made a 340 character draft look
-   like a bug. Now the whole document is on screen — opening
-   paragraph included — and the counter measures exactly what the
-   portal counts.
-   ============================================================ */
-
 interface ApplicationStepProps {
   draft: Draft;
   onEdit: (next: Draft) => void;
   charCount: number;
   overLimit: boolean;
   badCharacters: string[];
+  attachmentPath: boolean;
+  onUseAttachmentPath?: () => void;
+  ruleLimit: number;
+  ruleVerifiedAt: string;
   stateMatter: boolean;
   copied: boolean;
   onCopy: () => void;
@@ -36,6 +30,10 @@ export default function ApplicationStep({
   charCount,
   overLimit,
   badCharacters,
+  attachmentPath,
+  onUseAttachmentPath,
+  ruleLimit,
+  ruleVerifiedAt,
   stateMatter,
   copied,
   onCopy,
@@ -56,19 +54,22 @@ export default function ApplicationStep({
       </p>
 
       <div className="application-meter">
-        <span className={overLimit ? "is-over" : ""}>
-          {charCount.toLocaleString("en-IN")} of 3,000 characters
+        <span className={overLimit && !attachmentPath ? "is-over" : ""}>
+          {charCount.toLocaleString("en-IN")} of {ruleLimit.toLocaleString("en-IN")} characters
         </span>
         {overLimit && (
           <span className="application-meter-warn">
-            Over the portal limit. Trim it, or attach the PDF as a supporting document instead.
+            Over the portal limit. A short covering statement will go in the portal field, and the full request
+            will travel as a supporting PDF.
           </span>
         )}
-        {badCharacters.length > 0 && (
+        {badCharacters.length > 0 && !attachmentPath && (
           <span className="application-meter-warn">
-            The portal rejects these characters: <code>{badCharacters.join(" ")}</code>
+            The portal rejects these characters: <code>{badCharacters.join(" ")}</code>. Remove them, or use the
+            supporting-PDF path.
           </span>
         )}
+        <span className="applicant-hint">Limit verified {ruleVerifiedAt}.</span>
       </div>
 
       {editing ? (
@@ -171,7 +172,15 @@ export default function ApplicationStep({
       {error && <p className="step-error" role="alert">{error}</p>}
 
       <div className="step-actions">
-        <button type="button" className="primary-button" onClick={onContinue} disabled={busy || overLimit || !valid}>
+        <button
+          type="button"
+          className="primary-button"
+          onClick={() => {
+            if (overLimit || badCharacters.length > 0) onUseAttachmentPath?.();
+            onContinue();
+          }}
+          disabled={busy || !valid}
+        >
           {busy ? "Finding the authority…" : "Find the right authority"}
         </button>
         <button type="button" className="secondary-button" onClick={() => setEditing((open) => !open)}>

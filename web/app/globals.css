@@ -4633,3 +4633,282 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   margin: 12px 0 0;
   padding: 11px 13px;
 }
+
+/* ---------- cases workspace ---------- */
+
+.case-type-list {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+}
+
+.case-type-list a {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 6px;
+  min-height: 44px;
+  padding: 16px 18px;
+  text-decoration: none;
+}
+
+.case-type-list a:hover {
+  border-color: var(--navy);
+  background: var(--navy-soft);
+}
+
+.case-type-list strong {
+  color: var(--heading);
+  font-size: 1.02rem;
+}
+
+.case-type-list span {
+  color: var(--fg-soft);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.case-status-strip,
+.handoff-facts,
+.review-summary {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.case-status-strip {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin: 22px 0 0;
+  padding: 16px 18px;
+}
+
+.case-status-strip dt,
+.handoff-facts dt,
+.case-header .progress-step {
+  color: var(--fg-faint);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.case-status-strip dd,
+.handoff-facts dd {
+  margin: 4px 0 0;
+}
+
+.filing-source {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 3px 8px;
+}
+
+.filing-source.is-user_reported {
+  background: var(--saffron-soft);
+  border-color: var(--truth-line);
+  color: var(--truth-strong);
+}
+
+.filing-source.is-official_connector {
+  background: var(--green-soft);
+  color: var(--good-fg);
+}
+
+.handoff-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-top: 28px;
+  padding: 22px 24px;
+}
+
+.handoff-card h2 {
+  color: var(--heading);
+  font-size: 1.05rem;
+  margin: 0 0 8px;
+}
+
+.handoff-card > p,
+.handoff-source {
+  color: var(--fg-soft);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0 0 16px;
+  max-width: 62ch;
+}
+
+.handoff-facts {
+  margin: 0 0 18px;
+}
+
+.case-list,
+.case-timeline,
+.attachment-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+}
+
+.case-list a,
+.case-timeline li,
+.attachment-list li {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.case-list a {
+  display: grid;
+  gap: 4px;
+  text-decoration: none;
+}
+
+.case-list a:hover {
+  border-color: var(--navy);
+}
+
+.case-list small,
+.case-timeline span,
+.attachment-list small {
+  color: var(--fg-faint);
+  font-size: 0.8rem;
+}
+
+.case-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 22px 0 12px;
+}
+
+.case-filters button {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg-soft);
+  min-height: 36px;
+  padding: 6px 10px;
+}
+
+.case-filters button.is-active {
+  background: var(--navy-soft);
+  border-color: var(--navy);
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.case-header h1 {
+  margin-top: 6px;
+}
+
+.case-detail-grid {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  margin-top: 28px;
+}
+
+.case-chain ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.case-chain a,
+.case-chain span {
+  color: var(--accent);
+  font-size: 0.82rem;
+}
+
+.deadline-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 12px;
+  padding: 14px 16px;
+}
+
+.deadline-card.is-overdue {
+  border-color: var(--red);
+}
+
+.deadline-card p,
+.deadline-card span {
+  color: var(--fg-soft);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
+.next-action-links {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.attachment-list li,
+.attachment-list-actions {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attachment-uploader {
+  margin-top: 16px;
+}
+
+.attachment-problems {
+  color: var(--red);
+  font-size: 0.82rem;
+  margin: 8px 0 0;
+}
+
+.case-choice-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.case-reminders {
+  background: var(--saffron-soft);
+  border: 1px solid var(--truth-line);
+  border-radius: 10px;
+  color: var(--truth-fg);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  margin: 18px 0 0;
+  padding: 12px 16px;
+}
+
+.bpl-status-banner.is-unverified {
+  background: var(--saffron-soft);
+  border-color: var(--truth-line);
+  color: var(--truth-strong);
+}
+
+.document-index {
+  margin-top: 22px;
+}
+
+.document-index ol {
+  margin: 10px 0 0;
+  padding-left: 1.2rem;
+}
+
+@media (max-width: 1000px) {
+  .case-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

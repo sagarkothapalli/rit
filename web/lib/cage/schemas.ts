@@ -192,7 +192,7 @@ export function explainFallback(
 }
 
 export const BplVerificationSchema = z.object({
-  verdict: z.enum(["VALID_BPL", "FLAGGED_WRONG_DOCUMENT", "UNCLEAR"]),
+  verdict: z.enum(["VALID_BPL", "FLAGGED_WRONG_DOCUMENT", "UNCLEAR", "UNVERIFIED_REVIEW_REQUIRED"]),
   document_type: z.string().max(100),
   is_bpl_proof: z.boolean(),
   is_forbidden_id: z.boolean().default(false),
@@ -244,38 +244,32 @@ export function bplVerificationFallback(fileName: string, textSnippet = ""): Bpl
     };
   }
 
-  // Check valid BPL proofs
   if (
     /(bpl|below[_\-\s]*poverty|antyodaya|aay|phh|priority[_\-\s]*household|nfsa|food[_\-\s]*security|samagra|kudumbashree|annapurna|poverty[_\-\s]*cert|income[_\-\s]*cert|ration[_\-\s]*card|rashan)/i.test(
       combined,
     )
   ) {
-    let docType = "BPL Certificate / Card";
-    if (/antyodaya|aay/i.test(combined)) docType = "Antyodaya Anna Yojana (AAY) Card";
-    else if (/bpl/i.test(combined)) docType = "BPL Certificate / Card";
-    else if (/ration|rashan/i.test(combined)) docType = "BPL Ration Card";
-    else if (/nfsa|phh/i.test(combined)) docType = "NFSA Priority Household Card";
-
+    let docType = "Possible BPL certificate / card";
+    if (/antyodaya|aay/i.test(combined)) docType = "Possible Antyodaya Anna Yojana (AAY) card";
+    else if (/ration|rashan/i.test(combined)) docType = "Possible ration card";
     return {
-      verdict: "VALID_BPL",
+      verdict: "UNVERIFIED_REVIEW_REQUIRED",
       document_type: docType,
-      is_bpl_proof: true,
+      is_bpl_proof: false,
       is_forbidden_id: false,
-      reason_summary: `Valid ${docType} detected. Eligible for zero application fee under RTI Rules, 2012.`,
-      confidence: 0.95,
-      extracted_details: {
-        category: "BPL",
-      },
+      reason_summary:
+        "The filename suggests BPL proof, but this fallback cannot legally verify it. The document is stored for review and is not marked verified.",
+      confidence: 0.2,
     };
   }
 
-  // General acceptable certificate upload
   return {
-    verdict: "VALID_BPL",
-    document_type: "BPL Certificate / Supporting Document",
-    is_bpl_proof: true,
+    verdict: "UNVERIFIED_REVIEW_REQUIRED",
+    document_type: "Unverified document",
+    is_bpl_proof: false,
     is_forbidden_id: false,
-    reason_summary: "BPL document attached and verified. Fee exemption applied.",
-    confidence: 0.88,
+    reason_summary:
+      "Automatic verification is unavailable. The file is stored as UNVERIFIED_REVIEW_REQUIRED and is not treated as proven BPL eligibility.",
+    confidence: 0,
   };
 }

@@ -2,6 +2,7 @@ import { createHash, createHmac, randomInt, timingSafeEqual } from "node:crypto"
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { Pool } from "pg";
+import { DEFAULT_BYPASS_CODE, otpBypassEnabled, sessionSecret } from "@/lib/security/secrets";
 
 /* ============================================================
    Email verification for the RTI application flow.
@@ -44,17 +45,10 @@ function db(): Pool | null {
 
 /**
  * Server secret for the code HMAC and the session cookie.
- * Falls back to a value derived from other server-only config so a
- * development machine works without extra setup; a deployment should set
- * EMAIL_OTP_SECRET so restarts do not invalidate live sessions.
+ * Production requires EMAIL_OTP_SECRET and fails closed if it is missing.
  */
 function secret(): string {
-  const explicit = process.env.EMAIL_OTP_SECRET?.trim();
-  if (explicit) return explicit;
-  const derived = [process.env.DATABASE_URL, process.env.ADMIN_PIN, process.env.LLM_API_KEY]
-    .filter(Boolean)
-    .join("|");
-  return derived || "praja-rti-development-only-secret";
+  return sessionSecret();
 }
 
 export function normalizeEmail(email: string): string {
@@ -222,7 +216,7 @@ export async function issueCode(email: string): Promise<IssueResult> {
 
 /* ---------- verifying ---------- */
 
-export const DEFAULT_BYPASS_CODE = "000000";
+export { DEFAULT_BYPASS_CODE, otpBypassEnabled } from "@/lib/security/secrets";
 
 export type VerifyResult =
   | { ok: true }
@@ -232,7 +226,7 @@ export async function verifyCode(email: string, code: string): Promise<VerifyRes
   const key = normalizeEmail(email);
   const given = code.replace(/\D/g, "");
 
-  if (given === DEFAULT_BYPASS_CODE) {
+  if (otpBypassEnabled() && given === DEFAULT_BYPASS_CODE) {
     await dropChallenge(key);
     return { ok: true };
   }

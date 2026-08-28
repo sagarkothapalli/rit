@@ -1,25 +1,33 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_BYPASS_CODE,
   issueCode,
   normalizeEmail,
+  otpBypassEnabled,
   readSessionToken,
   sessionToken,
   verifyCode,
 } from "./email-verification.server";
 
 describe("email verification server", () => {
-  it("has DEFAULT_BYPASS_CODE set to 000000", () => {
-    expect(DEFAULT_BYPASS_CODE).toBe("000000");
+  afterEach(() => {
+    delete process.env.PRAJA_OTP_BYPASS;
+  });
+
+  it("does not accept 000000 unless the development bypass flag is on", async () => {
+    expect(otpBypassEnabled()).toBe(false);
+    const result = await verifyCode(`no-bypass-${Date.now()}@example.com`, "000000");
+    expect(result.ok).toBe(false);
   });
 
   it("normalizes email addresses to lower case and trimmed", () => {
     expect(normalizeEmail("  User@Example.COM  ")).toBe("user@example.com");
   });
 
-  it("verifies successfully with the default bypass code 000000", async () => {
-    const email = "test-bypass@example.com";
-    const result = await verifyCode(email, "000000");
+  it("accepts the demo bypass code only when PRAJA_OTP_BYPASS=1", async () => {
+    process.env.PRAJA_OTP_BYPASS = "1";
+    expect(DEFAULT_BYPASS_CODE).toBe("000000");
+    const result = await verifyCode(`bypass-${Date.now()}@example.com`, "000000");
     expect(result.ok).toBe(true);
   });
 
@@ -30,16 +38,12 @@ describe("email verification server", () => {
     expect(parsed).toBe("user@example.com");
   });
 
-  it("rejects invalid codes when challenge exists", async () => {
+  it("rejects invalid codes when a challenge exists", async () => {
     const email = `test-user-${Date.now()}@example.com`;
     const issueResult = await issueCode(email);
     expect(issueResult.ok).toBe(true);
 
     const verifyWrong = await verifyCode(email, "999999");
     expect(verifyWrong.ok).toBe(false);
-
-    // But 000000 default bypass code always succeeds
-    const verifyBypass = await verifyCode(email, "000000");
-    expect(verifyBypass.ok).toBe(true);
   });
 });
