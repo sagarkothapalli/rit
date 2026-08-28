@@ -40,6 +40,8 @@ export type FlowAnnot = {
   anchor?: "start" | "middle" | "end";
   size?: number;
   tracking?: string;
+  /** Horizontal padding for the backing card; falsy means no card. */
+  pad?: number;
   edgeIds?: string[];
 };
 
@@ -520,10 +522,23 @@ export const OUTGOING: Record<string, FlowEdge[]> = EDGES.reduce<Record<string, 
   return map;
 }, {});
 
+/* ============================================================
+   Free labels never sit on top of a connector: anything that
+   shares space with an edge carries a backing card (`pad`), and
+   every position is chosen in the clear space beside its edge.
+   The three branch labels under the start node render as chips
+   (see BRANCH_CHIPS), placed above the bus so they touch nothing.
+   ============================================================ */
+
+/* A and C ride above the horizontal bus; B sits on the clear vertical
+   stem below it, because the start node covers the bus at the centre. */
+export const BRANCH_CHIPS = [
+  { id: "branch-a", x: X.A, y: busY - 26, text: "A · REPLY RECEIVED" },
+  { id: "branch-b", x: X.MID, y: busY + 26, text: "B · TRANSFERRED" },
+  { id: "branch-c", x: X.C, y: busY - 26, text: "C · NO REPLY" },
+] as const;
+
 export const ANNOTS: FlowAnnot[] = [
-  { id: "a-branch-a", x: X.A, y: 122, text: "A  ·  REPLY RECEIVED", fill: "navy", tracking: "0.10em" },
-  { id: "a-branch-b", x: X.MID, y: 122, text: "B  ·  TRANSFERRED", fill: "navy", tracking: "0.10em" },
-  { id: "a-branch-c", x: X.C, y: 122, text: "C  ·  NO REPLY", fill: "navy", tracking: "0.10em" },
   { id: "a-cite-t30a", x: X.A + 64, y: Y.t1 + 4, text: "§7(1)", fill: "muted", anchor: "start", size: 11 },
   { id: "a-cite-t5b", x: X.MID + 64, y: Y.t1 + 4, text: "§6(3)", fill: "muted", anchor: "start", size: 11 },
   { id: "a-cite-t30c", x: X.C + 64, y: Y.t1 + 4, text: "§7(1)", fill: "muted", anchor: "start", size: 11 },
@@ -538,11 +553,12 @@ export const ANNOTS: FlowAnnot[] = [
   {
     id: "a-if-sat-a",
     x: X.A - 88,
-    y: 490,
+    y: 432,
     text: "If satisfied",
     fill: "green",
     anchor: "end",
     size: 11,
+    pad: 8,
     edgeIds: ["e-replyA-satisfiedA"],
   },
   {
@@ -552,26 +568,30 @@ export const ANNOTS: FlowAnnot[] = [
     text: "If not satisfied",
     fill: "red",
     size: 11,
+    pad: 8,
     edgeIds: ["e-replyA-notSat"],
   },
   {
     id: "a-either",
-    x: X.AND + 48,
-    y: Y.p2 - 20,
+    x: X.AND + 66,
+    y: Y.p2 - 22,
     text: "Either no-reply path",
     fill: "muted",
+    anchor: "start",
     size: 11,
     tracking: "0.04em",
+    pad: 7,
     edgeIds: ["e-noReplyB-andJoin", "e-noReplyC-andJoin"],
   },
   {
     id: "a-parallel",
     x: X.C,
-    y: Y.tAppeal - 28,
+    y: Y.tAppeal - 44,
     text: "Parallel remedy",
     fill: "saffron",
     size: 11,
     tracking: "0.08em",
+    pad: 8,
     edgeIds: ["e-andJoin-noTimeLimit", "e-noTimeLimit-section18"],
   },
   {
@@ -581,6 +601,7 @@ export const ANNOTS: FlowAnnot[] = [
     text: "If satisfied",
     fill: "green",
     size: 11,
+    pad: 8,
     edgeIds: ["e-decision-satisfiedFaa"],
   },
   {
@@ -591,6 +612,7 @@ export const ANNOTS: FlowAnnot[] = [
     fill: "red",
     anchor: "start",
     size: 11,
+    pad: 8,
     edgeIds: ["e-decision-notSatFaa"],
   },
   {
@@ -600,6 +622,7 @@ export const ANNOTS: FlowAnnot[] = [
     text: "Within 90 days of the FAA decision or default",
     fill: "muted",
     size: 11,
+    pad: 9,
     edgeIds: ["e-t90unsat-secondAppeal", "e-t90none-secondAppeal"],
   },
 ];

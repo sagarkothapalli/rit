@@ -4,6 +4,7 @@ import Emblem from "@/components/Emblem";
 import RtiLifecycleChart from "@/components/RtiLifecycleChart";
 import SiteMasthead from "@/components/SiteMasthead";
 import { directoryStats } from "@/lib/directory-tree";
+import { PORTAL_TOTAL } from "@/lib/retrieval";
 
 /* ============================================================
    Home. One job: explain what this is, show what it produces,
@@ -46,11 +47,15 @@ const exampleRequests = [
   "The file notings recording why the work remained incomplete after the scheduled date.",
 ];
 
-function MicIcon() {
+function WaveformIcon() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-      <rect height="10" rx="4" stroke="currentColor" strokeWidth="1.7" width="7" x="8.5" y="3" />
-      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+      <path
+        d="M2.75 10.25v3.5M6.25 7v10M9.75 3.75v16.5M13.25 6.5v11M16.75 9v6M20.25 10.25v3.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.9"
+      />
     </svg>
   );
 }
@@ -83,6 +88,7 @@ function ScaleIcon() {
 
 export default function Page() {
   const stats = directoryStats();
+  const portalTotal = PORTAL_TOTAL.toLocaleString("en-IN");
 
   return (
     <main className="site-shell">
@@ -107,62 +113,88 @@ export default function Page() {
           <a href="#rti-lifecycle">The RTI process</a>
           <a href="#saved-applications">Saved applications</a>
         </nav>
-        <Link className="header-action" href="/request">Start a request</Link>
+        <Link className="header-action" href="/request">File a complaint</Link>
       </SiteMasthead>
 
-      <section className="hero site-container" id="main-content">
-        <div className="hero-copy">
-          <h1>Say what went wrong. Leave with a filed-ready RTI application.</h1>
-          <p>
-            Describe the problem in your own language. We turn it into a formal request for the records that prove
-            what happened, addressed to the authority that actually holds them.
+      <section className="hero" id="main-content">
+        <div className="site-container hero-inner">
+          <p className="hero-eyebrow">Independent RTI assistance · not a government portal</p>
+          <h1>Say it plainly. File it formally.</h1>
+          <p className="hero-lede">
+            Tell us what went wrong, in your own words and your own language. We turn it into a formal RTI
+            application that asks for the exact records proving what happened — addressed to the authority that
+            actually holds the file.
           </p>
           <div className="hero-actions">
-            <Link className="primary-button" href="/request">
-              <MicIcon />
-              Start a request
+            <Link className="primary-button hero-cta" href="/request">
+              <WaveformIcon />
+              File a complaint
             </Link>
             <Link className="text-link" href="/departments">
-              Browse {stats.authorities.toLocaleString("en-IN")} public authorities
+              Browse {portalTotal} public authorities
             </Link>
           </div>
-          <dl className="hero-assurances">
-            <div>
-              <dt>Languages</dt>
-              <dd>Twelve, including Hindi, Telugu, Tamil, and Bengali</dd>
-            </div>
-            <div>
-              <dt>Directory</dt>
-              <dd>{stats.ministries} ministries, {stats.authorities.toLocaleString("en-IN")} authorities</dd>
-            </div>
-            <div>
-              <dt>Control</dt>
-              <dd>You confirm every step</dd>
-            </div>
-          </dl>
         </div>
+        <div className="hero-stats">
+          <div className="site-container hero-stats-grid">
+            <div>
+              <strong>{portalTotal}</strong>
+              <span>authorities listed on rtionline.gov.in</span>
+            </div>
+            <div>
+              <strong>{stats.ministries}</strong>
+              <span>ministries and departments covered</span>
+            </div>
+            <div>
+              <strong>12</strong>
+              <span>languages, including Hindi, Telugu, Tamil, and Bengali</span>
+            </div>
+            <div>
+              <strong>Every step</strong>
+              <span>confirmed by you before anything is filed</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <div className="example-panel" aria-label="Example of a spoken concern becoming an RTI application">
-          <div className="example-head">
-            <span>What you say</span>
+      <section
+        aria-label="Example of a spoken complaint becoming an RTI application"
+        className="example-band"
+      >
+        <div className="site-container">
+          <div className="section-intro">
+            <h2>From a complaint to a formal request</h2>
+            <p>
+              A complaint spoken in plain words becomes a numbered request for records that already exist on an
+              official file.
+            </p>
           </div>
-          <blockquote className="example-quote">
-            The road in our colony was dug up eight months ago and never repaired. Nobody tells us who was
-            supposed to fix it or where the money went.
-          </blockquote>
-          <div className="example-divider" aria-hidden="true">
-            <span>becomes</span>
+          <div className="example-grid">
+            <div className="example-card example-say">
+              <div className="example-head">
+                <span>What you say</span>
+              </div>
+              <blockquote className="example-quote">
+                The road in our colony was dug up eight months ago and never repaired. Nobody tells us who was
+                supposed to fix it or where the money went.
+              </blockquote>
+            </div>
+            <div className="example-becomes" aria-hidden="true">
+              <span>becomes</span>
+            </div>
+            <div className="example-card example-gets">
+              <div className="example-head">
+                <span>What the authority receives</span>
+              </div>
+              <ol className="example-requests">
+                {exampleRequests.map((request) => <li key={request}>{request}</li>)}
+              </ol>
+              <p className="example-note">
+                <ShieldIcon />
+                No accusation, no adjective of blame — only records the authority must produce.
+              </p>
+            </div>
           </div>
-          <div className="example-head">
-            <span>What the authority receives</span>
-          </div>
-          <ol className="example-requests">
-            {exampleRequests.map((request) => <li key={request}>{request}</li>)}
-          </ol>
-          <p className="example-note">
-            <ShieldIcon />
-            No accusation, no adjective of blame — only records the authority must produce.
-          </p>
         </div>
       </section>
 
@@ -274,11 +306,11 @@ export default function Page() {
       <section className="official-next-step">
         <div className="site-container next-step-inner">
           <div>
-            <h2>Ready to start?</h2>
+            <h2>Ready to file?</h2>
             <p>Prepare it here, review every detail, then file it on the official portal.</p>
           </div>
           <div className="next-step-actions">
-            <Link className="light-button" href="/request">Start a request</Link>
+            <Link className="light-button" href="/request">File a complaint</Link>
             <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Go to RTI Online</a>
           </div>
         </div>
@@ -308,7 +340,7 @@ export default function Page() {
           <div>
             <strong>Accessibility</strong>
             <span>Light and dark appearance</span>
-            <span>Text size control in the top bar</span>
+            <span>Scales with your browser zoom (Ctrl/Cmd + or −)</span>
             <span>Keyboard navigation and reduced motion</span>
           </div>
         </div>

@@ -31,7 +31,7 @@ export default function DepartmentsPage() {
           </>
         }
       >
-        <Link className="header-action" href="/request">Start a request</Link>
+        <Link className="header-action" href="/request">File a complaint</Link>
       </SiteMasthead>
 
       <section className="page-head site-container" id="main-content">
@@ -59,7 +59,7 @@ export default function DepartmentsPage() {
           <div>
             <strong>Service</strong>
             <Link href="/">Home</Link>
-            <Link href="/request">Start a request</Link>
+            <Link href="/request">File a complaint</Link>
           </div>
           <div>
             <strong>Official resources</strong>

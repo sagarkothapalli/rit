@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   ANNOTS,
+  BRANCH_CHIPS,
   EDGES,
   LANES,
   LEGEND,
@@ -13,6 +14,7 @@ import {
   VIEW,
   lightFrom,
   nodeAnnouncement,
+  type FlowAnnot,
   type FlowNode,
 } from "@/lib/rti-lifecycle";
 
@@ -82,14 +84,61 @@ function nodeIdFromTarget(target: EventTarget | null): string | null {
   return el?.closest("[data-node]")?.getAttribute("data-node") ?? null;
 }
 
+type AnnotBox = { w: number; h: number; y: number };
+
+/* The backing card behind a padded annotation is sized from the rendered
+   text box, so the card always covers the glyphs and nothing else. */
+function annotCardRect(annot: FlowAnnot, box: AnnotBox) {
+  const pad = annot.pad ?? 0;
+  const left =
+    annot.anchor === "start"
+      ? annot.x
+      : annot.anchor === "end"
+        ? annot.x - box.w
+        : annot.x - box.w / 2;
+  return {
+    x: left - pad,
+    y: box.y - 5,
+    w: box.w + pad * 2,
+    h: box.h + 10,
+  };
+}
+
+function chipWidth(text: string) {
+  return text.length * 6.8 + 28;
+}
+
 export default function RtiLifecycleChart() {
   const [hovered, setHovered] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
+  const [annotBoxes, setAnnotBoxes] = useState<Record<string, AnnotBox>>({});
   const viewportRef = useRef<HTMLDivElement>(null);
+  const annotRefs = useRef<Map<string, SVGTextElement>>(new Map());
   const activeId = hovered ?? pinned;
   const lit = useMemo(() => (activeId ? lightFrom(activeId) : null), [activeId]);
   const active = activeId ? NODE_BY_ID[activeId] : null;
   const nextNodes = lit ? lit.next.map((id) => NODE_BY_ID[id]).filter(Boolean) : [];
+
+  // Measure each padded annotation once fonts have settled so its card can be
+  // drawn underneath; re-measure when webfonts finish loading.
+  useEffect(() => {
+    const measure = () => {
+      const boxes: Record<string, AnnotBox> = {};
+      for (const [id, el] of annotRefs.current) {
+        const b = el.getBBox();
+        boxes[id] = { w: b.width, h: b.height, y: b.y };
+      }
+      setAnnotBoxes(boxes);
+    };
+    measure();
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) measure();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const shell = viewportRef.current;
@@ -190,14 +239,31 @@ export default function RtiLifecycleChart() {
             </marker>
           </defs>
 
-          {LANES.map((lane) => (
+          {LANES.map((lane, index) => (
             <g key={lane.id}>
-              <rect className={`rti-lane rti-lane-${lane.id}`} height={lane.h} width={VIEW.w} x={0} y={lane.y} />
-              <text className="rti-lane-label" x="18" y={lane.y + 22}>
+              <rect className="rti-lane" height={lane.h} width={VIEW.w} x={0} y={lane.y} />
+              {index > 0 ? (
+                <line className="rti-lane-divider" x1={0} x2={VIEW.w} y1={lane.y} y2={lane.y} />
+              ) : null}
+              <text className="rti-lane-label" x="20" y={lane.y + 26}>
                 {lane.label}
               </text>
             </g>
           ))}
+
+          <g aria-hidden="true" className="rti-branches">
+            {BRANCH_CHIPS.map((chip) => {
+              const w = chipWidth(chip.text);
+              return (
+                <g className="rti-branch-chip" key={chip.id}>
+                  <rect height={24} rx={12} width={w} x={chip.x - w / 2} y={chip.y - 12} />
+                  <text textAnchor="middle" x={chip.x} y={chip.y + 4}>
+                    {chip.text}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
 
           <g className="rti-edges">
             {EDGES.map((item) => {
@@ -230,17 +296,34 @@ export default function RtiLifecycleChart() {
             {ANNOTS.map((annot) => {
               const related = annot.edgeIds?.some((id) => lit?.edges.has(id)) ?? false;
               const state = !lit ? "idle" : related ? "live" : "dim";
+              const box = annot.pad ? annotBoxes[annot.id] : null;
+              const card = box ? annotCardRect(annot, box) : null;
               return (
-                <text
-                  className={`rti-annot rti-annot-${annot.fill} is-${state}`}
-                  key={annot.id}
-                  letterSpacing={annot.tracking ?? "0.02em"}
-                  textAnchor={annot.anchor ?? "middle"}
-                  x={annot.x}
-                  y={annot.y}
-                >
-                  {annot.text}
-                </text>
+                <g key={annot.id}>
+                  {card ? (
+                    <rect
+                      className={`rti-annot-bg is-${state}`}
+                      height={card.h}
+                      rx={4}
+                      width={card.w}
+                      x={card.x}
+                      y={card.y}
+                    />
+                  ) : null}
+                  <text
+                    className={`rti-annot rti-annot-${annot.fill} is-${state}`}
+                    letterSpacing={annot.tracking ?? "0.02em"}
+                    ref={(el) => {
+                      if (el) annotRefs.current.set(annot.id, el);
+                      else annotRefs.current.delete(annot.id);
+                    }}
+                    textAnchor={annot.anchor ?? "middle"}
+                    x={annot.x}
+                    y={annot.y}
+                  >
+                    {annot.text}
+                  </text>
+                </g>
               );
             })}
           </g>

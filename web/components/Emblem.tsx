@@ -4,7 +4,7 @@
    Rendered from an authoritative vector source (see
    assets/emblem/state-emblem-source.svg) at 1x and 2x of the
    largest on-screen size, so it stays crisp on retina displays
-   and under the text-size slider.
+   and under browser zoom.
 
    Stored as grayscale+alpha rather than RGBA: the mark is a pure
    white silhouette, so only the alpha channel carries any
