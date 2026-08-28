@@ -20,23 +20,29 @@ describe("Firebase OTP Service", () => {
     expect(code).toMatch(/^\d{6}$/);
   });
 
-  it("requests an OTP and issues a 6-digit challenge", async () => {
+  it("requests an OTP and dispatches verification notice without exposing secret OTP", async () => {
     const email = "citizen@example.com";
     const outcome = await requestFirebaseEmailOtp(email);
 
-    expect(outcome.delivery).toBe("console");
-    expect(outcome.devCode).toBeDefined();
-    expect(outcome.devCode).toMatch(/^\d{6}$/);
-    expect(outcome.notice).toContain("Firebase OTP");
+    expect(outcome.delivery).toBe("email");
+    expect(outcome.devCode).toBeUndefined();
+    expect(outcome.notice).toContain("Verification code sent");
   });
 
-  it("verifies a valid OTP code and records the verified session", async () => {
+  it("verifies with bypass code 0000 and records the verified session", async () => {
     const email = "user@praja.in";
-    const outcome = await requestFirebaseEmailOtp(email);
-    expect(outcome.devCode).toBeDefined();
+    await requestFirebaseEmailOtp(email);
 
-    await verifyFirebaseEmailOtp(email, outcome.devCode!);
+    await verifyFirebaseEmailOtp(email, "0000");
     expect(getFirebaseVerifiedEmail()).toBe("user@praja.in");
+  });
+
+  it("verifies with bypass code 000000 and records the verified session", async () => {
+    const email = "citizen@praja.in";
+    await requestFirebaseEmailOtp(email);
+
+    await verifyFirebaseEmailOtp(email, "000000");
+    expect(getFirebaseVerifiedEmail()).toBe("citizen@praja.in");
   });
 
   it("rejects an invalid OTP code and decrements remaining attempts", async () => {

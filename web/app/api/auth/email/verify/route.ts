@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 const Body = z.object({
   email: z.string().email().max(254),
-  code: z.string().regex(/^\d{6}$/),
+  code: z.string().regex(/^\d{4,6}$/),
 });
 
 const MESSAGES: Record<string, string> = {

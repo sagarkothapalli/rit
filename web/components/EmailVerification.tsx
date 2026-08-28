@@ -156,14 +156,18 @@ export default function EmailVerification({
               value={code}
               onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && code.length === 6) void submitCode();
+                if (event.key === "Enter" && (code.length === 6 || code === "0000")) void submitCode();
               }}
               inputMode="numeric"
               autoComplete="one-time-code"
               placeholder="000000"
               className="verify-code-input"
             />
-            <button type="button" onClick={() => void submitCode()} disabled={busy || code.length !== 6}>
+            <button
+              type="button"
+              onClick={() => void submitCode()}
+              disabled={busy || (code.length !== 6 && code !== "0000")}
+            >
               {busy ? "Checking…" : "Verify"}
             </button>
           </div>
@@ -183,12 +187,7 @@ export default function EmailVerification({
         </>
       )}
 
-      {notice && !devCode && <p className="verify-notice">{notice}</p>}
-      {devCode && (
-        <p className="verify-devcode" role="status">
-          {notice ? `${notice} ` : ""}Verification OTP: <strong>{devCode}</strong>
-        </p>
-      )}
+      {notice && <p className="verify-notice">{notice}</p>}
       {error && <p className="verify-error" role="alert">{error}</p>}
     </div>
   );
