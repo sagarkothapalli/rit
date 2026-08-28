@@ -45,7 +45,7 @@ export default function ApplicantForm({
     <div className="applicant-form">
       {prefilled && prefilled.size > 0 && (
         <p className="applicant-prefill-note">
-          The marked fields were taken from your conversation with the assistant. Check each one before continuing.
+          The marked fields were taken from your conversation with the RTI agent. Check each one before continuing.
         </p>
       )}
 

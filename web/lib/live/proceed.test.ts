@@ -39,6 +39,14 @@ describe("detectProceedIntent", () => {
     ["punjabi", "ਹੋ ਗਿਆ, ਭੇਜ ਦਿਓ"],
     ["odia", "ହୋଇଗଲା, ଆଗକୁ ବଢ଼ନ୍ତୁ"],
     ["urdu", "کچھ نہیں، آگے بڑھیں"],
+    ["declining other information", "I don't want any kind of other information"],
+    ["declining more records", "no I do not need more details, prepare my application"],
+    ["everything known", "that's everything I know about it"],
+    ["moving on", "let's move on"],
+    ["a farewell", "okay, thank you, bye"],
+    ["a bare goodbye", "goodbye"],
+    ["hindi farewell", "theek hai, alvida"],
+    ["telugu farewell", "సెలవు"],
   ];
 
   for (const [name, phrase] of confirmations) {
@@ -46,6 +54,27 @@ describe("detectProceedIntent", () => {
       expect(detectProceedIntent(phrase)).toBe(true);
     });
   }
+
+  /* Thanks is ambiguous mid-conversation and decisive at the end,
+     so it is gated on how much has actually been said. */
+  it("treats thanks at the end of a full account as an ending", () => {
+    const full =
+      "The drain in Ward 12 Gajuwaka has been overflowing since January 2025 and nobody from the "
+      + "corporation has come to clear it even after three complaints. Thank you.";
+    expect(detectProceedIntent(full)).toBe(true);
+  });
+
+  it("does not end the intake on thanks spoken early on", () => {
+    expect(detectProceedIntent("oh thank you for explaining that")).toBe(false);
+  });
+
+  it("does not mistake an opening namaste for a closing one", () => {
+    expect(detectProceedIntent("namaste, I have a problem with my ward road")).toBe(false);
+  });
+
+  it("lets a hold override a farewell in the same breath", () => {
+    expect(detectProceedIntent("bye — actually wait, one more thing")).toBe(false);
+  });
 
   const nonConfirmations: Array<[string, string]> = [
     ["a plain complaint", "the road in my ward has been broken since 2024"],

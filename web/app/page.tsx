@@ -16,7 +16,7 @@ import { PORTAL_TOTAL } from "@/lib/retrieval";
 const steps = [
   {
     title: "Describe the problem",
-    body: "Speak to the assistant or type it yourself, in any of twelve languages. Plain words are enough.",
+    body: "Speak to the RTI agent or type it yourself, in any of twelve languages. Plain words are enough.",
   },
   {
     title: "Confirm what to ask for",

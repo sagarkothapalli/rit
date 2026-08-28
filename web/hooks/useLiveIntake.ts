@@ -14,6 +14,7 @@ import {
   hasEnoughForHandoff,
   synthesizeHandoff,
 } from "@/lib/live/proceed";
+import { detectIdentityProbe, IDENTITY_NUDGE, redactIdentity } from "@/lib/live/identity";
 import { classifyJurisdiction, type JurisdictionVerdict } from "@/lib/jurisdiction";
 import {
   LIVE_VOICE,
@@ -69,8 +70,19 @@ interface WorkletMessage {
   buffer?: ArrayBuffer;
 }
 
+/**
+ * The model stays mute until something arrives, so the session
+ * opens with an injected turn rather than a real one. It asks for
+ * an introduction first and a question second: a citizen who has
+ * just heard a stranger's voice needs to know who is speaking
+ * before being asked what they want.
+ */
 const GREETING_NUDGE =
-  "(Session start. Greet the citizen directly in one short sentence asking what issue they need to file a complaint on or what information and records they want to ask from the government. Do not give open-ended chatbot pleasantries. Then stop and listen.)";
+  "(Session start. The citizen has not spoken yet. Open in English with your introduction, in four short spoken"
+  + " sentences and nothing more: greet them and say you are here; say you are their RTI agent, a voice assistant"
+  + " for Right to Information; ask how you may help today; then offer the two ways in — filing a complaint, or"
+  + " asking for information or records from the government. Do NOT open with a bare question, a menu, a list of"
+  + " capabilities, or a disclaimer, and do NOT name any model, company, or technology. Then stop and listen.)";
 
 const WRAP_NUDGE =
   "(Time is nearly up. In the citizen's language, in one short sentence, thank them and restate your one-line summary, then call submit_intake immediately in the same turn. Do not ask any more questions.)";
@@ -181,6 +193,10 @@ export function useLiveIntake() {
   const proceedConsumedRef = useRef(0);
   /** How many times we have had to push the model towards the handoff. */
   const proceedNudgesRef = useRef(0);
+  /** Set when the citizen asks what model or company is behind the voice. */
+  const pendingIdentityRef = useRef(false);
+  /** Transcript length already scanned for an identity question. */
+  const identityConsumedRef = useRef(0);
 
   useEffect(() => {
     const ok =
@@ -216,6 +232,17 @@ export function useLiveIntake() {
     // so it cannot interrupt the agent while it is already speaking.
     if (verdict.level === "state" && verdict.confidence >= 0.6 && !flaggedRef.current) {
       pendingFlagRef.current = verdict;
+    }
+
+    // "What model are you?" Recognised here so the answer comes from an
+    // instruction issued a moment earlier, rather than from whatever the
+    // model believes about itself.
+    if (
+      userTextRef.current.length > identityConsumedRef.current + 4
+      && detectIdentityProbe(text)
+    ) {
+      identityConsumedRef.current = userTextRef.current.length;
+      pendingIdentityRef.current = true;
     }
 
     // "That's it, proceed." Recognised here rather than left to the model,
@@ -256,10 +283,32 @@ export function useLiveIntake() {
     }
   }, []);
 
+  /**
+   * Re-states the one permitted answer about identity, at the turn
+   * boundary, before the model has to improvise one. Sent every
+   * time the citizen asks — persistence is exactly the case the
+   * system prompt alone tends to lose.
+   */
+  const flushIdentityProbe = useCallback(() => {
+    if (!pendingIdentityRef.current || closingRef.current) return;
+    if (statusRef.current !== "active" && statusRef.current !== "wrapup") return;
+    pendingIdentityRef.current = false;
+    try {
+      sessionRef.current?.sendClientContent({
+        turns: { role: "user", parts: [{ text: IDENTITY_NUDGE }] },
+      });
+    } catch {
+      /* session may be closing — the prompt's own rule still stands */
+    }
+  }, []);
+
   const appendAgent = useCallback((text: string) => {
     if (!text) return;
-    agentTextRef.current = `${agentTextRef.current} ${text}`.replace(/\s+/g, " ").trim();
-    setAgentText(agentTextRef.current);
+    // Accumulate the raw stream, but redact the whole of it before it is
+    // rendered. Transcription arrives in fragments, so a vendor name can
+    // straddle two chunks — redacting a chunk in isolation would miss it.
+    agentTextRef.current = `${agentTextRef.current} ${text}`.replace(/\s+/g, " ").trim().slice(0, 6000);
+    setAgentText(redactIdentity(agentTextRef.current));
   }, []);
 
   const clearTimers = useCallback(() => {
@@ -497,6 +546,7 @@ export function useLiveIntake() {
       }
       // A completed turn is the only safe moment to inject a system turn.
       if (content?.turnComplete) {
+        flushIdentityProbe();
         flushJurisdictionFlag();
         flushProceedIntent();
       }
@@ -516,7 +566,7 @@ export function useLiveIntake() {
         }
       }
     },
-    [appendAgent, appendUser, beginAudio, commitHandoff, flushJurisdictionFlag, flushProceedIntent, wrapUp]
+    [appendAgent, appendUser, beginAudio, commitHandoff, flushIdentityProbe, flushJurisdictionFlag, flushProceedIntent, wrapUp]
   );
 
   const start = useCallback(async () => {
@@ -533,6 +583,8 @@ export function useLiveIntake() {
     pendingProceedRef.current = false;
     proceedConsumedRef.current = 0;
     proceedNudgesRef.current = 0;
+    pendingIdentityRef.current = false;
+    identityConsumedRef.current = 0;
     clearIntakeRecord();
     setUserText("");
     setAgentText("");
@@ -662,6 +714,8 @@ export function useLiveIntake() {
     pendingProceedRef.current = false;
     proceedConsumedRef.current = 0;
     proceedNudgesRef.current = 0;
+    pendingIdentityRef.current = false;
+    identityConsumedRef.current = 0;
     clearIntakeRecord();
     setUserText("");
     setAgentText("");

@@ -6,7 +6,7 @@ import { LANGUAGES } from "./steps";
 /* ============================================================
    Step 1. Two clearly separated ways in:
 
-     - Talk to the assistant. It works out the language by ear,
+     - Talk to the RTI agent. It works out the language by ear,
        so no picker is needed first.
      - Type it yourself. Then the language matters, so the picker
        belongs to that path.
@@ -61,7 +61,7 @@ export default function LanguageStep({
       {liveReady && (
         <section className="intake-option is-primary">
           <div className="intake-option-head">
-            <h2>Speak to the assistant</h2>
+            <h2>Speak to the RTI agent</h2>
             <p>
               A guided conversation in your own language. It listens, asks at most a few short questions, and fills
               in the form details with you. You can interrupt at any time.
@@ -80,7 +80,7 @@ export default function LanguageStep({
                 <button type="button" className="link-button" onClick={live.stop}>End conversation</button>
               </div>
               <div className="intake-transcript" aria-live="polite">
-                {live.agentText && <p className="intake-agent">Assistant: {live.agentText}</p>}
+                {live.agentText && <p className="intake-agent">RTI agent: {live.agentText}</p>}
                 {live.userText ? (
                   <p className="intake-user">You: {live.userText}</p>
                 ) : (
@@ -89,7 +89,7 @@ export default function LanguageStep({
               </div>
 
               {/* Saying "that's it" is enough, but the citizen never has to
-                  depend on the assistant hearing it to move forward. */}
+                  depend on the agent hearing it to move forward. */}
               {live.canFinish && (
                 <div className="intake-finish">
                   <button type="button" className="primary-button" onClick={() => live.finish()}>
@@ -110,14 +110,14 @@ export default function LanguageStep({
                   {live.jurisdiction.stateName ? `${live.jurisdiction.stateName} State` : "State"} or local body
                   matter
                   {live.jurisdiction.localBody ? <> — likely {live.jurisdiction.localBody.short}</> : null}. The
-                  Central portal cannot accept it, and the assistant will explain what to do instead.
+                  Central portal cannot accept it, and the RTI agent will explain what to do instead.
                 </p>
               )}
             </div>
           ) : (
             <div className="intake-actions">
               <button type="button" className="primary-button" onClick={() => void live.start()}>
-                Talk to the assistant
+                Talk to the RTI agent
               </button>
               {finished && live.userText.trim() && (
                 <button type="button" className="link-button" onClick={onReviewSpoken}>

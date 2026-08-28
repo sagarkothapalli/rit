@@ -55,7 +55,7 @@ export default function DescribeStep({
       <h1>{fromAssistant ? "Check what we heard." : "Describe the problem."}</h1>
       <p className="step-lede">
         {fromAssistant
-          ? "This is what the assistant captured. Correct anything that is wrong or add what is missing — nothing is prepared until you continue."
+          ? "This is what the RTI agent captured. Correct anything that is wrong or add what is missing — nothing is prepared until you continue."
           : "Write it the way you would explain it to a person. Plain words are fine; we turn it into formal wording for you."}
       </p>
 

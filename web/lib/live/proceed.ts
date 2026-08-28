@@ -17,6 +17,11 @@ import { normalizeHandoff, type IntakeHandoff } from "./intakePrompt";
    itself from the transcript and advances. The citizen edits
    everything downstream anyway, so a synthesised handoff is
    always better than a session that never ends.
+
+   "Finished" covers three things, not one: an explicit
+   confirmation ("that's it", "proceed", "I don't want any other
+   information"), a farewell ("thanks, bye"), and gratitude at the
+   end of a full account. All three are a citizen leaving.
    ============================================================ */
 
 /** Only the end of the running transcript counts — it accumulates. */
@@ -24,6 +29,15 @@ const TAIL_WINDOW = 220;
 
 /** Below this there is not enough of a concern to hand off at all. */
 const MIN_HANDOFF_CHARS = 40;
+
+/**
+ * A bare "thank you" is ambiguous: it closes a conversation, but a
+ * citizen also says it in the middle of one, after the agent has
+ * explained something. Gratitude alone therefore only ends the
+ * intake once the concern has actually been described at length.
+ * "Goodbye" carries no such ambiguity and is not gated by this.
+ */
+const GRATITUDE_MIN_CHARS = 160;
 
 /**
  * "Not yet" wins over any confirmation in the same breath, so
@@ -56,16 +70,17 @@ const PROCEED_PATTERNS: RegExp[] = [
   // English
   /\bthat'?s (?:it|all|everything|enough)\b/i,
   /\bthat is (?:it|all|everything|enough)\b/i,
-  /\b(?:i|we) (?:don'?t|do not) need anything (?:further|else|more)\b/i,
+  /\b(?:i|we) (?:don'?t|do not|dont) (?:need|want) (?:any(?:thing)?|some)?\s*(?:kind of\s+|sort of\s+|other\s+|more\s+|further\s+|additional\s+)*(?:further|else|more|other|information|info|details?|records?|help|questions?|anything)\b/i,
   /\bnothing (?:else|further|more)\b/i,
   /\bno(?:thing)? more (?:questions|details|information)\b/i,
   /\b(?:please\s+)?(?:proceed|go ahead|carry on|move on|next step)\b/i,
-  /\b(?:you can|lets?|let us|let'?s) (?:proceed|continue|go ahead|carry on)\b/i,
+  /\b(?:you can|lets?|let us|let'?s) (?:proceed|continue|go ahead|carry on|move on)\b/i,
   /\b(?:i'?m|im|i am|we'?re|we are|all|its|it'?s) done\b/i,
   /\b(?:file|submit|send|prepare|draft|make|write) it (?:now|please)?\b/i,
   /\b(?:prepare|draft|write|make) (?:the|my) (?:application|request|draft|rti)\b/i,
   /\b(?:i'?m|im|i am|we are|we'?re) ready\b/i,
   /\bgo for it\b/i,
+  /\bthat'?s everything (?:i|we) know\b/i,
   // Hindi / Urdu (roman + script)
   /\bbas\b/i,
   /\b(?:ho gaya|hogaya|ho gayi|khatam|khatm|bas itna|itna hi|kaafi hai|kafi hai)\b/i,
@@ -101,6 +116,53 @@ const PROCEED_PATTERNS: RegExp[] = [
   /(ହୋଇଗଲା|ବସ୍|ପଠାଇ ଦିଅନ୍ତୁ|ଆଗକୁ ବଢ଼ନ୍ତୁ)/,
 ];
 
+/**
+ * Leave-taking. A citizen who says goodbye has ended the
+ * conversation — answering that with "is there anything else?"
+ * is the loop this whole module exists to prevent. Treated
+ * exactly like a confirmation.
+ */
+const FAREWELL_PATTERNS: RegExp[] = [
+  /\b(?:good\s?bye|goodbye|bye bye|bye-bye|byee?|see you|signing off|that will be all)\b/i,
+  /\b(?:ok(?:ay)?|alright|right)[\s,]*(?:then\s*)?(?:bye|goodbye)\b/i,
+  /\b(?:alvida|khuda hafiz|phir milenge)\b/i,
+  /(अलविदा|फिर मिलेंगे)/,
+  /(الوداع|خدا حافظ|پھر ملیں گے)/,
+  /(వీడ్కోలు|సెలవు|మళ్ళీ కలుస్తాను)/,
+  /(விடைபெறுகிறேன்|போய் வருகிறேன்)/,
+  /(ವಿದಾಯ|ಹೋಗಿ ಬರುತ್ತೇನೆ)/,
+  /(വിട|പോയിട്ട് വരാം)/,
+  /(पुन्हा भेटू)/,
+  /(বিদায়|আবার দেখা হবে)/,
+  /(આવજો|ફરી મળીશું)/,
+  /(ਅਲਵਿਦਾ|ਫਿਰ ਮਿਲਾਂਗੇ)/,
+  /(ବିଦାୟ|ପୁଣି ଭେଟିବା)/,
+];
+
+/**
+ * Thanks, and the words that serve as both hello and goodbye.
+ * "Namaste" opens as often as it closes, and a citizen thanks the
+ * agent mid-conversation for explaining who to approach. So these
+ * only end the intake once the account is long enough to stand on
+ * its own — see GRATITUDE_MIN_CHARS.
+ */
+const GRATITUDE_PATTERNS: RegExp[] = [
+  /\b(?:thanks?|thank you|thank u|thanks a lot|thank you very much|much appreciated|appreciate it)\b/i,
+  /\b(?:dhanyavaad|dhanyawad|dhanyavad|shukriya|shukria|meherbani|nandi|nanri|dhanyavaadalu|dhanyosmi|dhanyavadagalu|aabhar)\b/i,
+  /\b(?:namaste|namaskar|namaskaram|vanakkam)\b/i,
+  /(धन्यवाद|शुक्रिया|आभार|नमस्ते|नमस्कार)/,
+  /(شکریہ|مہربانی)/,
+  /(ధన్యవాదాలు|కృతజ్ఞతలు|నమస్కారం)/,
+  /(நன்றி|வணக்கம்)/,
+  /(ಧನ್ಯವಾದ|ನಮಸ್ಕಾರ)/,
+  /(നന്ദി|നമസ്കാരം)/,
+  /(धन्यवाद|आभारी)/,
+  /(ধন্যবাদ|কৃতজ্ঞ|নমস্কার)/,
+  /(આભાર|ધન્યવાદ)/,
+  /(ਧੰਨਵਾਦ|ਸ਼ੁਕਰੀਆ|ਸਤ ਸ੍ਰੀ ਅਕਾਲ)/,
+  /(ଧନ୍ୟବାଦ|ନମସ୍କାର)/,
+];
+
 function tailOf(text: string): string {
   const clean = (text ?? "").replace(/\s+/g, " ").trim();
   return clean.length <= TAIL_WINDOW ? clean : clean.slice(-TAIL_WINDOW);
@@ -110,12 +172,22 @@ function tailOf(text: string): string {
  * True when the citizen has just said they are finished. Reads
  * only the tail of the transcript so a confirmation spoken five
  * minutes ago cannot keep re-firing.
+ *
+ * Three kinds of ending count: an explicit confirmation, a
+ * farewell, and — once the account is long enough to stand on its
+ * own — a simple thank you.
  */
 export function detectProceedIntent(transcript: string): boolean {
-  const tail = tailOf(transcript);
+  const clean = (transcript ?? "").replace(/\s+/g, " ").trim();
+  const tail = tailOf(clean);
   if (tail.length < 2) return false;
   if (HOLD_PATTERNS.some((pattern) => pattern.test(tail))) return false;
-  return PROCEED_PATTERNS.some((pattern) => pattern.test(tail));
+  if (PROCEED_PATTERNS.some((pattern) => pattern.test(tail))) return true;
+  if (FAREWELL_PATTERNS.some((pattern) => pattern.test(tail))) return true;
+  return (
+    clean.length >= GRATITUDE_MIN_CHARS
+    && GRATITUDE_PATTERNS.some((pattern) => pattern.test(tail))
+  );
 }
 
 /**
