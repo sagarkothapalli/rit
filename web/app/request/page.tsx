@@ -33,6 +33,7 @@ import {
   explainFallback,
   guardFallback,
   notesFallback,
+  bplVerificationFallback,
   type Notes,
   type Guard,
   type Draft,
@@ -108,6 +109,13 @@ function localFallback(url: string, body: unknown): unknown {
       data: explainFallback(retrieved),
       review_required: reviewRequired || retrieved.length === 0,
       retrieved,
+    };
+  }
+  if (url.endsWith("/verify-bpl")) {
+    const request = body as { fileName?: string; fileType?: string; fileSize?: number; fileBase64?: string };
+    return {
+      mode: "SIMULATED",
+      data: bplVerificationFallback(request.fileName ?? "document"),
     };
   }
   throw new Error("This service is temporarily unavailable.");

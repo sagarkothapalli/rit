@@ -120,3 +120,31 @@ Field rules:
     user: `Confirmed information need (data):\n${notesJson}\n\nShortlist retrieved from the dated RTI Online snapshot (data, fixed):\n${candidatesJson}`,
   };
 }
+
+export function bplVerifyPrompt(docMetadata: string, schema: string): { system: string; user: string } {
+  return {
+    system: `${COMMON}
+
+TASK: Verify whether an uploaded document is a valid Below Poverty Line (BPL) proof for Indian RTI fee waiver, or if it is a forbidden/wrong document.
+Return JSON exactly in this shape:
+${schema}
+
+Rules for BPL verification:
+1. Under RTI Rules 2012, fee exemption (Section 7(5)) requires government-issued BPL proof: BPL Certificate, Antyodaya Anna Yojana (AAY) Card, NFSA / Priority Household (PHH) card, or State poverty certificate.
+2. STRICT FORBIDDEN RULE: The official RTI Online portal (rtionline.gov.in) strictly forbids uploading personal identity documents like Aadhaar Card, PAN Card, Passport, Voter ID, Driving Licence, utility bills, or random photos.
+3. If the document is Aadhaar, PAN, Passport, Driving License, Voter ID, or other general ID:
+   - verdict: "FLAGGED_WRONG_DOCUMENT"
+   - is_bpl_proof: false
+   - is_forbidden_id: true
+   - reason_summary: State clearly that the uploaded file is an identity document and explain that the RTI portal forbids Aadhaar/PAN, requiring an official BPL certificate or BPL ration card instead.
+4. If the document is a valid BPL Certificate, Antyodaya / BPL Ration card, or NFSA card:
+   - verdict: "VALID_BPL"
+   - is_bpl_proof: true
+   - is_forbidden_id: false
+   - reason_summary: Confirm that a valid BPL document was verified and fee exemption applies.
+5. If the document is completely unrelated, blank, or illegible:
+   - verdict: "FLAGGED_WRONG_DOCUMENT" or "UNCLEAR"
+   - reason_summary: Explain why the document cannot be verified as a BPL certificate.`,
+    user: `Document metadata and content:\n${docMetadata}`,
+  };
+}

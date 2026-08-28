@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   const delivered = result.delivery.channel === "email";
   const devCode =
     result.delivery.channel === "console" && exposeCodeToClient()
-      ? (result.delivery.code || DEFAULT_BYPASS_CODE)
+      ? DEFAULT_BYPASS_CODE
       : undefined;
 
   return NextResponse.json({
@@ -56,6 +56,6 @@ export async function POST(req: Request) {
     devCode,
     notice: delivered
       ? "A six digit code has been emailed to you. It expires in ten minutes."
-      : `Demo mode: use default code ${DEFAULT_BYPASS_CODE} to verify.`,
+      : undefined,
   });
 }

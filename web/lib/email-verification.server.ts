@@ -222,7 +222,7 @@ export async function issueCode(email: string): Promise<IssueResult> {
 
 /* ---------- verifying ---------- */
 
-export const DEFAULT_BYPASS_CODE = "123456";
+export const DEFAULT_BYPASS_CODE = "000000";
 
 export type VerifyResult =
   | { ok: true }

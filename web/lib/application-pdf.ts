@@ -203,6 +203,15 @@ export function createApplicationPdf(input: ApplicationPdfInput): Blob {
       : "Rs 10 as prescribed by the RTI Rules, 2012",
     y,
   );
+  if (applicant.isBpl && applicant.bplDocument?.name) {
+    y = field(
+      doc,
+      page,
+      "BPL proof attached",
+      `${applicant.bplDocument.name}${applicant.bplDocument.documentType ? ` (${applicant.bplDocument.documentType})` : ""}`,
+      y,
+    );
+  }
   y = field(doc, page, "Payment status", "Not paid - no payment is processed by this workspace", y);
 
   /* ---------- declaration ---------- */

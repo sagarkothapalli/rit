@@ -215,6 +215,24 @@ export const COUNTRIES = [
 
 export type Country = (typeof COUNTRIES)[number] | string;
 
+export interface BplDocumentAttachment {
+  name: string;
+  size: number;
+  type: string;
+  dataUrl?: string;
+  status: "idle" | "verifying" | "valid" | "flagged" | "error";
+  documentType?: string;
+  isForbiddenId?: boolean;
+  flagReason?: string | null;
+  confidence?: number;
+  extractedDetails?: {
+    cardNumber?: string;
+    holderName?: string;
+    category?: string;
+    state?: string;
+  };
+}
+
 export interface ApplicantDetails {
   name: string;
   gender: Gender;
@@ -229,6 +247,7 @@ export interface ApplicantDetails {
   email: string;
   citizenship: "Indian";
   isBpl: boolean;
+  bplDocument?: BplDocumentAttachment | null;
 }
 
 export const GENDERS: readonly Gender[] = ["Male", "Female", "Transgender"];
@@ -469,6 +488,7 @@ export function emptyApplicant(): ApplicantDetails {
     email: "",
     citizenship: "Indian",
     isBpl: false,
+    bplDocument: null,
   };
 }
 
@@ -498,6 +518,21 @@ export function validateApplicant(applicant: ApplicantDetails): FieldProblem[] {
   }
   if (applicant.phone.trim() && !/^[0-9+\-\s]{6,20}$/.test(applicant.phone.trim())) {
     add("phone", "Enter a valid landline number, or leave it blank.");
+  }
+  if (applicant.isBpl) {
+    if (!applicant.bplDocument) {
+      add("bplDocument", "Upload a copy of your BPL certificate or card to claim the fee exemption.");
+    } else if (applicant.bplDocument.status === "flagged") {
+      add(
+        "bplDocument",
+        applicant.bplDocument.flagReason
+          || "The uploaded document was flagged as invalid. Upload a valid BPL certificate or ration card.",
+      );
+    } else if (applicant.bplDocument.status === "verifying") {
+      add("bplDocument", "Document verification is still in progress. Please wait for the AI check to complete.");
+    } else if (applicant.bplDocument.status === "error") {
+      add("bplDocument", "Document verification failed. Please try re-uploading your file.");
+    }
   }
   return problems;
 }

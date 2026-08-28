@@ -3737,6 +3737,335 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   width: 20px;
 }
 
+/* ============================================================
+   BPL Document Upload & AI Verification
+   ============================================================ */
+
+.bpl-upload-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 14px;
+  padding: 16px 18px;
+  transition: border-color 0.15s ease;
+}
+
+.bpl-upload-card.has-error {
+  border-color: var(--red);
+}
+
+.bpl-upload-header {
+  margin-bottom: 12px;
+}
+
+.bpl-upload-title {
+  color: var(--fg);
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.bpl-upload-title em {
+  color: var(--red);
+  font-style: normal;
+}
+
+.bpl-upload-subtitle {
+  color: var(--fg-soft);
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+
+.bpl-dropzone {
+  align-items: center;
+  background: var(--surface-soft);
+  border: 2px dashed var(--line-strong);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.bpl-dropzone:hover,
+.bpl-dropzone:focus-visible {
+  background: var(--navy-soft);
+  border-color: var(--navy);
+  outline: none;
+}
+
+.bpl-dropzone.is-dragover {
+  background: var(--navy-soft);
+  border-color: var(--navy);
+  transform: scale(1.005);
+}
+
+.bpl-dropzone-icon {
+  color: var(--navy);
+  opacity: 0.85;
+}
+
+.bpl-dropzone-prompt {
+  color: var(--fg);
+  font-size: 0.86rem;
+  margin: 0;
+}
+
+.bpl-dropzone-prompt strong {
+  color: var(--navy);
+}
+
+.bpl-choose-btn {
+  align-items: center;
+  background: var(--navy);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 650;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 9px 18px;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.bpl-choose-btn:hover {
+  background: var(--navy-deep);
+}
+
+.bpl-choose-btn:active {
+  transform: scale(0.98);
+}
+
+.bpl-dropzone-hint {
+  color: var(--fg-faint);
+  font-size: 0.76rem;
+  margin-top: 2px;
+}
+
+.bpl-file-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px 14px;
+}
+
+.bpl-file-info {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.bpl-file-icon {
+  align-items: center;
+  background: var(--surface-muted);
+  border-radius: 8px;
+  color: var(--navy);
+  display: flex;
+  flex-shrink: 0;
+  height: 46px;
+  justify-content: center;
+  overflow: hidden;
+  width: 46px;
+}
+
+.bpl-thumb {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.bpl-file-meta {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.bpl-file-name {
+  color: var(--fg);
+  font-size: 0.85rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bpl-file-size {
+  color: var(--fg-soft);
+  font-size: 0.76rem;
+  margin-top: 2px;
+}
+
+.bpl-file-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.bpl-action-btn {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  transition: all 0.15s ease;
+}
+
+.bpl-action-btn:hover {
+  background: var(--surface-muted);
+  border-color: var(--navy);
+}
+
+.bpl-action-btn.is-remove {
+  color: var(--red);
+}
+
+.bpl-action-btn.is-remove:hover {
+  background: var(--wax-bg);
+  border-color: var(--red);
+}
+
+.bpl-status-banner {
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 11px 13px;
+}
+
+.bpl-status-banner.is-verifying {
+  align-items: center;
+  background: var(--navy-soft);
+  border: 1px solid var(--line);
+  color: var(--navy);
+}
+
+.bpl-spinner {
+  animation: bpl-spin 0.8s linear infinite;
+  border: 2.5px solid var(--line);
+  border-radius: 50%;
+  border-top-color: var(--navy);
+  flex-shrink: 0;
+  height: 18px;
+  width: 18px;
+}
+
+@keyframes bpl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bpl-status-banner.is-valid {
+  align-items: flex-start;
+  background: var(--green-soft);
+  border: 1px solid var(--green);
+  color: var(--good-fg);
+}
+
+.bpl-status-banner.is-flagged {
+  align-items: flex-start;
+  background: var(--wax-bg);
+  border: 1.5px solid var(--red);
+  color: var(--red);
+}
+
+.bpl-status-banner.is-error {
+  align-items: flex-start;
+  background: var(--truth-bg);
+  border: 1px solid var(--truth-line);
+  color: var(--truth-fg);
+}
+
+.bpl-status-badge-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.bpl-status-text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  font-size: 0.81rem;
+  gap: 3px;
+  line-height: 1.45;
+}
+
+.bpl-status-heading {
+  font-size: 0.83rem;
+}
+
+.bpl-status-desc {
+  margin: 0;
+  opacity: 0.95;
+}
+
+.bpl-tag {
+  align-self: flex-start;
+  background: rgba(47, 125, 63, 0.12);
+  border: 1px solid rgba(47, 125, 63, 0.3);
+  border-radius: 4px;
+  color: var(--good-fg);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+  padding: 2px 6px;
+}
+
+.bpl-replace-link {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-top: 4px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.bpl-replace-link:hover {
+  opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+  .bpl-dropzone {
+    padding: 18px 12px;
+  }
+
+  .bpl-choose-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .bpl-file-info {
+    flex-wrap: wrap;
+  }
+
+  .bpl-file-actions {
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  .bpl-action-btn {
+    flex: 1;
+    text-align: center;
+  }
+}
+
 .applicant-boundary {
   background: var(--truth-bg);
   border-left: 3px solid var(--truth-line);

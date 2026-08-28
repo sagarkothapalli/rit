@@ -66,7 +66,7 @@ export default function EmailVerification({
     setDevCode(null);
     try {
       const outcome = await requestEmailCode(email);
-      setNotice(outcome.notice);
+      setNotice(outcome.notice ?? null);
       setDevCode(outcome.devCode ?? null);
       setPhase("code");
       setCooldown(60);
@@ -183,7 +183,7 @@ export default function EmailVerification({
         </>
       )}
 
-      {notice && <p className="verify-notice">{notice}</p>}
+      {notice && !devCode && <p className="verify-notice">{notice}</p>}
       {devCode && (
         <p className="verify-devcode">
           Demo mode: default verification code is <strong>{devCode}</strong>.

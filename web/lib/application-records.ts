@@ -179,7 +179,7 @@ export async function findApplication(acknowledgementNumber: string): Promise<St
 
 export interface CodeRequestOutcome {
   delivery: "email" | "console";
-  notice: string;
+  notice?: string;
   /** Present only in local development with no email provider configured. */
   devCode?: string;
 }
@@ -210,7 +210,7 @@ export async function requestEmailCode(email: string): Promise<CodeRequestOutcom
   }
   return {
     delivery: payload.delivery ?? "console",
-    notice: payload.notice ?? "A verification code has been issued.",
+    notice: payload.notice,
     devCode: payload.devCode,
   };
 }

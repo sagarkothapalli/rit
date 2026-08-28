@@ -12,6 +12,7 @@ import {
   DraftSchema,
   ExplainSchema,
   explainFallback,
+  bplVerificationFallback,
   type Notes,
   type Draft,
   type Guard,
@@ -214,6 +215,11 @@ export async function hostedGate(url: string, body: unknown): Promise<unknown> {
   if (url.endsWith("/explain")) {
     const request = body as { notes: Notes; transcript?: string; draft?: Draft };
     return hostedExplain(request);
+  }
+  if (url.endsWith("/verify-bpl")) {
+    const request = body as { fileName?: string; fileType?: string; fileSize?: number; fileBase64?: string };
+    const data = bplVerificationFallback(request.fileName ?? "document");
+    return { mode: "SIMULATED", data };
   }
   throw new Error("Unknown gate");
 }

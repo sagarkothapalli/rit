@@ -23,6 +23,28 @@ const ApplicantSchema = z.object({
   email: z.string().email().max(254).transform((value) => value.toLowerCase()),
   citizenship: z.literal("Indian"),
   isBpl: z.boolean(),
+  bplDocument: z
+    .object({
+      name: z.string().max(200),
+      size: z.number().max(20_000_000),
+      type: z.string().max(100),
+      dataUrl: z.string().optional(),
+      status: z.enum(["idle", "verifying", "valid", "flagged", "error"]),
+      documentType: z.string().max(150).optional(),
+      isForbiddenId: z.boolean().optional(),
+      flagReason: z.string().max(600).nullable().optional(),
+      confidence: z.number().optional(),
+      extractedDetails: z
+        .object({
+          cardNumber: z.string().optional(),
+          holderName: z.string().optional(),
+          category: z.string().optional(),
+          state: z.string().optional(),
+        })
+        .optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 const StoredApplicationSchema = z.object({
