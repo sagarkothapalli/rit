@@ -78,6 +78,10 @@ export function clearIntakeRecord(): void {
 export function composeIntakeTranscript(handoff: IntakeHandoff, userText: string): string {
   const spoken = userText.trim().slice(0, 6000);
   const summary = handoff.summary.trim();
-  if (summary && spoken) return `${summary} — ${spoken}`.slice(0, 6000);
-  return (spoken || summary).slice(0, 6000);
+  if (!summary || !spoken) return (spoken || summary).slice(0, 6000);
+  // A synthesised handoff derives its summary from the transcript itself, so
+  // prefixing it would just repeat the citizen's words back at the gate.
+  const head = summary.replace(/…$/, "").trim();
+  if (head && spoken.startsWith(head)) return spoken;
+  return `${summary} — ${spoken}`.slice(0, 6000);
 }

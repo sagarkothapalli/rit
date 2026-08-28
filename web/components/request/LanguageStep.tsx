@@ -21,8 +21,11 @@ interface LiveLike {
   userText: string;
   error: string | null;
   jurisdiction: JurisdictionVerdict | null;
+  canFinish: boolean;
   start: () => void | Promise<void>;
   stop: () => void;
+  /** Ends the intake and hands off immediately. Returns false if too little was said. */
+  finish: () => boolean;
 }
 
 interface LanguageStepProps {
@@ -84,6 +87,20 @@ export default function LanguageStep({
                   <p className="intake-placeholder">Your words will appear here as you speak.</p>
                 )}
               </div>
+
+              {/* Saying "that's it" is enough, but the citizen never has to
+                  depend on the assistant hearing it to move forward. */}
+              {live.canFinish && (
+                <div className="intake-finish">
+                  <button type="button" className="primary-button" onClick={() => live.finish()}>
+                    That&rsquo;s it — prepare my application
+                  </button>
+                  <p className="step-hint">
+                    Saying &ldquo;that&rsquo;s it&rdquo; or &ldquo;proceed&rdquo; does the same thing. Anything still
+                    missing you can fill in on the next screens.
+                  </p>
+                </div>
+              )}
 
               {/* Surfaced live, so the citizen sees the jurisdiction call as
                   soon as it is made rather than two steps later. */}

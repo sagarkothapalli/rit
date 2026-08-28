@@ -82,6 +82,29 @@ language.
 
 ## Handoff contract
 
+`submit_intake` is the handoff. Saying "I am preparing your application" is not.
+Steps 3 to 9 cannot start until the tool is called, so a spoken assurance with
+no tool call leaves the citizen stranded on step 2.
+
+**Stop-and-hand-off trigger.** The moment the citizen signals they are finished,
+stop collecting and call the tool in that same turn with whatever you have —
+even mid-way through the particulars. In any language: "that's it", "that's
+all", "nothing else", "I don't need anything further", "proceed", "go ahead",
+"next step", "file it", "draft it", "I'm done", "I'm ready", "bas", "ho gaya",
+"kuch nahi", "aage badho", "kar do", "ante", "chaalu", "ayipoyindi", "podhum",
+"mudinthathu", "saaku", "mathi", "zhala", "hoye geche", "thai gayu".
+
+After that signal you never ask another question, never ask "anything else?",
+and never say you are drafting and then wait. One short line, the tool call,
+stop. Missing fields are not a reason to keep talking — the citizen edits every
+field on screen afterwards.
+
+The app enforces this rather than trusting it: `lib/live/proceed.ts` matches the
+confirmation deterministically in all twelve languages. First it injects a
+system turn ordering the handoff; if the tool call still does not arrive within
+six seconds, or after two attempts, the app synthesises the handoff from the
+transcript and advances by itself.
+
 ```json
 {
   "detected_lang": "te-IN",

@@ -8,6 +8,12 @@ import {
 } from "@/lib/live/intakePrompt";
 import { createPlaybackQueue, int16ToBase64, type PlaybackQueue } from "@/lib/live/audio";
 import { saveIntakeRecord, clearIntakeRecord } from "@/lib/live/intakeMemory";
+import {
+  detectHoldIntent,
+  detectProceedIntent,
+  hasEnoughForHandoff,
+  synthesizeHandoff,
+} from "@/lib/live/proceed";
 import { classifyJurisdiction, type JurisdictionVerdict } from "@/lib/jurisdiction";
 import {
   LIVE_VOICE,
@@ -68,6 +74,26 @@ const GREETING_NUDGE =
 
 const WRAP_NUDGE =
   "(Time is nearly up. In the citizen's language, in one short sentence, thank them and restate your one-line summary, then call submit_intake immediately in the same turn. Do not ask any more questions.)";
+
+/**
+ * Sent the moment the citizen says they are finished. The model
+ * otherwise answers "I am drafting your request, anything else?"
+ * and loops there forever, because nothing in the conversation
+ * forces the tool call.
+ */
+const PROCEED_NUDGE =
+  "(System note, not spoken by the citizen. The citizen has just confirmed they are finished and want you to proceed."
+  + " Do NOT ask another question. Do NOT say you are drafting and then wait. In THIS turn: say one short line in"
+  + " their language telling them their application is being prepared, and call submit_intake in the same turn with"
+  + " everything you captured so far. Omit any field they never gave — the citizen fills the rest in on screen. The"
+  + " next stage of the site cannot start until you call the tool.)";
+
+/**
+ * If the model ignores the nudge, the app stops waiting on it and
+ * builds the handoff itself. The citizen said "proceed"; an intake
+ * that never ends is a worse outcome than a draft they can edit.
+ */
+const FORCE_HANDOFF_MS = 6000;
 
 /** Steers the model to stop after the handoff instead of drifting back into chat. */
 const HANDOFF_ACK =
@@ -140,6 +166,7 @@ export function useLiveIntake() {
   const softTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const proceedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<LiveMessage[]>([]);
   const userTextRef = useRef("");
   const agentTextRef = useRef("");
@@ -148,6 +175,12 @@ export function useLiveIntake() {
   const jurisdictionRef = useRef<JurisdictionVerdict | null>(null);
   const flaggedRef = useRef(false);
   const pendingFlagRef = useRef<JurisdictionVerdict | null>(null);
+  /** Set when the citizen says they are finished; cleared once acted on. */
+  const pendingProceedRef = useRef(false);
+  /** Transcript length already scanned for a confirmation. */
+  const proceedConsumedRef = useRef(0);
+  /** How many times we have had to push the model towards the handoff. */
+  const proceedNudgesRef = useRef(0);
 
   useEffect(() => {
     const ok =
@@ -184,6 +217,27 @@ export function useLiveIntake() {
     if (verdict.level === "state" && verdict.confidence >= 0.6 && !flaggedRef.current) {
       pendingFlagRef.current = verdict;
     }
+
+    // "That's it, proceed." Recognised here rather than left to the model,
+    // which otherwise keeps promising to draft and asking one more question.
+    // Matched against the tail of the transcript, and only for speech we have
+    // not already acted on, so one confirmation cannot fire repeatedly.
+    if (!handoffRef.current) {
+      if (detectHoldIntent(text)) {
+        // "Wait, one more thing" after a confirmation cancels it.
+        pendingProceedRef.current = false;
+        if (proceedTimerRef.current) {
+          clearTimeout(proceedTimerRef.current);
+          proceedTimerRef.current = null;
+        }
+      } else if (
+        userTextRef.current.length > proceedConsumedRef.current + 4
+        && detectProceedIntent(userTextRef.current)
+      ) {
+        proceedConsumedRef.current = userTextRef.current.length;
+        pendingProceedRef.current = true;
+      }
+    }
   }, []);
 
   /** Send the queued jurisdiction flag once the turn is free. */
@@ -209,7 +263,7 @@ export function useLiveIntake() {
   }, []);
 
   const clearTimers = useCallback(() => {
-    for (const ref of [softTimerRef, hardTimerRef, closeTimerRef]) {
+    for (const ref of [softTimerRef, hardTimerRef, closeTimerRef, proceedTimerRef]) {
       if (ref.current) {
         clearTimeout(ref.current);
         ref.current = null;
@@ -262,6 +316,103 @@ export function useLiveIntake() {
       /* session may be closing */
     }
   }, [setPhase]);
+
+  /**
+   * Normalises and publishes a handoff. Deliberately does not touch
+   * the session or the phase, so it is safe to call while closing.
+   */
+  const publishHandoff = useCallback((raw: IntakeHandoff): boolean => {
+    if (handoffRef.current) return false;
+    const normalized = reconcileJurisdiction(raw, classifyJurisdiction(userTextRef.current));
+    handoffRef.current = normalized;
+    pendingProceedRef.current = false;
+    if (proceedTimerRef.current) {
+      clearTimeout(proceedTimerRef.current);
+      proceedTimerRef.current = null;
+    }
+    setHandoff(normalized);
+    // Persist the intake so a refresh mid-flow never loses the complaint.
+    saveIntakeRecord({
+      handoff: normalized,
+      transcript: userTextRef.current.trim(),
+      capturedAt: Date.now(),
+    });
+    return true;
+  }, []);
+
+  /**
+   * The single place a live handoff becomes real, whether the model
+   * produced it or the app synthesised it. Publishes it and closes
+   * the session so the workspace can advance.
+   */
+  const commitHandoff = useCallback(
+    (raw: IntakeHandoff) => {
+      if (!publishHandoff(raw)) return;
+      if (statusRef.current === "active") setPhase("wrapup");
+      closeTimerRef.current = setTimeout(() => {
+        closingRef.current = true;
+        try {
+          sessionRef.current?.close();
+        } catch {
+          /* noop */
+        }
+      }, 2500);
+    },
+    [publishHandoff, setPhase]
+  );
+
+  /**
+   * The citizen said "proceed" and the model still has not called
+   * the tool. Build the handoff from the transcript and move on;
+   * every field is editable in the steps that follow.
+   */
+  const forceHandoff = useCallback(() => {
+    if (handoffRef.current || !pendingProceedRef.current) return;
+    if (!hasEnoughForHandoff(userTextRef.current)) return;
+    commitHandoff(synthesizeHandoff(userTextRef.current, jurisdictionRef.current ?? undefined));
+  }, [commitHandoff]);
+
+  /**
+   * Explicit "I'm done" from the citizen, pressed on screen. Same
+   * path as the spoken confirmation, minus the waiting: the button
+   * exists so the citizen is never at the model's mercy.
+   */
+  const finish = useCallback((): boolean => {
+    if (handoffRef.current) return true;
+    if (!hasEnoughForHandoff(userTextRef.current)) return false;
+    pendingProceedRef.current = true;
+    commitHandoff(synthesizeHandoff(userTextRef.current, jurisdictionRef.current ?? undefined));
+    return true;
+  }, [commitHandoff]);
+
+  /**
+   * Acted on at turn boundaries: ask the model once (twice at
+   * most) to hand off, and start the timer that stops waiting.
+   */
+  const flushProceedIntent = useCallback(() => {
+    if (!pendingProceedRef.current || handoffRef.current || closingRef.current) return;
+    if (statusRef.current !== "active" && statusRef.current !== "wrapup") return;
+    if (!hasEnoughForHandoff(userTextRef.current)) {
+      // "Proceed" before there is a concern to file — nothing to hand off yet.
+      pendingProceedRef.current = false;
+      return;
+    }
+    if (proceedNudgesRef.current >= 2) {
+      forceHandoff();
+      return;
+    }
+    proceedNudgesRef.current += 1;
+    try {
+      sessionRef.current?.sendClientContent({
+        turns: { role: "user", parts: [{ text: PROCEED_NUDGE }] },
+      });
+    } catch {
+      forceHandoff();
+      return;
+    }
+    if (proceedTimerRef.current) clearTimeout(proceedTimerRef.current);
+    proceedTimerRef.current = setTimeout(() => forceHandoff(), FORCE_HANDOFF_MS);
+  }, [forceHandoff]);
 
   const beginAudio = useCallback(async () => {
     const session = sessionRef.current;
@@ -344,25 +495,17 @@ export function useLiveIntake() {
           }
         }
       }
-      // A completed turn is the only safe moment to inject the flag.
-      if (content?.turnComplete) flushJurisdictionFlag();
+      // A completed turn is the only safe moment to inject a system turn.
+      if (content?.turnComplete) {
+        flushJurisdictionFlag();
+        flushProceedIntent();
+      }
       if (msg.goAway && statusRef.current === "active") wrapUp();
       const calls = msg.toolCall?.functionCalls;
       if (calls) {
         for (const call of calls) {
           if (call.name !== "submit_intake") continue;
-          const normalized = reconcileJurisdiction(
-            normalizeHandoff(call.args ?? {}),
-            classifyJurisdiction(userTextRef.current),
-          );
-          handoffRef.current = normalized;
-          setHandoff(normalized);
-          // Persist the intake so a refresh mid-flow never loses the complaint.
-          saveIntakeRecord({
-            handoff: normalized,
-            transcript: userTextRef.current.trim(),
-            capturedAt: Date.now(),
-          });
+          commitHandoff(normalizeHandoff(call.args ?? {}));
           try {
             sessionRef.current?.sendToolResponse({
               functionResponses: [{ id: call.id, name: call.name, response: { ok: true, instruction: HANDOFF_ACK } }],
@@ -370,19 +513,10 @@ export function useLiveIntake() {
           } catch {
             /* session may be closing */
           }
-          if (statusRef.current === "active") setPhase("wrapup");
-          closeTimerRef.current = setTimeout(() => {
-            closingRef.current = true;
-            try {
-              sessionRef.current?.close();
-            } catch {
-              /* noop */
-            }
-          }, 2500);
         }
       }
     },
-    [appendAgent, appendUser, beginAudio, flushJurisdictionFlag, setPhase, wrapUp]
+    [appendAgent, appendUser, beginAudio, commitHandoff, flushJurisdictionFlag, flushProceedIntent, wrapUp]
   );
 
   const start = useCallback(async () => {
@@ -396,6 +530,9 @@ export function useLiveIntake() {
     jurisdictionRef.current = null;
     pendingFlagRef.current = null;
     flaggedRef.current = false;
+    pendingProceedRef.current = false;
+    proceedConsumedRef.current = 0;
+    proceedNudgesRef.current = 0;
     clearIntakeRecord();
     setUserText("");
     setAgentText("");
@@ -456,6 +593,11 @@ export function useLiveIntake() {
               return;
             }
             if (statusRef.current === "failed") return;
+            // Same rule as stop(): a confirmed intake still advances even if
+            // the socket died before the model called the tool.
+            if (!handoffRef.current && pendingProceedRef.current && hasEnoughForHandoff(userTextRef.current)) {
+              publishHandoff(synthesizeHandoff(userTextRef.current, jurisdictionRef.current ?? undefined));
+            }
             if (handoffRef.current) {
               setPhase("done");
               return;
@@ -480,11 +622,16 @@ export function useLiveIntake() {
     } catch (err) {
       fail(err instanceof Error ? err : new Error("Could not start the voice session."));
     }
-  }, [clearTimers, fail, handleMessage, setPhase, teardownAudio]);
+  }, [clearTimers, fail, handleMessage, publishHandoff, setPhase, teardownAudio]);
 
   const stop = useCallback(() => {
     clearTimers();
     closingRef.current = true;
+    // A confirmation the model never acted on must not be lost because the
+    // session closed first — the citizen already said to proceed.
+    if (!handoffRef.current && pendingProceedRef.current && hasEnoughForHandoff(userTextRef.current)) {
+      publishHandoff(synthesizeHandoff(userTextRef.current, jurisdictionRef.current ?? undefined));
+    }
     try {
       sessionRef.current?.close();
     } catch {
@@ -502,7 +649,7 @@ export function useLiveIntake() {
     if (!userTextRef.current) {
       setError(`Voice session ended without speech. ${FALLBACK_HINT}`);
     }
-  }, [clearTimers, setPhase, teardownAudio]);
+  }, [clearTimers, publishHandoff, setPhase, teardownAudio]);
 
   const reset = useCallback(() => {
     stop();
@@ -512,6 +659,9 @@ export function useLiveIntake() {
     jurisdictionRef.current = null;
     pendingFlagRef.current = null;
     flaggedRef.current = false;
+    pendingProceedRef.current = false;
+    proceedConsumedRef.current = 0;
+    proceedNudgesRef.current = 0;
     clearIntakeRecord();
     setUserText("");
     setAgentText("");
@@ -546,5 +696,19 @@ export function useLiveIntake() {
     [clearTimers]
   );
 
-  return { status, supported, agentText, userText, error, handoff, jurisdiction, start, stop, reset };
+  return {
+    status,
+    supported,
+    agentText,
+    userText,
+    error,
+    handoff,
+    jurisdiction,
+    start,
+    stop,
+    reset,
+    finish,
+    /** True once enough has been said for the citizen to end the intake themselves. */
+    canFinish: hasEnoughForHandoff(userText) && !handoff,
+  };
 }

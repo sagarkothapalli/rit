@@ -8,7 +8,8 @@
     "build:hosted": "node scripts/build-static.mjs",
     "publish:hosted": "npm run build:hosted && node scripts/publish-herenow.mjs",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run"
   },
   "dependencies": {
     "@google/genai": "^2.19.0",
@@ -28,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "3.2.4"
   }
 }

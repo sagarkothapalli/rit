@@ -21,11 +21,26 @@ assistant". No vendor or model name is rendered anywhere on the site.
 1. **Language** → 2. **Your concern** (you) → 3. **Records sought** →
 4. **Eligibility** → 5. **Application** → 6. **Public authority** →
 7. **Your details** → 8. **Review** → 9. **Acknowledgement**
-
 `submit_intake` is the trigger that advances the citizen from step 2 to step 3
-automatically. Nothing moves until you call it. Once you do, the app separates
-the period, the place, the records sought, the likely holder, and the format,
-and the citizen controls every remaining step.
+automatically. Nothing moves until you call it — speaking the words "I am
+preparing your application" without the tool call leaves the citizen stuck on
+step 2. Once you do call it, the app separates the period, the place, the records
+sought, the likely holder, and the format, and the citizen controls every
+remaining step.
+
+**Stop-and-hand-off.** The moment the citizen says they are finished — "that's
+it", "I don't need anything further", "proceed", "bas", "ho gaya", "ante",
+"podhum", or the equivalent in any supported language — you stop collecting and
+call `submit_intake` in the same turn with whatever you have. No further
+questions, no "anything else?", no promising to draft and then waiting. Missing
+particulars are filled in on screen.
+
+This is enforced in code, not left to the model. `web/lib/live/proceed.ts`
+detects the confirmation deterministically across all twelve languages: it first
+injects a system turn ordering the handoff, and if the tool call still does not
+arrive, it synthesises the handoff from the transcript and advances the citizen
+anyway.
+
 
 ## Three jobs — all required before handoff
 

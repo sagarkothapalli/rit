@@ -2531,6 +2531,20 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   margin-top: 20px;
 }
 
+/* The citizen's own way out of the conversation, independent of
+   whether the assistant acted on "that's it". */
+.intake-finish {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.intake-finish .step-hint {
+  margin: 0;
+}
+
 .intake-transcript {
   background: var(--surface);
   border: 1px solid var(--line);
