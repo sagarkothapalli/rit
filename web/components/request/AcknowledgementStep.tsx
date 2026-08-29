@@ -14,14 +14,13 @@ interface AcknowledgementStepProps {
   record: StoredApplication;
   storageMessage: string | null;
   onBack: () => void;
-  onStartOver: () => void;
+  onStartOver?: () => void;
 }
 
 export default function AcknowledgementStep({
   record,
   storageMessage,
   onBack,
-  onStartOver,
 }: AcknowledgementStepProps) {
   return (
     <div className="step-body">
@@ -74,9 +73,9 @@ export default function AcknowledgementStep({
           Download receipt
         </button>
         <button type="button" className="ghost-button" onClick={onBack}>Back</button>
-        <button type="button" className="primary-button" onClick={onStartOver}>
-          Thank you
-        </button>
+        <a href="/" className="primary-button">
+          Home
+        </a>
       </div>
     </div>
   );
