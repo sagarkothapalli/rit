@@ -64,8 +64,8 @@ export default function LanguageStep({
           <div className="intake-option-head">
             <h2>Speak to the RTI agent</h2>
             <p>
-              A guided conversation in your own language. It listens, asks at most a few short questions, and fills
-              in the form details with you. You can interrupt at any time.
+              A guided conversation in your own language. It listens, asks at most two short questions, and never
+              asks for your personal details — you fill those in yourself on a later screen.
             </p>
           </div>
 

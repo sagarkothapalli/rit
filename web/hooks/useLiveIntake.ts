@@ -97,20 +97,18 @@ interface WorkletMessage {
 
 /**
  * The model stays mute until something arrives, so the session
- * opens with an injected turn rather than a real one. It asks for
- * an introduction first and a question second: a citizen who has
- * just heard a stranger's voice needs to know who is speaking
- * before being asked what they want.
+ * opens with an injected turn rather than a real one. Two short
+ * sentences: who is speaking, and one invitation to talk. Longer
+ * openings were where the monologue started.
  */
 const GREETING_NUDGE =
-  "(Session start. The citizen has not spoken yet. Open in English with your introduction, in four short spoken"
-  + " sentences and nothing more: greet them and say you are here; say you are their RTI agent, a voice assistant"
-  + " for Right to Information; ask how you may help today; then offer the two ways in — filing a complaint, or"
-  + " asking for information or records from the government. Do NOT open with a bare question, a menu, a list of"
-  + " capabilities, or a disclaimer, and do NOT name any model, company, or technology. Then stop and listen.)";
+  "(Session start. The citizen has not spoken yet. Open in English with exactly two short spoken sentences and"
+  + " nothing more: say you are their RTI agent, then invite them to describe the problem in their own words."
+  + " Do NOT list options, capabilities, or disclaimers, do NOT ask a second question, and do NOT name any model,"
+  + " company, or technology. Then stop and listen.)";
 
 const WRAP_NUDGE =
-  "(Time is nearly up. In the citizen's language, in one short sentence, thank them and restate your one-line summary, then call submit_intake immediately in the same turn. Do not ask any more questions.)";
+  "(Time is nearly up. In the citizen's language, in one short sentence, state their complaint back for the record, then call submit_intake immediately in the same turn. Do not ask any more questions.)";
 
 /**
  * Sent the moment the citizen says they are finished. The model
@@ -120,10 +118,10 @@ const WRAP_NUDGE =
  */
 const PROCEED_NUDGE =
   "(System note, not spoken by the citizen. The citizen has just confirmed they are finished and want you to proceed."
-  + " Do NOT ask another question. Do NOT say you are drafting and then wait. In THIS turn: say one short line in"
-  + " their language telling them their application is being prepared, and call submit_intake in the same turn with"
-  + " everything you captured so far. Omit any field they never gave — the citizen fills the rest in on screen. The"
-  + " next stage of the site cannot start until you call the tool.)";
+  + " Do NOT ask another question — not about their name, their address, their contact details, or anything else."
+  + " Do NOT say you are drafting and then wait. In THIS turn: say one short line in their language stating their"
+  + " complaint back for the record and telling them it is being prepared, and call submit_intake in the same turn"
+  + " with everything you captured. The next stage of the site cannot start until you call the tool.)";
 
 /**
  * If the model ignores the nudge, the app stops waiting on it and
