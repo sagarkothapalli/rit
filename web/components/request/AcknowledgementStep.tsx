@@ -23,8 +23,6 @@ export default function AcknowledgementStep({
   onBack,
   onStartOver,
 }: AcknowledgementStepProps) {
-  const stateMatter = record.report.jurisdiction === "state";
-
   return (
     <div className="step-body">
       <h1>Your copy is saved.</h1>
@@ -75,11 +73,6 @@ export default function AcknowledgementStep({
         >
           Download receipt
         </button>
-        {!stateMatter && (
-          <a className="ghost-button" href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">
-            Go to RTI Online
-          </a>
-        )}
         <button type="button" className="ghost-button" onClick={onBack}>Back</button>
         <button type="button" className="primary-button" onClick={onStartOver}>
           Thank you

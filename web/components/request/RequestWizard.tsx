@@ -56,7 +56,6 @@ import {
   type StoredApplication,
 } from "@/lib/application-records";
 import { emptyApplicant, lookupPincode, validateApplicant, type ApplicantDetails, type FieldProblem } from "@/lib/applicant";
-import ExternalFilingHandoff from "@/components/cases/ExternalFilingHandoff";
 import { coveringStatement } from "@/lib/filing-rules/portal-text";
 import { filingRulesFor } from "@/lib/filing-rules/registry";
 import { validateApplicantAgainstRules } from "@/lib/filing-rules/validate";
@@ -951,22 +950,12 @@ export default function RequestWorkspace() {
               )}
 
               {step === "acknowledgement" && savedApplication && (
-                <>
-                  <AcknowledgementStep
-                    record={savedApplication}
-                    storageMessage={storageMessage}
-                    onBack={() => { setErr(null); setStep("review"); }}
-                    onStartOver={startOver}
-                  />
-                  {savedCase && (
-                    <ExternalFilingHandoff
-                      rules={rules}
-                      bpl={applicant.isBpl}
-                      caseId={savedCase.id}
-                      stateMatter={stateMatter}
-                    />
-                  )}
-                </>
+                <AcknowledgementStep
+                  record={savedApplication}
+                  storageMessage={storageMessage}
+                  onBack={() => { setErr(null); setStep("review"); }}
+                  onStartOver={startOver}
+                />
               )}
             </>
           )}
