@@ -1,8 +1,13 @@
 export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 export const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
 
-export const DEFAULT_BASE_URL = DEEPSEEK_BASE_URL;
-export const DEFAULT_MODEL = "deepseek-v4-flash";
+export const DEFAULT_BASE_URL = GEMINI_BASE_URL;
+export const DEFAULT_MODEL = "gemini-3.5-flash-lite";
+
+/** Cross-provider fallback. Serves the request when the primary errors out —
+    quota, 5xx, timeout, or output that will not parse. See callModelJSON. */
+export const FALLBACK_BASE_URL = DEEPSEEK_BASE_URL;
+export const FALLBACK_MODEL = "deepseek-v4-flash";
 
 export type ModelProvider = "deepseek" | "gemini";
 
@@ -20,7 +25,7 @@ export const MODEL_CATALOG: ModelOption[] = [
     label: "DeepSeek V4 Flash",
     provider: "deepseek",
     baseUrl: DEEPSEEK_BASE_URL,
-    hint: "Current After Speech default",
+    hint: "Fallback when Gemini fails",
   },
   {
     id: "gemini-3.7-flash",
@@ -48,7 +53,7 @@ export const MODEL_CATALOG: ModelOption[] = [
     label: "Gemini 3.5 Flash Lite",
     provider: "gemini",
     baseUrl: GEMINI_BASE_URL,
-    hint: "Fastest, lowest cost",
+    hint: "Current After Speech default — fastest, lowest cost",
   },
 ];
 

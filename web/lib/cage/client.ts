@@ -1,10 +1,11 @@
 /* ============================================================
    OpenAI-compatible client with a hard cage: JSON-only output,
-   temperature 0, timeout, one repair retry, zod validation,
-   deterministic fallback on any failure.
+   temperature 0, timeout, one repair retry, a cross-provider
+   retry on DeepSeek, zod validation, deterministic fallback on
+   any failure.
    ============================================================ */
 import { getRuntimeModelConfig } from "./config";
-import { chatBodyExtras } from "./models";
+import { chatBodyExtras, providerOf, FALLBACK_BASE_URL, FALLBACK_MODEL } from "./models";
 
 const TIMEOUT_MS = 30_000;
 
@@ -80,30 +81,56 @@ function extractJson(text: string): unknown {
   }
 }
 
-export async function callModelJSON<T>(
-  args: Omit<CallArgs, "maxTokens"> & { maxTokens?: number },
-  validate: (x: unknown) => T
-): Promise<{ ok: true; data: T; model: string } | { ok: false; error: string }> {
-  const { cfg, model, system, user } = args;
-  const maxTokens = args.maxTokens ?? 700;
+type Result<T> = { ok: true; data: T; model: string } | { ok: false; error: string };
 
-  for (let attempt = 0; attempt < 2; attempt++) {
+/** Primary model, twice: once straight, once told its output would not parse. */
+async function attempt<T>(
+  args: CallArgs,
+  validate: (x: unknown) => T
+): Promise<Result<T>> {
+  const { system, user } = args;
+  for (let i = 0; i < 2; i++) {
     try {
       const content = await rawCall({
-        cfg,
-        model,
-        system: attempt === 0 ? system : `${system}\n\nREMINDER: your previous reply was not valid JSON of the required shape. Output ONLY the JSON object.`,
-        user: attempt === 0 ? user : `${user}\n\n(Previous attempt failed to parse. Output only the JSON object.)`,
-        maxTokens,
+        ...args,
+        system: i === 0 ? system : `${system}\n\nREMINDER: your previous reply was not valid JSON of the required shape. Output ONLY the JSON object.`,
+        user: i === 0 ? user : `${user}\n\n(Previous attempt failed to parse. Output only the JSON object.)`,
       });
-      const parsed = validate(extractJson(content));
-      return { ok: true, data: parsed, model };
+      return { ok: true, data: validate(extractJson(content)), model: args.model };
     } catch (err) {
-      if (attempt === 1) {
-        const msg = err instanceof Error ? err.message : "LLM call failed";
-        return { ok: false, error: msg };
-      }
+      if (i === 1) return { ok: false, error: err instanceof Error ? err.message : "LLM call failed" };
     }
   }
   return { ok: false, error: "unreachable" };
+}
+
+/* Gemini is the default primary; when it is rate-limited, down, or returning
+   junk, DeepSeek answers rather than dropping the citizen to a deterministic
+   stub. It needs its own credential — the runtime config holds one key, and it
+   is the Gemini one — so: DEEPSEEK_API_KEY, or the LLM_* pair when that already
+   points at DeepSeek. No key, no cross-provider retry. */
+function fallbackFor(cfg: ModelConfig, model: string): CallArgs["cfg"] | null {
+  if (providerOf(model, cfg.baseUrl) === "deepseek") return null;
+  const apiKey =
+    process.env.DEEPSEEK_API_KEY?.trim() ||
+    (process.env.LLM_BASE_URL?.includes("deepseek.com") ? process.env.LLM_API_KEY?.trim() : "");
+  if (!apiKey) return null;
+  return { baseUrl: FALLBACK_BASE_URL, apiKey, fast: FALLBACK_MODEL, strong: FALLBACK_MODEL };
+}
+
+export async function callModelJSON<T>(
+  args: Omit<CallArgs, "maxTokens"> & { maxTokens?: number },
+  validate: (x: unknown) => T
+): Promise<Result<T>> {
+  const call = { ...args, maxTokens: args.maxTokens ?? 700 };
+
+  const primary = await attempt(call, validate);
+  if (primary.ok) return primary;
+
+  const cfg = fallbackFor(args.cfg, args.model);
+  if (!cfg) return primary;
+
+  // model comes back in the response, so the UI names whoever actually answered.
+  const second = await attempt({ ...call, cfg, model: FALLBACK_MODEL }, validate);
+  return second.ok ? second : primary;
 }

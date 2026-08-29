@@ -287,13 +287,13 @@ export default function AdminPage() {
                   }}
                   className="w-full rounded-xl border border-[var(--line-strong)] bg-[var(--glass-strong)] px-4 py-3 text-[15px] outline-none focus:border-[var(--iris)] focus:ring-4 focus:ring-[var(--iris)]/10"
                 >
-                  <optgroup label="DeepSeek">
-                    {catalog.filter((m) => m.provider === "deepseek").map((m) => (
+                  <optgroup label="Google Gemini">
+                    {catalog.filter((m) => m.provider === "gemini").map((m) => (
                       <option key={m.id} value={m.id}>{m.label}</option>
                     ))}
                   </optgroup>
-                  <optgroup label="Google Gemini">
-                    {catalog.filter((m) => m.provider === "gemini").map((m) => (
+                  <optgroup label="DeepSeek (automatic fallback)">
+                    {catalog.filter((m) => m.provider === "deepseek").map((m) => (
                       <option key={m.id} value={m.id}>{m.label}</option>
                     ))}
                   </optgroup>
