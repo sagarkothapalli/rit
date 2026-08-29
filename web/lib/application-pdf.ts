@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { ApplicantDetails } from "@/lib/applicant";
 import type { StoredApplication } from "@/lib/application-records";
-import { applicationText, type ApplicationReport } from "@/lib/report";
+import type { ApplicationReport } from "@/lib/report";
 
 /* ============================================================
    A4 application PDF. Field order and wording follow the
@@ -235,38 +235,6 @@ export function createApplicationPdf(input: ApplicationPdfInput): Blob {
   doc.setTextColor(...MUTED);
   doc.text("Signature of the applicant", LEFT, y + 5);
   doc.text(safe(applicant.name), LEFT, y + 10);
-
-  /* ---------- portal transcription aid ---------- */
-  const portalText = applicationText(report);
-  y = nextPage(doc, page);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...NAVY);
-  doc.text("Text for the request form field", LEFT, y);
-  y += 6;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  y = paragraph(
-    doc,
-    page,
-    report.jurisdiction === "state"
-      ? `Copy the text below into the application form of ${report.filing_channel ?? "your State RTI channel"}. `
-        + `Length: ${portalText.length} characters.`
-      : `Copy the text below into the "Text for RTI Request application" field on rtionline.gov.in. `
-        + `Length: ${portalText.length} of the 3,000 characters the portal accepts.`,
-    y,
-  );
-  y += 3;
-  doc.setFontSize(9.5);
-  doc.setTextColor(...INK);
-  for (const block of portalText.split("\n")) {
-    if (!block.trim()) {
-      y += 3;
-      continue;
-    }
-    y = paragraph(doc, page, block, y);
-  }
 
   addFooter(doc, page.value);
   return doc.output("blob");

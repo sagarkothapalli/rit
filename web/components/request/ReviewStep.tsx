@@ -71,11 +71,6 @@ export default function ReviewStep({
         <div className="review-pdf-placeholder">Building the PDF…</div>
       )}
 
-      <p className="review-boundary">
-        Nothing has been filed. The official portal issues its own registration number only after you submit and
-        pay there; this workspace performs neither action.
-      </p>
-
       {error && <p className="step-error" role="alert">{error}</p>}
 
       <div className="step-actions">
