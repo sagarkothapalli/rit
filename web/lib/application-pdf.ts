@@ -158,7 +158,6 @@ export function createApplicationPdf(input: ApplicationPdfInput): Blob {
   y = field(doc, page, "Country", applicant.country, y);
   y = field(doc, page, "Status", applicant.areaStatus, y);
   y = field(doc, page, "Educational status", applicant.educationalStatus, y);
-  y = field(doc, page, "Phone", applicant.phone || "Not provided", y);
   y = field(doc, page, "Mobile", applicant.mobile || "Not provided", y);
   y = field(doc, page, "Email", applicant.email, y);
   y = field(doc, page, "Citizenship", applicant.citizenship, y);
