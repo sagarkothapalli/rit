@@ -93,10 +93,7 @@ export default function Page() {
       <SiteMasthead
         notice="Independent citizen assistance for RTI applications"
         links={
-          <>
-            <Link href="/departments">Authority directory</Link>
-            <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Official RTI portal</a>
-          </>
+          <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Official RTI portal</a>
         }
         truth={
           <>

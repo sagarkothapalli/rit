@@ -41,9 +41,6 @@ export default function ApplicationAccess() {
           Every packet you prepare here is saved with a Praja reference. That number reopens the case. It is not a
           government registration number.
         </p>
-        <p className="application-access-boundary">
-          Official status exists only on the portal or authority that issued a registration number.
-        </p>
       </div>
 
       <div className="application-access-workspace">
