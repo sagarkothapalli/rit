@@ -10,7 +10,6 @@ export type Step =
   | "language"
   | "describe"
   | "request"
-  | "eligibility"
   | "application"
   | "authority"
   | "applicant"
@@ -27,7 +26,6 @@ export const STEPS: StepMeta[] = [
   { id: "language", label: "Language", caption: "How you want to tell us" },
   { id: "describe", label: "Your concern", caption: "Say or type what happened" },
   { id: "request", label: "Records sought", caption: "What the application asks for" },
-  { id: "eligibility", label: "Eligibility", caption: "Exemption and jurisdiction check" },
   { id: "application", label: "Application", caption: "The text the authority receives" },
   { id: "authority", label: "Public authority", caption: "Who holds these records" },
   { id: "applicant", label: "Your details", caption: "Particulars the form requires" },

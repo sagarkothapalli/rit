@@ -1,5 +1,4 @@
 import { classifyJurisdiction } from "@/lib/jurisdiction";
-import { screenValidity } from "@/lib/cage/validity";
 
 export interface NotesLike {
   valid_for_rti?: boolean;
@@ -293,28 +292,6 @@ export interface IntakeHintsLike {
 }
 
 export function normalizeNotes(transcript: string, notes: NotesLike, intake?: IntakeHintsLike): NotesLike {
-  const validity = screenValidity(transcript);
-  const isValid = notes.valid_for_rti !== false && validity.is_valid_rti;
-
-  if (!isValid) {
-    return {
-      ...notes,
-      valid_for_rti: false,
-      refusal_reason: notes.refusal_reason || validity.refusal_reason,
-      records_sought: [],
-      date_range: null,
-      place: null,
-      body_hint: null,
-      format: "certified copies",
-      missing_essentials: [],
-      is_state_matter: false,
-      state_name: null,
-      jurisdiction: "unclear",
-      filing_channel: null,
-      jurisdiction_reasons: [],
-    };
-  }
-
   const inferred = inferRecordsFromRant(transcript);
   const fromModel = unique(notes.records_sought ?? []);
   const corridorMatter = MUMBAI_PUNE_EXPRESSWAY.test(transcript);
@@ -382,6 +359,9 @@ export function normalizeNotes(transcript: string, notes: NotesLike, intake?: In
 
   return {
     ...notes,
+    // This stage drafts possible record requests; it does not decide legal eligibility.
+    valid_for_rti: true,
+    refusal_reason: null,
     records_sought: records.length ? records : inferred,
     date_range:
       (notes.date_range && notes.date_range !== "the period mentioned by the citizen" ? notes.date_range : null)

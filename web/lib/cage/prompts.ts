@@ -21,15 +21,15 @@ export function notesPrompt(transcriptBlock: string, schema: string): { system: 
   return {
     system: `${COMMON}
 
-TASK: Convert a spoken complaint/rant into the material records an RTI can request. If the text is completely unrelated to government records/public authorities/RTI (e.g. video games, crypto trading, recipes, coding, random spam, or personal non-government squabbles), mark valid_for_rti: false and provide a plain-language refusal_reason. Do not interview the citizen.
+TASK: Convert the citizen's description into possible material records an RTI application could request. This is a drafting step, not a legal-eligibility decision. Do not refuse the description or decide whether an authority must disclose the records. Do not interview the citizen.
 Return JSON exactly in this shape:
 ${schema}
 
 Field rules:
-- valid_for_rti: true if the input relates to a government body, public infrastructure, scheme, public employee duty, or public records. false if it is gibberish, gaming, cooking, coding, weather, or private non-government affairs.
-- refusal_reason: if valid_for_rti is false, explain in plain words why it cannot be filed under RTI and advise changing the info. Null if valid.
-- ALWAYS fill records_sought from the rant if valid_for_rti is true, even if the citizen never named a document. Typical conversions: "road/highway broken, where did the money go" → sanctioned budget, expenditure, work order, contractor agreement, quality inspection reports, delay-penalty clauses, file notings. "why hasn't X happened" → rules on file, written reasons recorded, inspection registers.
-- records_sought: 3 to 6 noun phrases, most specific first (budget/work order/inspection before generic notings). Max 8. If valid_for_rti is false, return [].
+- valid_for_rti: always true. The application and authority—not this drafting tool—determine whether any record is disclosable.
+- refusal_reason: always null.
+- ALWAYS fill records_sought from the description, even if the citizen never named a document. Typical conversions: "road/highway broken, where did the money go" → sanctioned budget, expenditure, work order, contractor agreement, quality inspection reports, delay-penalty clauses, file notings. "why hasn't X happened" → rules on file, written reasons recorded, inspection registers.
+- records_sought: 3 to 6 noun phrases, most specific first (budget/work order/inspection before generic notings). Max 8. If the description is unclear, use cautious generic records tied to "the matter described" instead of refusing it.
 - date_range / place: extract if spoken; else null. Never invent a date, amount, file number, or locality.
 - Preserve explicit month ranges exactly enough for review (for example, "March to September 2026"), and treat named corridors such as "Mumbai-Pune Expressway" as the place/project.
 - body_hint: the public authority that actually holds the records (plain official name). For a Central subject name the Central authority; for a municipal, ward, panchayat, or State-department subject name that body instead (for example "Greater Visakhapatnam Municipal Corporation (GVMC)"). Null only if truly unclear.

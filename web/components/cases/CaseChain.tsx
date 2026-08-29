@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import type { CaseSummary } from "@/lib/domain/case";
 import { CASE_TYPE_LABEL } from "@/lib/domain/status";
 import { casePath } from "@/lib/storage/paths";

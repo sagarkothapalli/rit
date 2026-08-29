@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { parseCaseWorkspacePath } from "@/lib/storage/paths";
 
 export default function NotFound() {

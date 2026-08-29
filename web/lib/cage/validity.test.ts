@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { screenValidity } from "./validity";
 import { notesFallback, assessFallback, chatFallback } from "./schemas";
+import { normalizeNotes } from "@/lib/intake";
 
 describe("Deterministic RTI Validity & Financial Assessment", () => {
   describe("screenValidity - Non-RTI and Out-of-scope inputs", () => {
@@ -85,16 +86,35 @@ describe("Deterministic RTI Validity & Financial Assessment", () => {
   });
 
   describe("notesFallback & chatFallback integration", () => {
-    it("notesFallback refuses invalid input and returns valid_for_rti: false", () => {
+    it("notesFallback drafts records without making an eligibility decision", () => {
       const notes = notesFallback("assasins creed cheat codes for playstation");
-      expect(notes.valid_for_rti).toBe(false);
-      expect(notes.records_sought).toEqual([]);
-      expect(notes.refusal_reason).toContain("Cannot be filed under RTI Act");
+      expect(notes.valid_for_rti).toBe(true);
+      expect(notes.records_sought.length).toBeGreaterThanOrEqual(3);
+      expect(notes.refusal_reason).toBeNull();
     });
 
     it("notesFallback produces records for genuine input", () => {
       const notes = notesFallback("NHAI highway pothole repair work order and inspection reports");
       expect(notes.valid_for_rti).toBe(true);
+      expect(notes.records_sought.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("normalizes model refusals into editable record suggestions instead of blocking", () => {
+      const notes = normalizeNotes("Please help me understand this matter", {
+        valid_for_rti: false,
+        refusal_reason: "Automatic refusal",
+        records_sought: [],
+        date_range: null,
+        place: null,
+        body_hint: null,
+        format: "unspecified",
+        missing_essentials: [],
+        is_state_matter: false,
+        state_name: null,
+      });
+
+      expect(notes.valid_for_rti).toBe(true);
+      expect(notes.refusal_reason).toBeNull();
       expect(notes.records_sought.length).toBeGreaterThanOrEqual(3);
     });
 

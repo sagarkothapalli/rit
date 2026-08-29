@@ -13,11 +13,7 @@ export default function CaseHeader({ record }: { record: CaseRecord }) {
         Praja reference <strong>{record.prajaReference}</strong>
         {primary ? ` · Official no. ${primary.registrationNumber}` : ""}
       </p>
-      <CaseStatusStrip
-        preparation={record.preparationStatus}
-        filing={record.filingStatus}
-        outcome={record.outcomeStatus}
-      />
+      <CaseStatusStrip record={record} />
       {primary && (
         <p className="case-source">
           Official reference: <FilingSourceBadge source={primary.source} />

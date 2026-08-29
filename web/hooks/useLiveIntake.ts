@@ -7,7 +7,6 @@ import {
   type IntakeHandoff,
 } from "@/lib/live/intakePrompt";
 import { createPlaybackQueue, int16ToBase64, type PlaybackQueue } from "@/lib/live/audio";
-import { saveIntakeRecord, clearIntakeRecord } from "@/lib/live/intakeMemory";
 import { createSessionMemory, type SessionMemory } from "@/lib/live/sessionMemory";
 import {
   detectHoldIntent,
@@ -498,12 +497,6 @@ export function useLiveIntake() {
       proceedTimerRef.current = null;
     }
     setHandoff(normalized);
-    // Persist the intake so a refresh mid-flow never loses the complaint.
-    saveIntakeRecord({
-      handoff: normalized,
-      transcript: userTextRef.current.trim(),
-      capturedAt: Date.now(),
-    });
     return true;
   }, []);
 
@@ -742,7 +735,6 @@ export function useLiveIntake() {
     proceedNudgesRef.current = 0;
     identityConsumedRef.current = 0;
     offTopicConsumedRef.current = 0;
-    clearIntakeRecord();
     setUserText("");
     setAgentText("");
     setHandoff(null);
@@ -891,7 +883,6 @@ export function useLiveIntake() {
     proceedNudgesRef.current = 0;
     identityConsumedRef.current = 0;
     offTopicConsumedRef.current = 0;
-    clearIntakeRecord();
     setUserText("");
     setAgentText("");
     setHandoff(null);

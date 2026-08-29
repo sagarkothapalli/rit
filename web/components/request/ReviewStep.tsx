@@ -4,7 +4,7 @@ import type { ApplicantDetails } from "@/lib/applicant";
 import type { ApplicationReport } from "@/lib/report";
 
 /* ============================================================
-   Step 8. The PDF the citizen will actually use — rendered
+   Step 7. The PDF the citizen will actually use — rendered
    inline, not described. The summary strip above it repeats only
    the facts that change what happens next: who it goes to, how
    long it is, and what the fee would be.

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSiteRouter } from "@/hooks/useSiteRouter";
 import { fetchCaseByReference } from "@/lib/storage/cases.client";
 import { casePath } from "@/lib/storage/paths";
 
 export default function ApplicationAccess() {
-  const router = useRouter();
+  const router = useSiteRouter();
   const [ack, setAck] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

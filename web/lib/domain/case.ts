@@ -271,8 +271,8 @@ export function toSummary(record: CaseRecord): CaseSummary {
 export function nextActionLabel(record: CaseRecord): string | null {
   if (record.preparationStatus === "DRAFT" || record.preparationStatus === "NEEDS_INFORMATION") return "Continue drafting";
   if (record.preparationStatus === "READY_FOR_REVIEW") return "Review the filing packet";
-  if (record.filingStatus === "NOT_FILED" && record.preparationStatus === "PACKET_GENERATED") return "File on the official channel";
-  if (record.filingStatus === "EXTERNAL_FILING_IN_PROGRESS") return "Record the official reference";
+  if (record.filingStatus === "NOT_FILED" && record.preparationStatus === "PACKET_GENERATED") return "Add filing confirmation";
+  if (record.filingStatus === "EXTERNAL_FILING_IN_PROGRESS") return "Add filing confirmation";
   if (record.outcomeStatus === "ACTION_REQUIRED") return "Action required";
   const overdue = record.deadlines.find((item) => item.status === "OVERDUE");
   if (overdue && record.caseType === "RTI_REQUEST") return "First appeal may be available";

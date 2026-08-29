@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import type { CaseRecord } from "@/lib/domain/case";
 import { nextActionLabel } from "@/lib/domain/case";
 import { isOfficiallyFiled } from "@/lib/domain/status";
@@ -11,8 +11,7 @@ export default function NextActionCard({ record }: { record: CaseRecord }) {
     links.push({ href: casePath(record.id, "edit"), text: "Continue drafting" });
   }
   if (record.preparationStatus === "PACKET_GENERATED" && !isOfficiallyFiled(record.filingStatus)) {
-    links.push({ href: casePath(record.id, "filing"), text: "Open filing handoff" });
-    links.push({ href: casePath(record.id, "record-filing"), text: "Record official filing" });
+    links.push({ href: casePath(record.id, "record-filing"), text: "Add filing confirmation" });
   }
   if (record.caseType === "RTI_REQUEST" && isOfficiallyFiled(record.filingStatus)) {
     links.push({ href: casePath(record.id, "first-appeal"), text: "Start first appeal" });

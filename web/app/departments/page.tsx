@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import Emblem from "@/components/Emblem";
 import SiteMasthead from "@/components/SiteMasthead";
 import { DIRECTORY_COUNT, DIRECTORY_SNAPSHOT, MINISTRY_COUNT } from "@/lib/directory-meta";
@@ -37,7 +37,7 @@ export default function DepartmentsPage() {
           </>
         }
       >
-        <Link className="header-action" href="/cases/new">Start an RTI request</Link>
+        <Link className="header-action" href="/cases/new/request">Start an RTI request</Link>
       </SiteMasthead>
 
       <section className="page-head site-container" id="main-content">
@@ -65,7 +65,7 @@ export default function DepartmentsPage() {
           <div>
             <strong>Service</strong>
             <Link href="/">Home</Link>
-            <Link href="/cases/new">Start an RTI request</Link>
+            <Link href="/cases/new/request">Start an RTI request</Link>
           </div>
           <div>
             <strong>Official resources</strong>

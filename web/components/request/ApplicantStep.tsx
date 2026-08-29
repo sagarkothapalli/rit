@@ -5,7 +5,7 @@ import EmailVerification from "@/components/EmailVerification";
 import type { ApplicantDetails, FieldProblem } from "@/lib/applicant";
 
 /* ============================================================
-   Step 7. Applicant particulars.
+   Step 6. Applicant particulars.
 
    Same field set as the official RTI Online form. If the RTI
    agent already collected these, they arrive prefilled and

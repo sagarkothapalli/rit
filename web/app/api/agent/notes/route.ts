@@ -4,7 +4,6 @@ import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { notesPrompt, wrapUntrusted } from "@/lib/cage/prompts";
 import { normalizeNotes } from "@/lib/intake";
 import { modelGuard } from "@/lib/cage/ratelimit";
-import { screenValidity } from "@/lib/cage/validity";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +22,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "INVALID_INPUT" }, { status: 400 });
   }
   const { transcript, lang, intake } = parsed.data;
-
-  // 1. Deterministic validity check
-  const validity = screenValidity(transcript);
-  if (!validity.is_valid_rti) {
-    return finish(notesFallback(transcript), "SIMULATED");
-  }
 
   function finish(raw: Notes, mode: "LIVE" | "SIMULATED", model?: string) {
     // normalizeNotes() owns the jurisdiction verdict: it runs the

@@ -2,12 +2,18 @@
   "name": "web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "next dev",
+    "dev:vinext": "vinext dev",
     "build": "next build",
+    "build:vinext": "vinext build",
     "build:hosted": "node scripts/build-static.mjs",
     "publish:hosted": "npm run build:hosted && node scripts/publish-herenow.mjs",
     "start": "next start",
+    "start:vinext": "wrangler dev --config dist/server/wrangler.json",
     "lint": "eslint",
     "test": "vitest run"
   },
@@ -19,17 +25,27 @@
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-server-dom-webpack": "19.2.8",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/workers-types": "4.20260515.1",
+    "@openai/sites-vite-plugin": "0.2.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^3.2.7"
-  }
+    "vinext": "1.0.0-beta.5",
+    "vite": "8.0.13",
+    "vitest": "4.1.11",
+    "wrangler": "4.92.0"
+  },
+  "type": "module"
 }

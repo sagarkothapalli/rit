@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/SiteLink";
+import { useSiteRouter } from "@/hooks/useSiteRouter";
 import { useCaseId } from "@/hooks/useCaseId";
 import WorkspaceShell from "@/components/cases/WorkspaceShell";
 import OfficialReferenceForm, { type OfficialFilingValues } from "@/components/cases/OfficialReferenceForm";
@@ -14,7 +14,7 @@ import { casePath } from "@/lib/storage/paths";
 
 export default function RecordFilingPage() {
   const caseId = useCaseId();
-  const router = useRouter();
+  const router = useSiteRouter();
   const [record, setRecord] = useState<CaseRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

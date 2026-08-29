@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import ApplicationAccess from "@/components/ApplicationAccess";
 import Emblem from "@/components/Emblem";
 import LazyRtiLifecycleChart from "@/components/LazyRtiLifecycleChart";
@@ -20,10 +20,6 @@ const steps = [
   {
     title: "Confirm what to ask for",
     body: "Your words become requests for records that already exist on an official file. You review them.",
-  },
-  {
-    title: "Check it is allowed",
-    body: "Requests aimed at exempt material are refused with the exact section, and a lawful alternative.",
   },
   {
     title: "Find the right authority",
@@ -108,7 +104,7 @@ export default function Page() {
           <a href="#rti-lifecycle">The RTI process</a>
           <Link href="/cases">My RTI cases</Link>
         </nav>
-        <Link className="header-action" href="/cases/new">Start an RTI request</Link>
+        <Link className="header-action" href="/cases/new/request">Start an RTI request</Link>
       </SiteMasthead>
 
       <section className="hero" id="main-content">
@@ -121,7 +117,7 @@ export default function Page() {
             actually holds the file.
           </p>
           <div className="hero-actions">
-            <Link className="primary-button hero-cta" href="/cases/new">
+            <Link className="primary-button hero-cta" href="/cases/new/request">
               <WaveformIcon />
               Start an RTI request
             </Link>
@@ -195,7 +191,7 @@ export default function Page() {
 
       <section className="service-principles" aria-labelledby="principles-title">
         <div className="site-container principles-grid">
-          <h2 id="principles-title">Why applications get rejected, and how we avoid it</h2>
+          <h2 id="principles-title">What makes a stronger RTI application</h2>
           <div>
             <strong>Records, not complaints</strong>
             <p>
@@ -211,10 +207,10 @@ export default function Page() {
             </p>
           </div>
           <div>
-            <strong>Exemptions checked first</strong>
+            <strong>You make the final call</strong>
             <p>
-              Section 8, 9, 11, and 24 are screened before drafting. If your request is not allowed, you find out
-              here rather than 30 days later.
+              Praja suggests record requests and lets you edit every line. It does not decide whether a request is
+              legally allowed or whether an authority must disclose a record.
             </p>
           </div>
         </div>
@@ -225,7 +221,7 @@ export default function Page() {
       <section className="process-section site-container" id="how-it-works">
         <div className="section-intro">
           <h2>From a problem to a filed-ready application</h2>
-          <p>Nine steps, one decision at a time. You can go back and change any answer.</p>
+          <p>Eight steps, one decision at a time. You can go back and change any answer.</p>
         </div>
         <ol className="service-path">
           {steps.map((step, index) => (
@@ -255,17 +251,17 @@ export default function Page() {
 
       <section className="safeguards-section site-container" id="safeguards">
         <div className="section-intro">
-          <h2>What we refuse to draft</h2>
-          <p>An application that asks for exempt material wastes your fee and your thirty days.</p>
+          <h2>What to review before filing</h2>
+          <p>Praja offers drafting guidance, not a legal decision about what an authority will disclose.</p>
         </div>
         <div className="safeguards-grid">
           <article>
             <span className="safeguard-icon"><ScaleIcon /></span>
             <div>
-              <h3>Exempt under the Act</h3>
+              <h3>Records that may be withheld</h3>
               <p>
-                Screened in code before anything is written, so a refusal never depends on a service being
-                available.
+                The public authority applies the Act to the records it holds. These categories may require closer
+                review and can be challenged through the appeal process if withheld incorrectly.
               </p>
               <ul>
                 <li>National security and strategic matters — 8(1)(a)</li>
@@ -305,7 +301,7 @@ export default function Page() {
             <p>Prepare it here, review every detail, then file it on the official portal.</p>
           </div>
           <div className="next-step-actions">
-            <Link className="light-button" href="/cases/new">Start an RTI request</Link>
+            <Link className="light-button" href="/cases/new/request">Start an RTI request</Link>
             <a href="https://rtionline.gov.in/" rel="noreferrer" target="_blank">Go to RTI Online</a>
           </div>
         </div>
@@ -324,7 +320,7 @@ export default function Page() {
             <strong>Service</strong>
             <a href="#how-it-works">How it works</a>
             <Link href="/departments">Authority directory</Link>
-            <a href="#safeguards">What we refuse</a>
+            <a href="#safeguards">Filing guidance</a>
           </div>
           <div>
             <strong>Official resources</strong>

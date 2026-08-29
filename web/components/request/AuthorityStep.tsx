@@ -8,7 +8,7 @@ import { searchDirectory } from "@/lib/retrieval";
 const DirectoryBrowser = dynamic(() => import("@/components/DirectoryBrowser"));
 
 /* ============================================================
-   Step 6. Choosing the public authority.
+   Step 5. Choosing the public authority.
 
    Search sits at the top, because a citizen who already knows
    the office should not have to scroll past three suggestions to

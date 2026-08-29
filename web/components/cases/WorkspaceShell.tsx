@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import SiteMasthead from "@/components/SiteMasthead";
 
 export default function WorkspaceShell({

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import type { FilingRuleSet } from "@/lib/filing-rules/schema";
 import { casePath } from "@/lib/storage/paths";
 

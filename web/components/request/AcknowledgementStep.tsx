@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { downloadPdfBase64, type StoredApplication } from "@/lib/application-records";
 
 /* ============================================================
-   Step 9. The acknowledgement.
+   Step 8. The acknowledgement.
 
    The number is Praja's own, and the wording never lets that
    blur into a government registration number — the difference

@@ -7,8 +7,13 @@ node_modules/
 
 # next
 .next/
+.vinext/
 out/
 build/
+dist/
+.wrangler/
+outputs/
+work/
 
 # misc
 .DS_Store
@@ -31,3 +36,4 @@ next-env.d.ts
 .vercel
 .herenow/
 .impeccable-shots/
+.openai/

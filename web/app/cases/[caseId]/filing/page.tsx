@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useCaseId } from "@/hooks/useCaseId";
 import WorkspaceShell from "@/components/cases/WorkspaceShell";
 import ExternalFilingHandoff from "@/components/cases/ExternalFilingHandoff";

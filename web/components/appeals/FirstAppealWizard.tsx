@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/SiteLink";
+import { useSiteRouter } from "@/hooks/useSiteRouter";
 import WorkspaceShell from "@/components/cases/WorkspaceShell";
 import ApplicantForm from "@/components/ApplicantForm";
 import AttachmentUploader from "@/components/attachments/AttachmentUploader";
@@ -27,7 +27,7 @@ export default function FirstAppealWizard({
   parentId?: string;
   editCaseId?: string;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const [parent, setParent] = useState<CaseRecord | null>(null);
   const [editing, setEditing] = useState<CaseRecord | null>(null);
   const [parents, setParents] = useState<CaseRecord[]>([]);

@@ -3,7 +3,7 @@
 /* ============================================================
    The drafting workspace.
 
-   Nine steps, named the way the RTI process itself is named, not
+   Eight steps, named the way the RTI process itself is named, not
    the way the code is structured. The citizen confirms every
    consequential move; the model never advances a step on its own
    past the intake handoff.
@@ -11,43 +11,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import SiteMasthead from "@/components/SiteMasthead";
 import Advancing from "@/components/request/Advancing";
 import ApplicationStep from "@/components/request/ApplicationStep";
 import DescribeStep from "@/components/request/DescribeStep";
-import EligibilityStep from "@/components/request/EligibilityStep";
 import LanguageStep from "@/components/request/LanguageStep";
 import ProgressCard from "@/components/request/ProgressCard";
 import RecordsStep from "@/components/request/RecordsStep";
 import StepBar from "@/components/request/StepBar";
-import DraftResumePrompt from "@/components/request/DraftResumePrompt";
-import { STEPS, STEP_IDS, languageLabel as getLanguageLabel, type Step } from "@/components/request/steps";
+import { STEP_IDS, type Step } from "@/components/request/steps";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useLiveIntake } from "@/hooks/useLiveIntake";
 import type { PublicAuthority } from "@/lib/retrieval";
-import {
-  draftFallback,
-  explainFallback,
-  guardFallback,
-  notesFallback,
-  bplVerificationFallback,
-  type Notes,
-  type Guard,
-  type Draft,
-  type IntakeHints,
-} from "@/lib/cage/schemas";
-import { composeIntakeTranscript, loadIntakeRecord } from "@/lib/live/intakeMemory";
-import {
-  clearAllDraftAndIntakeCache,
-  getWizardDraftSnippet,
-  hasSubstantialWizardDraft,
-  loadWizardDraft,
-  saveWizardDraft,
-  type WizardDraftSnapshot,
-} from "@/lib/draft/draftMemory";
+import type { Notes, Draft, IntakeHints } from "@/lib/cage/schemas";
+import { composeIntakeTranscript } from "@/lib/live/intakeMemory";
 import { hasApplicantData, type IntakeHandoff } from "@/lib/live/intakePrompt";
-import { normalizeNotes, routingQuery } from "@/lib/intake";
 import {
   applicationLength,
   applicationText,
@@ -57,32 +36,12 @@ import {
   formatReportText,
   reportFilename,
 } from "@/lib/report";
-import {
-  blobToBase64,
-  downloadBlob,
-  makeAcknowledgementNumber,
-  saveApplication,
-  type StoredApplication,
-} from "@/lib/application-records";
+import type { StoredApplication } from "@/lib/application-records";
 import { emptyApplicant, lookupPincode, validateApplicant, type ApplicantDetails, type FieldProblem } from "@/lib/applicant";
-import { coveringStatement } from "@/lib/filing-rules/portal-text";
 import { filingRulesFor } from "@/lib/filing-rules/registry";
 import { validateApplicantAgainstRules } from "@/lib/filing-rules/validate";
 import { jurisdictionFromNotes } from "@/lib/domain/status";
-import { saveCase } from "@/lib/storage/cases.client";
-import { createBlankCase } from "@/lib/storage/factory";
-import { putAttachmentBlob, rememberAccessToken } from "@/lib/storage/cases.client";
-import {
-  confirmedPhotoFacts,
-  MAX_PHOTOS,
-  photoAllowed,
-  photoEvidenceFallback,
-  type PhotoEvidenceItem,
-} from "@/lib/evidence/photos";
-import { attachmentMeta } from "@/lib/packets/meta";
-import { blobToBytes } from "@/lib/packets/zip";
 import type { CaseRecord } from "@/lib/domain/case";
-import { screenValidity } from "@/lib/cage/validity";
 
 function StepFallback() {
   return (
@@ -98,7 +57,7 @@ const ApplicantStep = dynamic(() => import("@/components/request/ApplicantStep")
 const ReviewStep = dynamic(() => import("@/components/request/ReviewStep"), { loading: StepFallback });
 const AcknowledgementStep = dynamic(() => import("@/components/request/AcknowledgementStep"), { loading: StepFallback });
 
-/* ---------- the nine steps ---------- */
+/* ---------- the eight steps ---------- */
 
 /* ---------- transport ---------- */
 
@@ -112,24 +71,32 @@ async function localFallback(url: string, body: unknown): Promise<unknown> {
   if (url.endsWith("/notes")) {
     const request = body as { transcript?: string; intake?: IntakeHints };
     const transcript = request.transcript ?? "";
+    const [{ notesFallback }, { normalizeNotes }] = await Promise.all([
+      import("@/lib/cage/schemas"),
+      import("@/lib/intake"),
+    ]);
     return {
       mode: "SIMULATED",
       data: normalizeNotes(transcript, notesFallback(transcript), request.intake),
     };
   }
-  if (url.endsWith("/guard")) return { mode: "SIMULATED", data: guardFallback };
   if (url.endsWith("/draft")) {
     const request = body as { notes: Notes };
+    const { draftFallback } = await import("@/lib/cage/schemas");
     return { mode: "SIMULATED", data: draftFallback(request.notes) };
   }
   if (url.endsWith("/explain")) {
     const request = body as { notes: Notes; transcript?: string; draft?: Draft };
+    const [{ routingQuery }, { searchDirectory }, { explainFallback }] = await Promise.all([
+      import("@/lib/intake"),
+      import("@/lib/retrieval"),
+      import("@/lib/cage/schemas"),
+    ]);
     const query = routingQuery({
       transcript: request.transcript,
       notes: request.notes,
       draft: request.draft,
     });
-    const { searchDirectory } = await import("@/lib/retrieval");
     const { results, reviewRequired } = searchDirectory(query, 3);
     const retrieved = results.map((result) => ({
       id: result.pa.pa_code,
@@ -150,25 +117,10 @@ async function localFallback(url: string, body: unknown): Promise<unknown> {
   }
   if (url.endsWith("/verify-bpl")) {
     const request = body as { fileName?: string; fileType?: string; fileSize?: number; fileBase64?: string };
+    const { bplVerificationFallback } = await import("@/lib/cage/schemas");
     return {
       mode: "SIMULATED",
       data: bplVerificationFallback(request.fileName ?? "document"),
-    };
-  }
-  if (url.endsWith("/assess")) {
-    const { assessFallback } = await import("@/lib/cage/schemas");
-    const request = body as { transcript?: string };
-    return {
-      mode: "SIMULATED",
-      data: assessFallback(request.transcript ?? ""),
-    };
-  }
-  if (url.endsWith("/chat")) {
-    const { chatFallback } = await import("@/lib/cage/schemas");
-    const request = body as { messages?: Array<{ role: "user" | "assistant" | "system"; content: string }>; transcript?: string; lang?: string };
-    return {
-      mode: "SIMULATED",
-      data: chatFallback(request.messages ?? [], request.transcript ?? "", request.lang ?? "en-IN"),
     };
   }
   throw new Error("This service is temporarily unavailable.");
@@ -208,7 +160,6 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
 }
 
 interface NotesResp { mode: Mode; model?: string; data: Notes }
-interface GuardResp { mode: Mode; model?: string; data: Guard }
 interface DraftResp { mode: Mode; model?: string; data: Draft }
 interface ExplainCandidate { id: string; why: string; caveat: string }
 interface RetrievedPA {
@@ -241,7 +192,6 @@ export default function RequestWorkspace() {
   const [transcript, setTranscript] = useState("");
 
   const [notes, setNotes] = useState<Notes | null>(null);
-  const [guard, setGuard] = useState<Guard | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
 
   const [candidates, setCandidates] = useState<ExplainCandidate[]>([]);
@@ -260,50 +210,11 @@ export default function RequestWorkspace() {
   const [applicationPdf, setApplicationPdf] = useState<Blob | null>(null);
   const [savedApplication, setSavedApplication] = useState<StoredApplication | null>(null);
   const [savedCase, setSavedCase] = useState<CaseRecord | null>(null);
-  const [photos, setPhotos] = useState<PhotoEvidenceItem[]>([]);
-  const [photoError, setPhotoError] = useState<string | null>(null);
   const [storageMessage, setStorageMessage] = useState<string | null>(null);
   const [savingApplication, setSavingApplication] = useState(false);
   const [useTextAttachment, setUseTextAttachment] = useState(false);
 
-  interface PendingDraftPrompt {
-    snapshot?: WizardDraftSnapshot;
-    intake?: ReturnType<typeof loadIntakeRecord> extends infer T ? (T extends null ? never : T) : never;
-    snippet: string;
-    stepLabel: string;
-    languageLabel: string;
-    capturedAt: number;
-  }
-
-  const [pendingPrompt, setPendingPrompt] = useState<PendingDraftPrompt | null>(() => {
-    if (typeof window === "undefined") return null;
-    const wizardDraft = loadWizardDraft();
-    const intakeRecord = loadIntakeRecord();
-
-    if (hasSubstantialWizardDraft(wizardDraft)) {
-      const stepInfo = STEPS.find((s) => s.id === wizardDraft!.step);
-      return {
-        snapshot: wizardDraft!,
-        snippet: getWizardDraftSnippet(wizardDraft!),
-        stepLabel: stepInfo ? `${stepInfo.label} — ${stepInfo.caption}` : wizardDraft!.step,
-        languageLabel: getLanguageLabel(wizardDraft!.lang),
-        capturedAt: wizardDraft!.capturedAt,
-      };
-    }
-
-    if (intakeRecord?.transcript && intakeRecord.transcript.trim().length >= 10) {
-      return {
-        intake: intakeRecord,
-        snippet: intakeRecord.transcript,
-        stepLabel: "Your concern — Intake summary",
-        languageLabel: getLanguageLabel(intakeRecord.handoff?.detected_lang ?? "en-IN"),
-        capturedAt: intakeRecord.capturedAt,
-      };
-    }
-    return null;
-  });
-
-  const [busy, setBusy] = useState<null | "notes" | "guard" | "draft" | "explain">(null);
+  const [busy, setBusy] = useState<null | "notes" | "draft" | "explain">(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [advancing, setAdvancing] = useState(false);
@@ -344,67 +255,6 @@ export default function RequestWorkspace() {
       }
     }
   }, []);
-
-  // Auto-save active draft to session storage so refresh preserves progress without losing state
-  useEffect(() => {
-    if (pendingPrompt) return;
-    if (step === "acknowledgement") {
-      clearAllDraftAndIntakeCache();
-      return;
-    }
-    const hasContent =
-      step !== "language" ||
-      transcript.trim().length > 0 ||
-      manualText.trim().length > 0 ||
-      notes !== null ||
-      draft !== null;
-    if (!hasContent) return;
-
-    saveWizardDraft({
-      step,
-      lang,
-      intakeMode,
-      manualText,
-      userCorrected,
-      transcript,
-      notes,
-      guard,
-      draft,
-      candidates,
-      retrieved,
-      reviewRequired,
-      picked,
-      manualAuthority,
-      applicant,
-      prefilled: Array.from(prefilled),
-      emailVerified,
-      photos,
-      useTextAttachment,
-      handoff: live.handoff,
-    });
-  }, [
-    step,
-    lang,
-    intakeMode,
-    manualText,
-    userCorrected,
-    transcript,
-    notes,
-    guard,
-    draft,
-    candidates,
-    retrieved,
-    reviewRequired,
-    picked,
-    manualAuthority,
-    applicant,
-    prefilled,
-    emailVerified,
-    photos,
-    useTextAttachment,
-    live.handoff,
-    pendingPrompt,
-  ]);
 
   // The agent's handoff is its "next step" trigger: seed the transcript and
   // run the records gate without a manual click.
@@ -486,13 +336,6 @@ export default function RequestWorkspace() {
   /* ---------- gates ---------- */
 
   async function runNotes(text: string, handoff?: IntakeHandoff): Promise<boolean> {
-    const validity = screenValidity(text);
-    if (!validity.is_valid_rti) {
-      setErr(validity.refusal_reason || "This request cannot be filed under the Right to Information Act, 2005. Please change the information to describe a matter concerning official government records or public authorities.");
-      setStep("describe");
-      return false;
-    }
-
     setBusy("notes");
     setErr(null);
     try {
@@ -508,11 +351,6 @@ export default function RequestWorkspace() {
           }
         : undefined;
       const response = await postJSON<NotesResp>("/api/agent/notes", { transcript: text, lang, intake });
-      if (response.data.valid_for_rti === false) {
-        setErr(response.data.refusal_reason || "This request cannot be filed under the RTI Act, 2005. Please change the information to describe a matter concerning official government records or public authorities.");
-        setStep("describe");
-        return false;
-      }
       setNotes(response.data);
       setCandidates([]);
       setRetrieved([]);
@@ -533,30 +371,9 @@ export default function RequestWorkspace() {
       setErr("Tell us a little more about the problem before we continue.");
       return;
     }
-    const validity = screenValidity(final);
-    if (!validity.is_valid_rti) {
-      setErr(validity.refusal_reason || "Cannot be filed under RTI Act, 2005. Please change the information above to continue.");
-      return;
-    }
     setErr(null);
-    const withPhotos = [final, confirmedPhotoFacts(photos)].filter(Boolean).join("\n\n");
-    setTranscript(withPhotos);
-    void runNotes(withPhotos);
-  }
-
-  async function checkEligibility() {
-    if (!notes) return;
-    setBusy("guard");
-    setErr(null);
-    try {
-      const response = await postJSON<GuardResp>("/api/agent/guard", { notes, transcript });
-      setGuard(response.data);
-      setStep("eligibility");
-    } catch (cause) {
-      setErr(cause instanceof Error ? cause.message : "The eligibility check failed.");
-    } finally {
-      setBusy(null);
-    }
+    setTranscript(final);
+    void runNotes(final);
   }
 
   async function writeApplication() {
@@ -598,19 +415,10 @@ export default function RequestWorkspace() {
     }
   }
 
-  function useReframing() {
-    if (!guard?.safe_reframing) return;
-    const next = `${transcript}\n[Reframed ask] ${guard.safe_reframing}`;
-    setTranscript(next);
-    setGuard(null);
-    void runNotes(next);
-  }
-
   /* ---------- edits invalidate downstream state ---------- */
 
   function editNotes(next: Notes) {
     setNotes(next);
-    setGuard(null);
     setDraft(null);
     resetRouting();
   }
@@ -720,6 +528,21 @@ export default function RequestWorkspace() {
     setSavingApplication(true);
     setErr(null);
     try {
+      const [
+        { blobToBase64, makeAcknowledgementNumber, saveApplication },
+        { createBlankCase },
+        { putAttachmentBlob, rememberAccessToken, saveCase },
+        { coveringStatement },
+        { attachmentMeta },
+        { blobToBytes },
+      ] = await Promise.all([
+        import("@/lib/application-records"),
+        import("@/lib/storage/factory"),
+        import("@/lib/storage/cases.client"),
+        import("@/lib/filing-rules/portal-text"),
+        import("@/lib/packets/meta"),
+        import("@/lib/packets/zip"),
+      ]);
       const acknowledgementNumber = makeAcknowledgementNumber();
       const seed: Omit<StoredApplication, "applicationPdfBase64" | "receiptPdfBase64"> = {
         acknowledgementNumber,
@@ -749,7 +572,7 @@ export default function RequestWorkspace() {
       });
       caseRecord.prajaReference = acknowledgementNumber;
       caseRecord.legacyAcknowledgementNumber = acknowledgementNumber;
-      caseRecord.photoEvidence = photos;
+      caseRecord.photoEvidence = [];
       caseRecord.authorityCode = picked;
       caseRecord.filingChannel = rules.filingChannel;
       caseRecord.preparationStatus = "PACKET_GENERATED";
@@ -765,7 +588,7 @@ export default function RequestWorkspace() {
         coveringStatement: useTextAttachment || overLimit ? coveringStatement(draft.title) : null,
         usesSupportingTextPdf: useTextAttachment || overLimit,
         lifeOrLiberty: false,
-        thirdParty: Boolean(guard?.third_party_notice),
+        thirdParty: false,
         authorityCode: picked,
       };
       caseRecord.draft.portalText = portalText;
@@ -832,53 +655,8 @@ export default function RequestWorkspace() {
     }
   }
 
-  function handleContinueDraft() {
-    if (!pendingPrompt) return;
-    if (pendingPrompt.snapshot) {
-      const snap = pendingPrompt.snapshot;
-      setLang(snap.lang);
-      setIntakeMode(snap.intakeMode);
-      setManualText(snap.manualText);
-      setUserCorrected(snap.userCorrected);
-      speech.setFinalText(snap.transcript);
-      setTranscript(snap.transcript);
-      setNotes(snap.notes);
-      setGuard(snap.guard);
-      setDraft(snap.draft);
-      setCandidates(snap.candidates);
-      setRetrieved(snap.retrieved);
-      setReviewRequired(snap.reviewRequired);
-      setPicked(snap.picked);
-      setManualAuthority(snap.manualAuthority);
-      setApplicant(snap.applicant);
-      setPrefilled(new Set(snap.prefilled));
-      setEmailVerified(snap.emailVerified);
-      setPhotos(snap.photos);
-      setUseTextAttachment(snap.useTextAttachment);
-      setStep(snap.step);
-    } else if (pendingPrompt.intake) {
-      const rec = pendingPrompt.intake;
-      setLang(rec.handoff.detected_lang);
-      speech.setFinalText(rec.transcript);
-      setTranscript(rec.transcript);
-      setIntakeMode("assistant");
-      applyAgentApplicant(rec.handoff);
-      setStep("describe");
-    }
-    setPendingPrompt(null);
-  }
-
-  function handleStartFresh() {
-    startOver();
-    setPendingPrompt(null);
-    if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-  }
-
   function startOver() {
     live.stop();
-    clearAllDraftAndIntakeCache();
     speech.reset();
     setStep("language");
     setIntakeMode(null);
@@ -886,15 +664,12 @@ export default function RequestWorkspace() {
     setManualText("");
     setUserCorrected(false);
     setNotes(null);
-    setGuard(null);
     setDraft(null);
     resetRouting();
     setApplicant(emptyApplicant());
     setPrefilled(new Set());
     setProblems([]);
     setEmailVerified(false);
-    setPhotos([]);
-    setPhotoError(null);
     setApplicationPdf(null);
     setSavedApplication(null);
     setSavedCase(null);
@@ -906,16 +681,6 @@ export default function RequestWorkspace() {
 
   return (
     <main className="workspace">
-      {pendingPrompt && (
-        <DraftResumePrompt
-          snippet={pendingPrompt.snippet}
-          stepLabel={pendingPrompt.stepLabel}
-          languageLabel={pendingPrompt.languageLabel}
-          capturedAt={pendingPrompt.capturedAt}
-          onContinue={handleContinueDraft}
-          onStartFresh={handleStartFresh}
-        />
-      )}
       <SiteMasthead
         compact
         notice={
@@ -956,7 +721,6 @@ export default function RequestWorkspace() {
                   speechSupported={speech.supported}
                   onManual={() => {
                     live.stop();
-                    clearAllDraftAndIntakeCache();
                     setIntakeMode("manual");
                     setErr(null);
                     setStep("describe");
@@ -980,24 +744,6 @@ export default function RequestWorkspace() {
                   listening={listening}
                   speech={speech}
                   correction={correction}
-                  photos={photos}
-                  photoError={photoError}
-                  onAddPhoto={(file) => {
-                    const problem = photoAllowed(file);
-                    if (problem) {
-                      setPhotoError(problem);
-                      return;
-                    }
-                    if (photos.length >= MAX_PHOTOS) {
-                      setPhotoError("Attach up to three photographs.");
-                      return;
-                    }
-                    setPhotoError(null);
-                    setPhotos((current) => [...current, photoEvidenceFallback(file.name, file.size, file.type || "image/jpeg")]);
-                  }}
-                  onConfirmPhoto={(index, confirmed) => {
-                    setPhotos((current) => current.map((item, i) => (i === index ? { ...item, confirmed } : item)));
-                  }}
                   onCorrection={(value) => {
                     setUserCorrected(true);
                     setManualText(value);
@@ -1037,23 +783,10 @@ export default function RequestWorkspace() {
                 <RecordsStep
                   notes={notes}
                   onEdit={editNotes}
-                  busy={busy === "guard"}
-                  error={err}
-                  onContinue={checkEligibility}
-                  onBack={() => { setErr(null); setStep("describe"); }}
-                />
-              )}
-
-              {step === "eligibility" && guard && (
-                <EligibilityStep
-                  guard={guard}
-                  notes={notes}
                   busy={busy === "draft"}
                   error={err}
                   onContinue={writeApplication}
-                  onReframe={useReframing}
-                  onBack={() => { setErr(null); setStep("request"); }}
-                  onStartOver={startOver}
+                  onBack={() => { setErr(null); setStep("describe"); }}
                 />
               )}
 
@@ -1078,7 +811,7 @@ export default function RequestWorkspace() {
                   valid={draftValid}
                   error={err}
                   onContinue={matchAuthority}
-                  onBack={() => { setErr(null); setStep("eligibility"); }}
+                  onBack={() => { setErr(null); setStep("request"); }}
                 />
               )}
 
@@ -1148,9 +881,12 @@ export default function RequestWorkspace() {
                   saving={savingApplication}
                   ready={Boolean(applicationPdf)}
                   error={err}
-                  onDownload={() =>
-                    applicationPdf && downloadBlob("praja-rti-application-preview.pdf", applicationPdf)
-                  }
+                  onDownload={() => {
+                    if (!applicationPdf) return;
+                    void import("@/lib/application-records").then(({ downloadBlob }) => {
+                      downloadBlob("praja-rti-application-preview.pdf", applicationPdf);
+                    });
+                  }}
                   onContinue={() => void createAcknowledgement()}
                   onBack={() => { setErr(null); setStep("applicant"); }}
                 />

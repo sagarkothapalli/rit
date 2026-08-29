@@ -145,7 +145,7 @@ export default function RecordsStep({ notes, onEdit, busy, error, onContinue, on
         <div>
           <dt>Likely records holder</dt>
           <dd>
-            {notes.body_hint || <span className="records-unset">To be matched in step 6</span>}
+            {notes.body_hint || <span className="records-unset">To be matched in step 5</span>}
           </dd>
         </div>
       </dl>
@@ -181,7 +181,7 @@ export default function RecordsStep({ notes, onEdit, busy, error, onContinue, on
 
       <div className="step-actions">
         <button type="button" className="primary-button" onClick={onContinue} disabled={busy}>
-          {busy ? "Checking eligibility…" : "This is right, continue"}
+          {busy ? "Writing your application…" : "This is right, write my application"}
         </button>
         <button type="button" className="secondary-button" onClick={() => setEditing((open) => !open)}>
           {editing ? "Done editing" : "Change something"}

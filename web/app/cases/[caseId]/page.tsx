@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/SiteLink";
+import { useSiteRouter } from "@/hooks/useSiteRouter";
 import { useCaseId } from "@/hooks/useCaseId";
 import WorkspaceShell from "@/components/cases/WorkspaceShell";
 import CaseHeader from "@/components/cases/CaseHeader";
@@ -22,7 +22,7 @@ import { fallbackPreview, scheduleNotifications } from "@/lib/notifications/outb
 
 export default function CaseDetailPage() {
   const caseId = useCaseId();
-  const router = useRouter();
+  const router = useSiteRouter();
   const [record, setRecord] = useState<CaseRecord | null>(null);
   const [chain, setChain] = useState<CaseSummary[]>([]);
   const [busy, setBusy] = useState(false);
@@ -103,32 +103,34 @@ export default function CaseDetailPage() {
         <div className="step-body">
           <CaseChain currentId={record.id} chain={chain} />
           <CaseHeader record={record} />
-          <p>
-            {record.authorityName}
-            {record.filingChannel ? ` · ${record.filingChannel}` : ""}
-          </p>
 
           {(appPdf || receiptPdf) && (
-            <div className="step-actions" style={{ marginTop: "16px", marginBottom: "20px" }}>
-              {appPdf && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => void handleDownload(appPdf)}
-                >
-                  Download {record.caseType === "SECTION_18_COMPLAINT" ? "complaint" : "application"} PDF
-                </button>
-              )}
-              {receiptPdf && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => void handleDownload(receiptPdf)}
-                >
-                  Download receipt
-                </button>
-              )}
-            </div>
+            <section className="case-output-block" aria-labelledby="generated-documents-title">
+              <div>
+                <h2 id="generated-documents-title">Generated documents</h2>
+                <p>Your application record is ready to view, save, or print.</p>
+              </div>
+              <div className="case-output-actions">
+                {appPdf && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void handleDownload(appPdf)}
+                  >
+                    Download {record.caseType === "SECTION_18_COMPLAINT" ? "complaint" : "application"} PDF
+                  </button>
+                )}
+                {receiptPdf && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void handleDownload(receiptPdf)}
+                  >
+                    Download acknowledgement
+                  </button>
+                )}
+              </div>
+            </section>
           )}
 
           {/* Context & details */}

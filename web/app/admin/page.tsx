@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import AccessibilityControls from "@/components/AccessibilityControls";
 import { DEFAULT_MODEL, MODEL_CATALOG, findModel, type ModelOption } from "@/lib/cage/models";
 
@@ -213,8 +213,8 @@ export default function AdminPage() {
       <div className="mx-auto max-w-3xl w-full px-6 py-12 space-y-6">
         <h1 className="font-display text-4xl font-medium tracking-tight">Gateway control</h1>
         <p className="text-[15px] text-[var(--fg-soft)] -mt-3">
-          Choose the After Speech model, then paste the matching API key. Notes, exemption check,
-          draft, and department explanation run live on
+          Choose the After Speech model, then paste the matching API key. Record suggestions,
+          application drafting, and department explanations run live on
           <span className="font-mono text-[13px] mx-1 px-1.5 py-0.5 rounded bg-[var(--iris-tint)] text-[var(--iris)]">{selected?.label || model || "DeepSeek V4 Flash"}</span>
           for every visitor.
         </p>

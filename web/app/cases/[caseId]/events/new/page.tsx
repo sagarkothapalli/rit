@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/SiteLink";
+import { useSiteRouter } from "@/hooks/useSiteRouter";
 import { useCaseId } from "@/hooks/useCaseId";
 import WorkspaceShell from "@/components/cases/WorkspaceShell";
 import AttachmentUploader from "@/components/attachments/AttachmentUploader";
@@ -31,7 +31,7 @@ const EVENTS: Array<{ type: CaseEventType; label: string; kind?: AttachmentKind 
 
 export default function NewEventPage() {
   const caseId = useCaseId();
-  const router = useRouter();
+  const router = useSiteRouter();
   const [record, setRecord] = useState<CaseRecord | null>(null);
   const [eventType, setEventType] = useState<CaseEventType>("REPLY_RECEIVED");
   const [occurredAt, setOccurredAt] = useState("");

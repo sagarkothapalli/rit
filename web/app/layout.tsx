@@ -23,12 +23,27 @@ const devanagari = Noto_Sans_Devanagari({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_ORIGIN ?? "http://localhost:3000"),
   title: "Praja RTI | Independent citizen assistance",
   description:
     "Describe a problem in your own language and leave with a formal RTI application, addressed to the authority that holds the records. Independent citizen assistance, not a government portal.",
   icons: {
     icon: [{ url: "/favicon.ico", sizes: "any" }],
     apple: [{ url: "/apple-touch-icon.png" }],
+  },
+  openGraph: {
+    title: "Praja RTI | Independent citizen assistance",
+    description:
+      "Say it plainly. Prepare it properly. Independent help to turn a problem into a clear, records-focused RTI application.",
+    type: "website",
+    images: [{ url: "/og.png", width: 1731, height: 909, alt: "Praja RTI — Say it plainly. Prepare it properly." }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Praja RTI | Independent citizen assistance",
+    description:
+      "Say it plainly. Prepare it properly. Independent help to turn a problem into a clear, records-focused RTI application.",
+    images: ["/og.png"],
   },
 };
 

@@ -2,29 +2,20 @@ import { chatBodyExtras, DEEPSEEK_BASE_URL } from "@/lib/cage/models";
 import {
   notesPrompt,
   wrapUntrusted,
-  guardPrompt,
   draftPrompt,
   explainPrompt,
 } from "@/lib/cage/prompts";
 import {
   NotesSchema,
-  GuardSchema,
   DraftSchema,
   ExplainSchema,
   explainFallback,
   bplVerificationFallback,
   type Notes,
   type Draft,
-  type Guard,
   type GateResult,
   type IntakeHints,
 } from "@/lib/cage/schemas";
-import {
-  centralPortalIneligible,
-  needsThirdPartyNotice,
-  preScreen,
-  reconcileGuard,
-} from "@/lib/cage/exemptions";
 import { normalizeNotes, routingQuery } from "@/lib/intake";
 import {
   shortlistDirectory,
@@ -103,35 +94,6 @@ export async function hostedNotes(
   };
 }
 
-export async function hostedGuard(notes: Notes, transcript = ""): Promise<GateResult<Guard>> {
-  const screen = preScreen(transcript, notes);
-  const advisories = {
-    third_party_notice: needsThirdPartyNotice(transcript, notes),
-    central_portal_ineligible: centralPortalIneligible(notes),
-  };
-  const shape = `{
-  "verdict": "ALLOWED" | "EXEMPT",
-  "clause": string | null,
-  "reason_summary": string,
-  "safe_reframing": string | null,
-  "third_party_notice": boolean,
-  "central_portal_ineligible": boolean
-}`;
-  const { system, user } = guardPrompt(JSON.stringify(notes), shape);
-  const model = await callHostedJSON(system, user, 500, (x) => GuardSchema.parse(x));
-  const merged = reconcileGuard(screen, model);
-  return {
-    mode: "LIVE",
-    model: HOSTED_MODEL,
-    data: {
-      ...merged,
-      third_party_notice: advisories.third_party_notice || Boolean(model.third_party_notice),
-      central_portal_ineligible:
-        advisories.central_portal_ineligible || Boolean(model.central_portal_ineligible),
-    },
-  };
-}
-
 export async function hostedDraft(notes: Notes): Promise<GateResult<Draft>> {
   const shape = `{
   "title": string,
@@ -204,10 +166,6 @@ export async function hostedGate(url: string, body: unknown): Promise<unknown> {
     const request = body as { transcript?: string; lang?: string; intake?: IntakeHints };
     return hostedNotes(request.transcript ?? "", request.lang ?? "en-IN", request.intake);
   }
-  if (url.endsWith("/guard")) {
-    const request = body as { notes: Notes; transcript?: string };
-    return hostedGuard(request.notes, request.transcript ?? "");
-  }
   if (url.endsWith("/draft")) {
     const request = body as { notes: Notes };
     return hostedDraft(request.notes);
@@ -220,16 +178,6 @@ export async function hostedGate(url: string, body: unknown): Promise<unknown> {
     const request = body as { fileName?: string; fileType?: string; fileSize?: number; fileBase64?: string };
     const data = bplVerificationFallback(request.fileName ?? "document");
     return { mode: "SIMULATED", data };
-  }
-  if (url.endsWith("/assess")) {
-    const { assessFallback } = await import("@/lib/cage/schemas");
-    const request = body as { transcript?: string };
-    return { mode: "SIMULATED", data: assessFallback(request.transcript ?? "") };
-  }
-  if (url.endsWith("/chat")) {
-    const { chatFallback } = await import("@/lib/cage/schemas");
-    const request = body as { messages?: Array<{ role: "user" | "assistant" | "system"; content: string }>; transcript?: string; lang?: string };
-    return { mode: "SIMULATED", data: chatFallback(request.messages ?? [], request.transcript ?? "", request.lang ?? "en-IN") };
   }
   throw new Error("Unknown gate");
 }

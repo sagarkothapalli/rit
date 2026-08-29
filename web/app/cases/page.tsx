@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "@/components/SiteLink";
+import { useSearchParams } from "next/navigation";
+import { useSiteRouter } from "@/hooks/useSiteRouter";
 import WorkspaceShell from "@/components/cases/WorkspaceShell";
 import EmailVerification from "@/components/EmailVerification";
 import type { CaseSummary } from "@/lib/domain/case";
@@ -25,7 +26,7 @@ const FILTERS: Array<{ id: string; label: string; match: (row: CaseSummary) => b
 ];
 
 export default function CasesPage() {
-  const router = useRouter();
+  const router = useSiteRouter();
   const search = useSearchParams();
   const start = search.get("start");
   const [email, setEmail] = useState(DEMO_EMAIL);

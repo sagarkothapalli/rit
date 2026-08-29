@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { screenValidity, type ValidityAssessment } from "./validity";
+import { screenValidity } from "./validity";
 
 /* ============================================================
    The cage: every model output passes zod or it never reaches
@@ -174,7 +174,8 @@ export function assessFallback(transcript: string): AssessmentResult {
   };
 }
 
-export function chatFallback(messages: ChatMessage[], transcript = "", lang = "en-IN"): ChatResponse {
+export function chatFallback(messages: ChatMessage[], transcript = "", _lang = "en-IN"): ChatResponse {
+  void _lang;
   const latestUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? transcript;
   const assessment = screenValidity(latestUser || transcript);
 
@@ -211,25 +212,6 @@ export function chatFallback(messages: ChatMessage[], transcript = "", lang = "e
 }
 
 export function notesFallback(transcript: string): Notes {
-  const assessment = screenValidity(transcript);
-  if (!assessment.is_valid_rti) {
-    return {
-      valid_for_rti: false,
-      refusal_reason: assessment.refusal_reason,
-      records_sought: [],
-      date_range: null,
-      place: null,
-      body_hint: null,
-      format: "certified copies",
-      missing_essentials: [],
-      is_state_matter: false,
-      state_name: null,
-      jurisdiction: "unclear",
-      filing_channel: null,
-      jurisdiction_reasons: [],
-    };
-  }
-
   const t = transcript.toLowerCase();
   const state = /\b(municipal|nagar|ward|panchayat|bijli|electricity board|safai|sewer|jal board|tehsil|patwari|land record)\b/.test(t);
   const records: string[] = [];
