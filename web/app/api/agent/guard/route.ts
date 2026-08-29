@@ -3,7 +3,7 @@ import { z } from "zod";
 import { GuardSchema, guardFallback, NotesSchema, type GateResult } from "@/lib/cage/schemas";
 import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { guardPrompt } from "@/lib/cage/prompts";
-import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
+import { modelGuard } from "@/lib/cage/ratelimit";
 import {
   centralPortalIneligible,
   needsThirdPartyNotice,
@@ -24,10 +24,8 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const rl = rateLimit(clientKey(req, "guard"));
-  if (!rl.ok) {
-    return NextResponse.json({ error: "RATE_LIMITED", retryAfter: rl.retryAfter }, { status: 429 });
-  }
+  const blocked = modelGuard(req, "guard");
+  if (blocked) return blocked;
   let body: unknown;
   try {
     body = await req.json();

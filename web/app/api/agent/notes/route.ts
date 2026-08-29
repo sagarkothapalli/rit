@@ -3,15 +3,13 @@ import { NotesRequest, NotesSchema, notesFallback, type GateResult, type Notes }
 import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { notesPrompt, wrapUntrusted } from "@/lib/cage/prompts";
 import { normalizeNotes } from "@/lib/intake";
-import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
+import { modelGuard } from "@/lib/cage/ratelimit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const rl = rateLimit(clientKey(req, "notes"));
-  if (!rl.ok) {
-    return NextResponse.json({ error: "RATE_LIMITED", retryAfter: rl.retryAfter }, { status: 429 });
-  }
+  const blocked = modelGuard(req, "notes");
+  if (blocked) return blocked;
 
   let body: unknown;
   try {

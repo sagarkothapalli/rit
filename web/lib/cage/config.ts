@@ -32,7 +32,7 @@ function db(): Pool | null {
   if (!pool) {
     pool = new Pool({
       connectionString: url,
-      ssl: { rejectUnauthorized: false },
+      ssl: { rejectUnauthorized: true },
       max: 3,
     });
   }

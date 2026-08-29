@@ -7,7 +7,7 @@ import {
 } from "@/lib/cage/schemas";
 import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { bplVerifyPrompt } from "@/lib/cage/prompts";
-import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
+import { modelGuard } from "@/lib/cage/ratelimit";
 import { GoogleGenAI } from "@google/genai";
 import { getRuntimeModelConfig } from "@/lib/cage/config";
 
@@ -32,10 +32,8 @@ async function resolveGeminiKey(): Promise<string | null> {
 }
 
 export async function POST(req: Request) {
-  const rl = rateLimit(clientKey(req, "verify-bpl"), 20, 60_000);
-  if (!rl.ok) {
-    return NextResponse.json({ error: "RATE_LIMITED", retryAfter: rl.retryAfter }, { status: 429 });
-  }
+  const blocked = modelGuard(req, "verify-bpl", 20, 60_000);
+  if (blocked) return blocked;
 
   let body: unknown;
   try {

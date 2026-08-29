@@ -21,6 +21,7 @@ export function csrfFailure(req: Request): NextResponse | null {
       return NextResponse.json({ error: "CSRF" }, { status: 403 });
     }
   }
-  if (!origin && !referer) return null;
+  // No sec-fetch-site, no Origin, no Referer: not a browser doing a same-origin
+  // write. Every caller this app has is one, so refuse rather than assume.
   return NextResponse.json({ error: "CSRF" }, { status: 403 });
 }

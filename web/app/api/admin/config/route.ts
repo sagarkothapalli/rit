@@ -13,6 +13,23 @@ import { chatBodyExtras, findModel } from "@/lib/cage/models";
 
 export const dynamic = "force-dynamic";
 
+/* ping() sends the stored API key to whatever base URL it is handed, and a
+   successful ping is then persisted as the gateway every later request uses.
+   Without this allowlist that is a one-request key exfiltration, and a way to
+   route every citizen's transcript through someone else's server. */
+const ALLOWED_HOSTS = new Set(
+  [DEFAULT_BASE_URL, ...MODEL_CATALOG.map((m) => m.baseUrl)].map((u) => new URL(u).host)
+);
+
+function allowedBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && ALLOWED_HOSTS.has(url.host);
+  } catch {
+    return false;
+  }
+}
+
 async function ping(baseUrl: string, apiKey: string, model: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
@@ -91,6 +108,12 @@ export async function POST(req: Request) {
       typeof body.baseUrl === "string" && body.baseUrl.trim()
         ? body.baseUrl.trim().replace(/\/+$/, "")
         : listed?.baseUrl || DEFAULT_BASE_URL;
+    if (!allowedBaseUrl(baseUrl)) {
+      return NextResponse.json(
+        { error: "BASE_URL_NOT_ALLOWED", allowed: [...ALLOWED_HOSTS] },
+        { status: 400 }
+      );
+    }
 
     const testReply = await ping(baseUrl, apiKey, model);
     await saveRuntimeConfig({ apiKey, baseUrl, modelFast: model, modelStrong: model });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI, Modality } from "@google/genai";
-import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
+import { modelGuard } from "@/lib/cage/ratelimit";
 import { getRuntimeModelConfig } from "@/lib/cage/config";
 import { EPHEMERAL_TOKEN_TTL_MS, liveModel } from "@/lib/live/constants";
 
@@ -39,10 +39,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "LIVE_DISABLED" }, { status: 409 });
   }
 
-  const rl = rateLimit(clientKey(req, "live-token"), 8, 600_000);
-  if (!rl.ok) {
-    return NextResponse.json({ error: "RATE_LIMITED", retryAfter: rl.retryAfter }, { status: 429 });
-  }
+  const blocked = modelGuard(req, "live-token", 8, 600_000);
+  if (blocked) return blocked;
 
   const apiKey = await resolveLiveKey();
   if (!apiKey) {
@@ -68,8 +66,8 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ token: token.name, model, expiresAt: expireTime });
   } catch (err) {
-    // Safe to surface: SDK/Google messages describe the failure, never the key.
-    const detail = err instanceof Error ? err.message.slice(0, 200) : "unknown error";
-    return NextResponse.json({ error: "MINT_FAILED", detail }, { status: 502 });
+    // Upstream text can name infrastructure, so it stays in the server log.
+    console.error("live token mint failed", err);
+    return NextResponse.json({ error: "MINT_FAILED" }, { status: 502 });
   }
 }

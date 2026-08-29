@@ -213,7 +213,9 @@ export const BplVerificationRequest = z.object({
   fileName: z.string().max(300),
   fileType: z.string().max(100),
   fileSize: z.number().max(20_000_000),
-  fileBase64: z.string().optional(),
+  // Bounded to match the 20 MB fileSize ceiling once base64-expanded; the
+  // route is unauthenticated and forwards this straight to Gemini.
+  fileBase64: z.string().max(28_000_000).optional(),
 });
 
 export function bplVerificationFallback(fileName: string, textSnippet = ""): BplVerification {

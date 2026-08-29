@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assemblePacketFiles } from "./index";
+import { assemblePacketFiles, createFullRequestPdf } from "./index";
 import { createBlankCase } from "@/lib/storage/factory";
 import type { AttachmentRecord } from "@/lib/domain/attachments";
 
@@ -39,5 +39,17 @@ describe("packet assembly", () => {
     const assembled = await assemblePacketFiles(record);
     expect(assembled.files.some((file) => file.kind === "CPIO_REPLY")).toBe(false);
     expect(assembled.omitted).toContain("missing-reply.pdf");
+  });
+});
+
+// jspdf was bumped across a major for GHSA advisories; this is the check that
+// the packet PDFs still render on it.
+describe("pdf rendering", () => {
+  it("produces a real PDF blob", async () => {
+    const record = await createBlankCase({ caseType: "RTI_REQUEST", ownerEmail: "a@b.com" });
+    const blob = createFullRequestPdf(record);
+    expect(blob.size).toBeGreaterThan(500);
+    const head = new TextDecoder().decode((await blob.arrayBuffer()).slice(0, 5));
+    expect(head).toBe("%PDF-");
   });
 });

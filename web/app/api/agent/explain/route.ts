@@ -5,17 +5,15 @@ import { callModelJSON, getModelConfig } from "@/lib/cage/client";
 import { explainPrompt } from "@/lib/cage/prompts";
 import { DIRECTORY, DIRECTORY_SNAPSHOT, PORTAL_TOTAL, shortlistDirectory } from "@/lib/retrieval";
 import { routingQuery } from "@/lib/intake";
-import { clientKey, rateLimit } from "@/lib/cage/ratelimit";
+import { modelGuard } from "@/lib/cage/ratelimit";
 
 export const dynamic = "force-dynamic";
 
 const POOL = 16;
 
 export async function POST(req: Request) {
-  const rl = rateLimit(clientKey(req, "explain"));
-  if (!rl.ok) {
-    return NextResponse.json({ error: "RATE_LIMITED", retryAfter: rl.retryAfter }, { status: 429 });
-  }
+  const blocked = modelGuard(req, "explain");
+  if (blocked) return blocked;
   let body: unknown;
   try {
     body = await req.json();

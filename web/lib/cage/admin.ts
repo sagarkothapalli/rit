@@ -1,6 +1,7 @@
-import { createHash, timingSafeEqual } from "crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 
 export const ADMIN_COOKIE = "praja_admin";
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
 function configuredPin(): string {
   return (process.env.ADMIN_PIN || "").trim().replace(/^["']|["']$/g, "");
@@ -10,37 +11,54 @@ function normalizePin(pin: string): string {
   return pin.trim().replace(/\s+/g, "");
 }
 
-function pinHash(): string {
-  const pin = configuredPin();
-  if (!pin) return "";
-  return createHash("sha256").update(`${pin}|praja-admin-v1`).digest("hex");
+/* Key the session cookie is signed with. Set ADMIN_SESSION_SECRET in
+   production: without it the cookie is signed with the PIN itself, and anyone
+   who gets hold of a cookie can brute-force the PIN back out of it offline.
+   ponytail: one key, no rotation window. Rotating the value logs everyone out,
+   which is also how you revoke a leaked cookie. */
+function signingKey(): string {
+  return (process.env.ADMIN_SESSION_SECRET || "").trim() || configuredPin();
+}
+
+function sign(payload: string): string {
+  return createHmac("sha256", signingKey()).update(payload).digest("hex");
 }
 
 export function verifyPin(pin: string): boolean {
   const expected = configuredPin();
   const given = normalizePin(pin);
   if (!expected || !given) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  // Hash both sides first so the compare is fixed-width and can't leak the
+  // configured PIN's length by returning early.
+  return timingSafeEqual(
+    createHash("sha256").update(given).digest(),
+    createHash("sha256").update(expected).digest()
+  );
+}
+
+/** `<expiresAt>.<nonce>.<hmac>` — unguessable, expires on the server, and
+    invalidated wholesale by changing ADMIN_SESSION_SECRET. */
+export function mintSession(): string | null {
+  if (!configuredPin()) return null;
+  const payload = `${Date.now() + SESSION_TTL_MS}.${randomBytes(9).toString("hex")}`;
+  return `${payload}.${sign(payload)}`;
 }
 
 export function cookieOk(value: string | undefined): boolean {
-  if (!value) return false;
-  const a = Buffer.from(value);
-  const b = Buffer.from(pinHash());
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  if (!value || !configuredPin()) return false;
+  const cut = value.lastIndexOf(".");
+  if (cut < 1) return false;
+  const payload = value.slice(0, cut);
+  const given = Buffer.from(value.slice(cut + 1), "hex");
+  const want = Buffer.from(sign(payload), "hex");
+  if (given.length !== want.length || !timingSafeEqual(given, want)) return false;
+  const expiresAt = Number(payload.split(".")[0]);
+  return Number.isFinite(expiresAt) && Date.now() < expiresAt;
 }
 
 export function authedReq(req: Request): boolean {
   const m = req.headers.get("cookie")?.match(new RegExp(`${ADMIN_COOKIE}=([^;]+)`));
   return cookieOk(m?.[1]);
-}
-
-export function sessionCookieValue(): string {
-  return pinHash();
 }
 
 export function cookieSecure(req: Request): boolean {
