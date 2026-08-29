@@ -16,6 +16,15 @@ import { verifiedEmail } from "@/lib/application-records";
 import { complaintErrors } from "@/lib/appeals/validate";
 import { casePath } from "@/lib/storage/paths";
 import { emptyApplicant, validateApplicant, type ApplicantDetails, type FieldProblem } from "@/lib/applicant";
+import DraftResumePrompt from "@/components/request/DraftResumePrompt";
+import {
+  clearSection18Draft,
+  clearAllDraftAndIntakeCache,
+  hasSubstantialSection18Draft,
+  loadSection18Draft,
+  saveSection18Draft,
+  type Section18DraftSnapshot,
+} from "@/lib/draft/draftMemory";
 
 export default function ComplaintWizard({
   parentId,
@@ -36,8 +45,21 @@ export default function ComplaintWizard({
   const [busy, setBusy] = useState(false);
   const [applicant, setApplicant] = useState<ApplicantDetails>(emptyApplicant());
   const [problems, setProblems] = useState<FieldProblem[]>([]);
+  const [pendingPrompt, setPendingPrompt] = useState<Section18DraftSnapshot | null>(() => {
+    if (typeof window === "undefined" || editCaseId || parentId) return null;
+    const saved = loadSection18Draft();
+    return hasSubstantialSection18Draft(saved) ? saved : null;
+  });
 
   useEffect(() => {
+    // Strip redirect or state query parameters on mount
+    if (typeof window !== "undefined" && window.location.search) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("token") || params.has("redirect") || params.has("draftId") || params.has("code")) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    }
+
     if (editCaseId) {
       void fetchCase(editCaseId).then((record) => {
         if (!record) return;
@@ -48,24 +70,59 @@ export default function ComplaintWizard({
       });
       return;
     }
-    if (!parentId) return;
-    let active = true;
-    void fetchCase(parentId).then((record) => {
-      if (!active || !record) return;
-      setParent(record);
-      setApplicant(record.applicant);
-      setJurisdiction(record.jurisdiction);
-      setDraft((current) => ({
-        ...current,
-        relatedRtiExists: true,
-        relatedRegistrationNumber: record.officialReferences[0]?.registrationNumber ?? "",
-        destination: record.jurisdiction === "STATE" ? "SIC" : record.jurisdiction === "CENTRAL" ? "CIC" : "",
-      }));
-    });
-    return () => {
-      active = false;
-    };
+    if (parentId) {
+      let active = true;
+      void fetchCase(parentId).then((record) => {
+        if (!active || !record) return;
+        setParent(record);
+        setApplicant(record.applicant);
+        setJurisdiction(record.jurisdiction);
+        setDraft((current) => ({
+          ...current,
+          relatedRtiExists: true,
+          relatedRegistrationNumber: record.officialReferences[0]?.registrationNumber ?? "",
+          destination: record.jurisdiction === "STATE" ? "SIC" : record.jurisdiction === "CENTRAL" ? "CIC" : "",
+        }));
+      });
+      return () => {
+        active = false;
+      };
+    }
   }, [parentId, editCaseId]);
+
+  // Auto-save Section 18 draft
+  useEffect(() => {
+    if (editCaseId || parentId || pendingPrompt) return;
+    const currentSnapshot: Section18DraftSnapshot = {
+      draft,
+      jurisdiction,
+      applicant,
+      capturedAt: Date.now(),
+    };
+    if (hasSubstantialSection18Draft(currentSnapshot)) {
+      saveSection18Draft({ draft, jurisdiction, applicant });
+    }
+  }, [draft, jurisdiction, applicant, editCaseId, parentId, pendingPrompt]);
+
+  function handleContinueDraft() {
+    if (!pendingPrompt) return;
+    setDraft(pendingPrompt.draft);
+    setJurisdiction(pendingPrompt.jurisdiction);
+    setApplicant(pendingPrompt.applicant);
+    setPendingPrompt(null);
+  }
+
+  function handleStartFresh() {
+    clearSection18Draft();
+    clearAllDraftAndIntakeCache();
+    setDraft(emptyComplaintDraft());
+    setJurisdiction("UNCLEAR");
+    setApplicant(emptyApplicant());
+    setPendingPrompt(null);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }
 
   const rules = filingRulesFor({
     caseType: "SECTION_18_COMPLAINT",
@@ -105,6 +162,7 @@ export default function ComplaintWizard({
         child = await copyAttachments(parent, child, ["APPLICATION_PDF", "CPIO_REPLY", "FAA_ORDER", "SUPPORTING"]);
       }
       await saveCase(child);
+      clearSection18Draft();
       router.push(casePath(child.id, "filing"));
     } catch {
       setError("The complaint could not be saved.");
@@ -115,6 +173,18 @@ export default function ComplaintWizard({
 
   return (
     <WorkspaceShell>
+      {pendingPrompt && (
+        <DraftResumePrompt
+          isSection18
+          title="In-progress Section 18 complaint found"
+          subtitle="You have an unfiled Section 18 complaint draft. Would you like to continue where you left off or start fresh?"
+          snippet={pendingPrompt.draft.facts || pendingPrompt.draft.relief || `Ground: ${pendingPrompt.draft.ground}`}
+          stepLabel="Section 18 Complaint Draft"
+          capturedAt={pendingPrompt.capturedAt}
+          onContinue={handleContinueDraft}
+          onStartFresh={handleStartFresh}
+        />
+      )}
       <article className="workspace-panel">
         <div className="step-body">
           <h1>{editCaseId ? "Edit Section 18 complaint." : "Section 18 complaint."}</h1>

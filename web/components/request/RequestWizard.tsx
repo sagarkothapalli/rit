@@ -21,7 +21,8 @@ import LanguageStep from "@/components/request/LanguageStep";
 import ProgressCard from "@/components/request/ProgressCard";
 import RecordsStep from "@/components/request/RecordsStep";
 import StepBar from "@/components/request/StepBar";
-import { STEP_IDS, type Step } from "@/components/request/steps";
+import DraftResumePrompt from "@/components/request/DraftResumePrompt";
+import { STEPS, STEP_IDS, languageLabel as getLanguageLabel, type Step } from "@/components/request/steps";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useLiveIntake } from "@/hooks/useLiveIntake";
 import type { PublicAuthority } from "@/lib/retrieval";
@@ -36,7 +37,15 @@ import {
   type Draft,
   type IntakeHints,
 } from "@/lib/cage/schemas";
-import { clearIntakeRecord, composeIntakeTranscript, loadIntakeRecord } from "@/lib/live/intakeMemory";
+import { composeIntakeTranscript, loadIntakeRecord } from "@/lib/live/intakeMemory";
+import {
+  clearAllDraftAndIntakeCache,
+  getWizardDraftSnippet,
+  hasSubstantialWizardDraft,
+  loadWizardDraft,
+  saveWizardDraft,
+  type WizardDraftSnapshot,
+} from "@/lib/draft/draftMemory";
 import { hasApplicantData, type IntakeHandoff } from "@/lib/live/intakePrompt";
 import { normalizeNotes, routingQuery } from "@/lib/intake";
 import {
@@ -240,6 +249,43 @@ export default function RequestWorkspace() {
   const [savingApplication, setSavingApplication] = useState(false);
   const [useTextAttachment, setUseTextAttachment] = useState(false);
 
+  interface PendingDraftPrompt {
+    snapshot?: WizardDraftSnapshot;
+    intake?: ReturnType<typeof loadIntakeRecord> extends infer T ? (T extends null ? never : T) : never;
+    snippet: string;
+    stepLabel: string;
+    languageLabel: string;
+    capturedAt: number;
+  }
+
+  const [pendingPrompt, setPendingPrompt] = useState<PendingDraftPrompt | null>(() => {
+    if (typeof window === "undefined") return null;
+    const wizardDraft = loadWizardDraft();
+    const intakeRecord = loadIntakeRecord();
+
+    if (hasSubstantialWizardDraft(wizardDraft)) {
+      const stepInfo = STEPS.find((s) => s.id === wizardDraft!.step);
+      return {
+        snapshot: wizardDraft!,
+        snippet: getWizardDraftSnippet(wizardDraft!),
+        stepLabel: stepInfo ? `${stepInfo.label} — ${stepInfo.caption}` : wizardDraft!.step,
+        languageLabel: getLanguageLabel(wizardDraft!.lang),
+        capturedAt: wizardDraft!.capturedAt,
+      };
+    }
+
+    if (intakeRecord?.transcript && intakeRecord.transcript.trim().length >= 10) {
+      return {
+        intake: intakeRecord,
+        snippet: intakeRecord.transcript,
+        stepLabel: "Your concern — Intake summary",
+        languageLabel: getLanguageLabel(intakeRecord.handoff?.detected_lang ?? "en-IN"),
+        capturedAt: intakeRecord.capturedAt,
+      };
+    }
+    return null;
+  });
+
   const [busy, setBusy] = useState<null | "notes" | "guard" | "draft" | "explain">(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -266,18 +312,82 @@ export default function RequestWorkspace() {
     setLiveReady(live.supported && !onStaticHost());
   }, [live.supported]);
 
-  // Restore an intake captured before a refresh.
+  // Clean any redirect tokens or query parameters from URL so refreshes remain clean
   useEffect(() => {
-    const record = loadIntakeRecord();
-    if (!record?.transcript) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLang(record.handoff.detected_lang);
-    speech.setFinalText(record.transcript);
-    setIntakeMode("assistant");
-    applyAgentApplicant(record.handoff);
-    setStep("describe");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (typeof window !== "undefined" && window.location.search) {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (
+        searchParams.has("token") ||
+        searchParams.has("redirect") ||
+        searchParams.has("draftId") ||
+        searchParams.has("code") ||
+        searchParams.has("step")
+      ) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    }
   }, []);
+
+  // Auto-save active draft to session storage so refresh preserves progress without losing state
+  useEffect(() => {
+    if (pendingPrompt) return;
+    if (step === "acknowledgement") {
+      clearAllDraftAndIntakeCache();
+      return;
+    }
+    const hasContent =
+      step !== "language" ||
+      transcript.trim().length > 0 ||
+      manualText.trim().length > 0 ||
+      notes !== null ||
+      draft !== null;
+    if (!hasContent) return;
+
+    saveWizardDraft({
+      step,
+      lang,
+      intakeMode,
+      manualText,
+      userCorrected,
+      transcript,
+      notes,
+      guard,
+      draft,
+      candidates,
+      retrieved,
+      reviewRequired,
+      picked,
+      manualAuthority,
+      applicant,
+      prefilled: Array.from(prefilled),
+      emailVerified,
+      photos,
+      useTextAttachment,
+      handoff: live.handoff,
+    });
+  }, [
+    step,
+    lang,
+    intakeMode,
+    manualText,
+    userCorrected,
+    transcript,
+    notes,
+    guard,
+    draft,
+    candidates,
+    retrieved,
+    reviewRequired,
+    picked,
+    manualAuthority,
+    applicant,
+    prefilled,
+    emailVerified,
+    photos,
+    useTextAttachment,
+    live.handoff,
+    pendingPrompt,
+  ]);
 
   // The agent's handoff is its "next step" trigger: seed the transcript and
   // run the records gate without a manual click.
@@ -688,9 +798,53 @@ export default function RequestWorkspace() {
     }
   }
 
+  function handleContinueDraft() {
+    if (!pendingPrompt) return;
+    if (pendingPrompt.snapshot) {
+      const snap = pendingPrompt.snapshot;
+      setLang(snap.lang);
+      setIntakeMode(snap.intakeMode);
+      setManualText(snap.manualText);
+      setUserCorrected(snap.userCorrected);
+      speech.setFinalText(snap.transcript);
+      setTranscript(snap.transcript);
+      setNotes(snap.notes);
+      setGuard(snap.guard);
+      setDraft(snap.draft);
+      setCandidates(snap.candidates);
+      setRetrieved(snap.retrieved);
+      setReviewRequired(snap.reviewRequired);
+      setPicked(snap.picked);
+      setManualAuthority(snap.manualAuthority);
+      setApplicant(snap.applicant);
+      setPrefilled(new Set(snap.prefilled));
+      setEmailVerified(snap.emailVerified);
+      setPhotos(snap.photos);
+      setUseTextAttachment(snap.useTextAttachment);
+      setStep(snap.step);
+    } else if (pendingPrompt.intake) {
+      const rec = pendingPrompt.intake;
+      setLang(rec.handoff.detected_lang);
+      speech.setFinalText(rec.transcript);
+      setTranscript(rec.transcript);
+      setIntakeMode("assistant");
+      applyAgentApplicant(rec.handoff);
+      setStep("describe");
+    }
+    setPendingPrompt(null);
+  }
+
+  function handleStartFresh() {
+    startOver();
+    setPendingPrompt(null);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }
+
   function startOver() {
     live.stop();
-    clearIntakeRecord();
+    clearAllDraftAndIntakeCache();
     speech.reset();
     setStep("language");
     setIntakeMode(null);
@@ -704,11 +858,30 @@ export default function RequestWorkspace() {
     setApplicant(emptyApplicant());
     setPrefilled(new Set());
     setProblems([]);
+    setEmailVerified(false);
+    setPhotos([]);
+    setPhotoError(null);
+    setApplicationPdf(null);
+    setSavedApplication(null);
+    setSavedCase(null);
     setErr(null);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
   }
 
   return (
     <main className="workspace">
+      {pendingPrompt && (
+        <DraftResumePrompt
+          snippet={pendingPrompt.snippet}
+          stepLabel={pendingPrompt.stepLabel}
+          languageLabel={pendingPrompt.languageLabel}
+          capturedAt={pendingPrompt.capturedAt}
+          onContinue={handleContinueDraft}
+          onStartFresh={handleStartFresh}
+        />
+      )}
       <SiteMasthead
         compact
         notice={
@@ -749,7 +922,7 @@ export default function RequestWorkspace() {
                   speechSupported={speech.supported}
                   onManual={() => {
                     live.stop();
-                    clearIntakeRecord();
+                    clearAllDraftAndIntakeCache();
                     setIntakeMode("manual");
                     setErr(null);
                     setStep("describe");

@@ -2657,6 +2657,8 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
 
 @keyframes proceed-sweep {
   0%, 100% { opacity: 0.45; transform: scaleX(0.25); }
+  60% { opacity: 1; transform: scaleX(1); }
+}
 
 .intake-transcript {
   background: var(--surface);
@@ -5009,3 +5011,122 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- draft recovery prompt ---------- */
+
+.draft-prompt-overlay {
+  align-items: center;
+  background: rgba(5, 36, 68, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 9999;
+}
+
+.draft-prompt-card {
+  animation: draftPromptFadeIn 180ms ease-out;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: 0 25px 70px -20px rgba(5, 36, 68, 0.45);
+  max-width: 580px;
+  padding: 32px 36px;
+  width: 100%;
+}
+
+@keyframes draftPromptFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.draft-prompt-badge {
+  align-items: center;
+  background: var(--saffron-soft);
+  border: 1px solid var(--truth-line);
+  border-radius: 20px;
+  color: var(--action-fg);
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.02em;
+  padding: 4px 12px;
+  text-transform: uppercase;
+}
+
+.draft-prompt-title {
+  color: var(--heading);
+  font-size: 1.45rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 14px 0 6px;
+}
+
+.draft-prompt-lede {
+  color: var(--fg-soft);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.draft-prompt-preview {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 24px;
+  padding: 16px;
+}
+
+.draft-prompt-meta {
+  color: var(--fg-faint);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.draft-prompt-meta-item {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.draft-prompt-excerpt {
+  color: var(--fg);
+  font-size: 0.88rem;
+  font-style: italic;
+  line-height: 1.55;
+  margin: 0;
+  max-height: 100px;
+  overflow-y: auto;
+  word-break: break-word;
+}
+
+.draft-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.draft-prompt-actions .primary-button {
+  flex: 1;
+  min-width: 180px;
+}
+
+.draft-prompt-actions .secondary-button {
+  flex: 1;
+  min-width: 180px;
+}
+

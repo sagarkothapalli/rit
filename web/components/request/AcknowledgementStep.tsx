@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { downloadPdfBase64, type StoredApplication } from "@/lib/application-records";
 
 /* ============================================================
@@ -73,9 +74,9 @@ export default function AcknowledgementStep({
           Download receipt
         </button>
         <button type="button" className="ghost-button" onClick={onBack}>Back</button>
-        <a href="/" className="primary-button">
+        <Link href="/" className="primary-button">
           Home
-        </a>
+        </Link>
       </div>
     </div>
   );

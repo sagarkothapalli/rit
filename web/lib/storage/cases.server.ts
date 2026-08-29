@@ -6,7 +6,7 @@ import { hydrateCase, hydratePayload } from "./factory";
 import { database } from "./db";
 import { runMigrations } from "./migrate";
 import { assertCaseId, hashAccessToken, hashesEqual, isCaseId, makeAccessToken, newId } from "./id";
-import { accessTokenMatches, assertOwnedWrite, isLegacyReferenceHash, stripClientSecrets } from "./case-guard";
+import { accessTokenMatches, assertOwnedWrite, stripClientSecrets } from "./case-guard";
 import { mergeCaseRecords } from "./merge";
 import { scheduleNotifications } from "@/lib/notifications/outbox";
 import { publicFilingRules } from "@/lib/filing-rules/registry";
