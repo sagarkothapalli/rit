@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fetchCaseByReference } from "@/lib/storage/cases.client";
 import { casePath } from "@/lib/storage/paths";
@@ -75,9 +74,6 @@ export default function ApplicationAccess() {
             autoComplete="off"
           />
           {error && <p className="application-access-error" role="alert">{error}</p>}
-          <p>
-            <Link className="text-link" href="/cases">Open the full case list</Link>
-          </p>
         </div>
       </div>
     </section>
