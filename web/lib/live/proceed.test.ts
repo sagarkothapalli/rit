@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   detectHoldIntent,
+  detectOfferedHandoff,
   detectProceedIntent,
   extractSpokenFields,
   guessLanguage,
@@ -57,6 +58,30 @@ describe("detectProceedIntent", () => {
 
   /* Thanks is ambiguous mid-conversation and decisive at the end,
      so it is gated on how much has actually been said. */
+  it("fires on every phrasing built around the word proceed", () => {
+    for (const phrase of [
+      "proceed",
+      "please proceed",
+      "proceed to the complaint",
+      "proceed with the complaint that's it",
+      "proceed to file it",
+      "take me to the next step",
+      "go to next",
+      "file my complaint now",
+    ]) {
+      expect(detectProceedIntent(phrase), phrase).toBe(true);
+    }
+  });
+
+  // The citizen is told to say "proceed" at the end, and the agent asks them
+  // to confirm things in the middle. The two must not collide: a bare yes,
+  // in any language, is an answer to a question, not the end of the intake.
+  it("does not end the intake on a bare acknowledgement in any language", () => {
+    for (const phrase of ["okay", "ok", "yes that is correct", "sare", "seri", "aytu", "ayithu", "ಆಯ್ತು"]) {
+      expect(detectProceedIntent(phrase), phrase).toBe(false);
+    }
+  });
+
   it("treats thanks at the end of a full account as an ending", () => {
     const full =
       "The drain in Ward 12 Gajuwaka has been overflowing since January 2025 and nobody from the "
@@ -97,6 +122,27 @@ describe("detectProceedIntent", () => {
   it("does not re-fire on a confirmation buried early in a long transcript", () => {
     const stale = `that's it proceed ${"the drainage in gajuwaka ward twelve overflowed again and nobody came ".repeat(6)}`;
     expect(detectProceedIntent(stale)).toBe(false);
+  });
+});
+
+describe("detectOfferedHandoff", () => {
+  const offer = "I have everything I need. Shall I prepare your application now?";
+  const question = "Should we mark you as literate on the form?";
+
+  it("takes a yes to an offer as the citizen proceeding", () => {
+    for (const said of ["yes", "yes please", "okay", "proceed", "go ahead", "haan", "avunu", "సరే", "ஆம்"]) {
+      expect(detectOfferedHandoff(offer, said), said).toBe(true);
+    }
+  });
+
+  it("leaves a yes that merely answers an intake question alone", () => {
+    for (const said of ["yes", "okay", "sare", "seri", "correct", "हां"]) {
+      expect(detectOfferedHandoff(question, said), said).toBe(false);
+    }
+  });
+
+  it("lets a hold override a yes in the same breath", () => {
+    expect(detectOfferedHandoff(offer, "yes, wait, one more thing")).toBe(false);
   });
 });
 

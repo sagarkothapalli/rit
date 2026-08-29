@@ -22,6 +22,7 @@ interface LiveLike {
   error: string | null;
   jurisdiction: JurisdictionVerdict | null;
   canFinish: boolean;
+  proceeding: boolean;
   start: () => void | Promise<void>;
   stop: () => void;
   /** Ends the intake and hands off immediately. Returns false if too little was said. */
@@ -88,16 +89,24 @@ export default function LanguageStep({
                 )}
               </div>
 
-              {/* Saying "that's it" is enough, but the citizen never has to
-                  depend on the agent hearing it to move forward. */}
-              {live.canFinish && (
+              {/* "Proceed" is the one word the citizen is given, and the
+                  button is the same word — so hearing it and pressing it are
+                  visibly the same act. Once it lands, the word itself becomes
+                  the confirmation and the wizard advances on its own. */}
+              {live.proceeding ? (
+                <p className="intake-proceed" role="status">
+                  <span className="intake-proceed-word">Proceed</span>
+                  <span className="intake-proceed-trail" aria-hidden="true" />
+                  Preparing your application
+                </p>
+              ) : live.canFinish && (
                 <div className="intake-finish">
                   <button type="button" className="primary-button" onClick={() => live.finish()}>
-                    That&rsquo;s it — prepare my application
+                    Proceed — prepare my application
                   </button>
                   <p className="step-hint">
-                    Saying &ldquo;that&rsquo;s it&rdquo; or &ldquo;proceed&rdquo; does the same thing. Anything still
-                    missing you can fill in on the next screens.
+                    Just say &ldquo;proceed&rdquo; when you are done. Anything still missing you can fill in on the
+                    next screens.
                   </p>
                 </div>
               )}

@@ -63,8 +63,17 @@ const HOLD_PATTERNS: RegExp[] = [
 
 /**
  * Confirmations that mean "I am finished, take it from here".
- * Deliberately excludes a bare "continue" or "okay", which a
- * citizen says constantly mid-explanation.
+ *
+ * "Proceed" is the word the citizen is told to use, and every
+ * phrasing around it counts — "proceed", "proceed with the
+ * complaint", "go ahead", "next step".
+ *
+ * Deliberately excludes every bare acknowledgement, in every
+ * language: "okay", "continue", Telugu "sare", Tamil "seri",
+ * Kannada "aytu". The agent asks the citizen to confirm things
+ * mid-intake — a spelled-out email, a summary line — and they
+ * answer "okay". That must not end the conversation. Only words
+ * that mean FINISHED end it; words that mean YES do not.
  */
 const PROCEED_PATTERNS: RegExp[] = [
   // English
@@ -74,6 +83,8 @@ const PROCEED_PATTERNS: RegExp[] = [
   /\bnothing (?:else|further|more)\b/i,
   /\bno(?:thing)? more (?:questions|details|information)\b/i,
   /\b(?:please\s+)?(?:proceed|go ahead|carry on|move on|next step)\b/i,
+  /\b(?:go|move|take me|jump)\s+(?:on\s+)?to\s+(?:the\s+)?next\b/i,
+  /\b(?:file|register|submit|prepare)\s+(?:my|the|this)\s+(?:complaint|application|request|rti)\b/i,
   /\b(?:you can|lets?|let us|let'?s) (?:proceed|continue|go ahead|carry on|move on)\b/i,
   /\b(?:i'?m|im|i am|we'?re|we are|all|its|it'?s) done\b/i,
   /\b(?:file|submit|send|prepare|draft|make|write) it (?:now|please)?\b/i,
@@ -89,14 +100,14 @@ const PROCEED_PATTERNS: RegExp[] = [
   /(बस|हो गया|हो गयी|ख़त्म|खत्म|आगे बढ़ो|आगे बढ़िए|कर दो|कर दीजिए|भेज दो|बना दो|इतना ही|काफ़ी है|काफी है)/,
   /(کچھ نہیں|ہو گیا|آگے بڑھیں|بھیج دیں|بنا دیں|بس)/,
   // Telugu
-  /\b(?:ante|antey|chaalu|chalu|sare|saripoyindi|ayipoyindi|pampandi)\b/i,
+  /\b(?:ante|antey|chaalu|chalu|saripoyindi|ayipoyindi|pampandi)\b/i,
   /(అంతే|ఇక చాలు|చాలు|అయిపోయింది|సరిపోయింది|పంపండి|ముందుకు వెళ్లండి|తయారు చేయండి)/,
   // Tamil
-  /\b(?:pothum|podhum|seri|mudinthathu|mudinchu)\b/i,
+  /\b(?:pothum|podhum|mudinthathu|mudinchu)\b/i,
   /(அது போதும்|போதும்|சரி முடிந்தது|முடிந்தது|அனுப்புங்கள்|தயார் செய்யுங்கள்)/,
   // Kannada
-  /\b(?:saaku|saku|aytu|ayithu|mugithu)\b/i,
-  /(ಸಾಕು|ಆಯ್ತು|ಆಯಿತು|ಮುಗಿಯಿತು|ಕಳುಹಿಸಿ|ಮುಂದೆ ಸಾಗಿ)/,
+  /\b(?:saaku|saku|mugithu)\b/i,
+  /(ಸಾಕು|ಮುಗಿಯಿತು|ಕಳುಹಿಸಿ|ಮುಂದೆ ಸಾಗಿ)/,
   // Malayalam
   /\b(?:mathi|mathiyaayi|kazhinju)\b/i,
   /(മതി|കഴിഞ്ഞു|അയച്ചോളൂ|തയ്യാറാക്കൂ)/,
@@ -163,6 +174,45 @@ const GRATITUDE_PATTERNS: RegExp[] = [
   /(ଧନ୍ୟବାଦ|ନମସ୍କାର)/,
 ];
 
+/**
+ * Lines in which the agent has OFFERED to hand off — "shall I
+ * prepare your application now?", "can I submit this for you?".
+ * Matched against what the agent just said, not the citizen.
+ */
+const OFFER_PATTERNS: RegExp[] = [
+  /\b(?:shall|should|can|may|do you want|would you like)\s+(?:i|we)\s+(?:now\s+)?(?:go\s+ahead|proceed|prepare|submit|file|draft|make|create|start)\b/i,
+  /\b(?:i|we)\s+can\s+(?:now\s+)?(?:submit|prepare|file|draft|create)\b/i,
+  /\b(?:ready|shall we|are you ready)\s+(?:to\s+)?(?:proceed|prepare|submit|file|go ahead|move on)\b/i,
+  /\b(?:say|just say)\s+proceed\b/i,
+  /\bprepare (?:your|the) (?:application|request|rti)\b[^.?!]{0,24}\?/i,
+  /(तैयार क(?:रूं|रें)|आगे बढ़ूं|भेज दूं|जमा कर(?:ूं|ें))/,
+  /(తయారు చేయనా|ముందుకు వెళ్ళనా|సమర్పించనా)/,
+  /(தயார் செய்யவா|அனுப்பவா)/,
+];
+
+/**
+ * A bare yes. On its own it means nothing — it is the answer to
+ * whatever was just asked. It only ends the intake when the thing
+ * just asked was an offer to hand off.
+ */
+const AFFIRMATION_PATTERNS: RegExp[] = [
+  /^(?:yes|yeah|yep|yup|ya|sure|ok|okay|okey|alright|right|correct|please do|do it|go|proceed|fine|good|perfect|exactly)\b/i,
+  /\b(?:yes|yeah|yep|sure|okay|correct|please do|do it|go ahead)\s*(?:please|thanks|thank you)?\s*$/i,
+  /\b(?:haan|han|ha|ji|ji haan|thik hai|theek hai|sahi hai|bilkul)\b/i,
+  /\b(?:avunu|sare|sari|seri|aam|aama|houdu|howdu|aytu|ayithu|hoy|hoye|ho|athe|haa)\b/i,
+  /(हां|हाँ|जी|ठीक है|सही है|बिल्कुल)/,
+  /(అవును|సరే|అలాగే)/,
+  /(ஆம்|ஆமாம்|சரி)/,
+  /(ಹೌದು|ಸರಿ|ಆಯ್ತು)/,
+  /(അതെ|ശരി)/,
+  /(हो|होय|बरोबर)/,
+  /(হ্যাঁ|ঠিক আছে)/,
+  /(હા|બરાબર)/,
+  /(ਹਾਂ|ਠੀਕ ਹੈ)/,
+  /(ହଁ|ଠିକ ଅଛି)/,
+  /(ہاں|جی ہاں|ٹھیک ہے)/,
+];
+
 function tailOf(text: string): string {
   const clean = (text ?? "").replace(/\s+/g, " ").trim();
   return clean.length <= TAIL_WINDOW ? clean : clean.slice(-TAIL_WINDOW);
@@ -188,6 +238,24 @@ export function detectProceedIntent(transcript: string): boolean {
     clean.length >= GRATITUDE_MIN_CHARS
     && GRATITUDE_PATTERNS.some((pattern) => pattern.test(tail))
   );
+}
+
+/**
+ * True when the agent OFFERED to hand off and the citizen said yes.
+ *
+ * "Yes" is the collision this resolves. Mid-intake it answers a
+ * question — "should we mark you as literate?" — and must not end
+ * anything. But when the agent has just said "shall I prepare your
+ * application now?", the same word IS the citizen proceeding, and
+ * making them find a second word for it is the loop this module
+ * exists to prevent.
+ */
+export function detectOfferedHandoff(agentText: string, userText: string): boolean {
+  const said = tailOf(userText);
+  if (said.length < 2) return false;
+  if (HOLD_PATTERNS.some((pattern) => pattern.test(said))) return false;
+  if (!OFFER_PATTERNS.some((pattern) => pattern.test(tailOf(agentText)))) return false;
+  return AFFIRMATION_PATTERNS.some((pattern) => pattern.test(said));
 }
 
 /**

@@ -11,6 +11,7 @@ import { saveIntakeRecord, clearIntakeRecord } from "@/lib/live/intakeMemory";
 import { createSessionMemory, type SessionMemory } from "@/lib/live/sessionMemory";
 import {
   detectHoldIntent,
+  detectOfferedHandoff,
   detectProceedIntent,
   hasEnoughForHandoff,
   synthesizeHandoff,
@@ -133,7 +134,10 @@ const FORCE_HANDOFF_MS = 6000;
 
 /** Steers the model to stop after the handoff instead of drifting back into chat. */
 const HANDOFF_ACK =
-  "Intake captured successfully. The session is now complete: say exactly one short goodbye line in the citizen's language and stop. Do NOT ask any further questions or offer more help.";
+  "Intake captured successfully. The session is now complete: say exactly one short goodbye line in the citizen's"
+  + " language and stop. Do NOT ask any further questions, do NOT offer more help, and do NOT offer to take another"
+  + " complaint or start a new request — this session prepares one request and it is done. The citizen carries on"
+  + " on screen.";
 
 const FALLBACK_HINT = "Pick a language below and continue instead.";
 
@@ -261,6 +265,8 @@ export function useLiveIntake() {
   const briefedAtRef = useRef(0);
   /** Set when the citizen says they are finished; cleared once acted on. */
   const pendingProceedRef = useRef(false);
+  /** Mirrors the ref for rendering — the citizen sees "proceed" land. */
+  const [proceeding, setProceeding] = useState(false);
   /** Transcript length already scanned for a confirmation. */
   const proceedConsumedRef = useRef(0);
   /** How many times we have had to push the model towards the handoff. */
@@ -347,6 +353,7 @@ export function useLiveIntake() {
       if (detectHoldIntent(text)) {
         // "Wait, one more thing" after a confirmation cancels it.
         pendingProceedRef.current = false;
+        setProceeding(false);
         memory.cancel("proceed");
         if (proceedTimerRef.current) {
           clearTimeout(proceedTimerRef.current);
@@ -354,10 +361,17 @@ export function useLiveIntake() {
         }
       } else if (
         userTextRef.current.length > proceedConsumedRef.current + 4
-        && detectProceedIntent(userTextRef.current)
+        && (
+          detectProceedIntent(userTextRef.current)
+          // "Shall I prepare your application now?" — "yes." A bare yes only
+          // counts when the agent has just offered; mid-intake it is the
+          // answer to whatever was asked.
+          || detectOfferedHandoff(agentTextRef.current, text)
+        )
       ) {
         proceedConsumedRef.current = userTextRef.current.length;
         pendingProceedRef.current = true;
+        setProceeding(true);
       }
     }
   }, []);
@@ -480,6 +494,7 @@ export function useLiveIntake() {
     const normalized = reconcileJurisdiction(raw, classifyJurisdiction(userTextRef.current));
     handoffRef.current = normalized;
     pendingProceedRef.current = false;
+    setProceeding(false);
     if (proceedTimerRef.current) {
       clearTimeout(proceedTimerRef.current);
       proceedTimerRef.current = null;
@@ -535,6 +550,7 @@ export function useLiveIntake() {
     if (handoffRef.current) return true;
     if (!hasEnoughForHandoff(userTextRef.current)) return false;
     pendingProceedRef.current = true;
+    setProceeding(true);
     commitHandoff(synthesizeHandoff(userTextRef.current, jurisdictionRef.current ?? undefined));
     return true;
   }, [commitHandoff]);
@@ -551,6 +567,7 @@ export function useLiveIntake() {
     if (!hasEnoughForHandoff(userTextRef.current)) {
       // "Proceed" before there is a concern to file — nothing to hand off yet.
       pendingProceedRef.current = false;
+      setProceeding(false);
       return;
     }
     if (proceedNudgesRef.current >= 2) {
@@ -722,6 +739,7 @@ export function useLiveIntake() {
     flaggedRef.current = false;
     briefedAtRef.current = Date.now();
     pendingProceedRef.current = false;
+    setProceeding(false);
     proceedConsumedRef.current = 0;
     proceedNudgesRef.current = 0;
     identityConsumedRef.current = 0;
@@ -870,6 +888,7 @@ export function useLiveIntake() {
     flaggedRef.current = false;
     briefedAtRef.current = 0;
     pendingProceedRef.current = false;
+    setProceeding(false);
     proceedConsumedRef.current = 0;
     proceedNudgesRef.current = 0;
     identityConsumedRef.current = 0;
@@ -922,5 +941,7 @@ export function useLiveIntake() {
     finish,
     /** True once enough has been said for the citizen to end the intake themselves. */
     canFinish: hasEnoughForHandoff(userText) && !handoff,
+    /** True from the moment "proceed" is heard until the handoff lands. */
+    proceeding: proceeding && !handoff,
   };
 }

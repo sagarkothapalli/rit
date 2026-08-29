@@ -2620,6 +2620,44 @@ html[data-theme="dark"] .rti-node-complaint .rti-label {
   margin: 0;
 }
 
+/* "Proceed" heard. The word the citizen just said becomes the
+   confirmation — it lights up, a line runs out from under it, and
+   the wizard advances on its own. Reduced motion is handled by the
+   global rule near the top of this file. */
+.intake-proceed {
+  align-items: center;
+  animation: proceed-in 240ms ease-out both;
+  color: var(--fg-soft);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.intake-proceed-word {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.intake-proceed-trail {
+  animation: proceed-sweep 1100ms ease-in-out infinite;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  border-radius: 1px;
+  height: 2px;
+  transform-origin: left center;
+  width: 64px;
+}
+
+@keyframes proceed-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes proceed-sweep {
+  0%, 100% { opacity: 0.45; transform: scaleX(0.25); }
+
 .intake-transcript {
   background: var(--surface);
   border: 1px solid var(--line);
