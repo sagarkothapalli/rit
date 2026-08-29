@@ -16,6 +16,7 @@ import {
   synthesizeHandoff,
 } from "@/lib/live/proceed";
 import { detectIdentityProbe, IDENTITY_NUDGE, redactIdentity } from "@/lib/live/identity";
+import { detectOffTopic, OFF_TOPIC_NUDGE } from "@/lib/live/scope";
 import { classifyJurisdiction, type JurisdictionVerdict } from "@/lib/jurisdiction";
 import {
   BRIEFING_INTERVAL_MS,
@@ -151,7 +152,8 @@ function stateFlagNote(verdict: JurisdictionVerdict): string {
     `this is a STATE / local-body matter${state}, not a Central government one.`,
     `The records are held by ${body}.`,
     "Once the citizen has finished speaking, in the citizen's language and in one or two short sentences, tell them:",
-    "(1) this is not a Central government matter, (2) RTI Online — this Central portal — cannot accept it,",
+    "(1) this is not a Central government matter and you cannot file it — you only file with Central government",
+    "authorities, not State governments or municipal bodies, (2) RTI Online — this Central portal — cannot accept it,",
     `(3) they must approach ${body}.`,
     "Then reassure them you will still prepare the complete application addressed to that authority, and continue the intake.",
     "Do not repeat this flag later in the conversation. When you call submit_intake, set jurisdiction to \"state\"",
@@ -265,6 +267,7 @@ export function useLiveIntake() {
   const proceedNudgesRef = useRef(0);
   /** Transcript length already scanned for an identity question. */
   const identityConsumedRef = useRef(0);
+  const offTopicConsumedRef = useRef(0);
 
   useEffect(() => {
     const ok =
@@ -322,6 +325,18 @@ export function useLiveIntake() {
     ) {
       identityConsumedRef.current = userTextRef.current.length;
       memory.queue("identity", IDENTITY_NUDGE);
+    }
+
+    // "What's the weather?" / "Can you google it?" Recognised here so the
+    // refusal is an instruction the model has just been given, rather than
+    // left to its general helpfulness — which answers, or worse, promises to
+    // look it up on an internet this session has no path to.
+    if (
+      userTextRef.current.length > offTopicConsumedRef.current + 4
+      && detectOffTopic(text)
+    ) {
+      offTopicConsumedRef.current = userTextRef.current.length;
+      memory.queue("scope", OFF_TOPIC_NUDGE);
     }
 
     // "That's it, proceed." Recognised here rather than left to the model,
@@ -710,6 +725,7 @@ export function useLiveIntake() {
     proceedConsumedRef.current = 0;
     proceedNudgesRef.current = 0;
     identityConsumedRef.current = 0;
+    offTopicConsumedRef.current = 0;
     clearIntakeRecord();
     setUserText("");
     setAgentText("");
@@ -857,6 +873,7 @@ export function useLiveIntake() {
     proceedConsumedRef.current = 0;
     proceedNudgesRef.current = 0;
     identityConsumedRef.current = 0;
+    offTopicConsumedRef.current = 0;
     clearIntakeRecord();
     setUserText("");
     setAgentText("");

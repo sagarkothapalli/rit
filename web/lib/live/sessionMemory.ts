@@ -44,9 +44,9 @@ import { extractSpokenFields } from "./proceed";
    ============================================================ */
 
 /** Highest priority first: the order injected notes are spoken in. */
-export type NoteKind = "identity" | "jurisdiction" | "memory" | "proceed";
+export type NoteKind = "identity" | "scope" | "jurisdiction" | "memory" | "proceed";
 
-const NOTE_ORDER: NoteKind[] = ["identity", "jurisdiction", "memory", "proceed"];
+const NOTE_ORDER: NoteKind[] = ["identity", "scope", "jurisdiction", "memory", "proceed"];
 
 /** Facts established by the citizen, never inferred beyond a regex. */
 export interface SessionFacts {
