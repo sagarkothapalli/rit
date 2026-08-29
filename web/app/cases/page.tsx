@@ -9,7 +9,7 @@ import type { CaseSummary } from "@/lib/domain/case";
 import { CASE_TYPE_LABEL, FILING_LABEL, OUTCOME_LABEL, PREPARATION_LABEL, type CaseType } from "@/lib/domain/status";
 import { fetchCase, fetchCaseByReference, fetchCaseList } from "@/lib/storage/cases.client";
 import { casePath } from "@/lib/storage/paths";
-import { verifiedEmail } from "@/lib/application-records";
+import { DEMO_EMAIL, verifiedEmail } from "@/lib/application-records";
 import { remindersForCase } from "@/lib/notifications/reminders";
 
 const FILTERS: Array<{ id: string; label: string; match: (row: CaseSummary) => boolean }> = [
@@ -28,7 +28,7 @@ export default function CasesPage() {
   const router = useRouter();
   const search = useSearchParams();
   const start = search.get("start");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(DEMO_EMAIL);
   const [verified, setVerified] = useState<string | null>(null);
   const [rows, setRows] = useState<CaseSummary[]>([]);
   const [filter, setFilter] = useState("all");

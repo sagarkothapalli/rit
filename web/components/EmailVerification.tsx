@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { requestEmailCode, signOutEmail, verifyEmailCode } from "@/lib/application-records";
+import { DEMO_CODE, DEMO_EMAIL, requestEmailCode, signOutEmail, verifyEmailCode } from "@/lib/application-records";
 
 /* ============================================================
-   Email verification. Mirrors the official portal's first step:
-   the citizen proves the address before the application is
-   stored against it.
+   Stands in for the official portal's first step. Nothing is
+   emailed and nothing is verified: the code is DEMO_CODE and it
+   is printed on the panel, so nobody has to guess it.
    ============================================================ */
 
 type Phase = "collect" | "code" | "verified";
@@ -29,7 +29,6 @@ export default function EmailVerification({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
@@ -41,10 +40,8 @@ export default function EmailVerification({
   async function sendCode() {
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
-      const outcome = await requestEmailCode(email);
-      setNotice(outcome.notice ?? null);
+      await requestEmailCode(email);
       setPhase("code");
       setCooldown(60);
     } catch (cause) {
@@ -61,7 +58,6 @@ export default function EmailVerification({
       await verifyEmailCode(email, code);
       setPhase("verified");
       setCode("");
-      setNotice(null);
       onVerified(email.trim().toLowerCase());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That code could not be verified.");
@@ -75,7 +71,6 @@ export default function EmailVerification({
     setPhase("collect");
     setCode("");
     setError(null);
-    setNotice(null);
     onSignOut?.();
   }
 
@@ -101,7 +96,7 @@ export default function EmailVerification({
           <label htmlFor="verify-email">Email address</label>
           <p className="verify-hint">
             The official portal verifies your address before it accepts an application. This step stands in for
-            that. Nothing is emailed and nothing is kept after you close the page.
+            that. Any address works and nothing is kept after you close the page.
           </p>
           <div className="verify-row">
             <input
@@ -113,7 +108,7 @@ export default function EmailVerification({
                 if (event.key === "Enter" && email.includes("@")) void sendCode();
               }}
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder={DEMO_EMAIL}
             />
             <button type="button" onClick={() => void sendCode()} disabled={busy || !email.includes("@")}>
               {busy ? "Sending…" : "Send code"}
@@ -124,8 +119,7 @@ export default function EmailVerification({
         <>
           <label htmlFor="verify-code">Verification code</label>
           <p className="verify-hint">
-            Verifying <strong>{email}</strong>. This build sends no mail: enter <strong>0000</strong> or{" "}
-            <strong>4000</strong>.
+            Verifying <strong>{email}</strong>.
           </p>
           <div className="verify-row">
             <input
@@ -137,7 +131,7 @@ export default function EmailVerification({
               }}
               inputMode="numeric"
               autoComplete="off"
-              placeholder="0000"
+              placeholder={DEMO_CODE}
               className="verify-code-input"
             />
             <button
@@ -164,7 +158,9 @@ export default function EmailVerification({
         </>
       )}
 
-      {notice && <p className="verify-notice">{notice}</p>}
+      <p className="verify-devcode">
+        Demo build — no email is sent anywhere. Your code is <strong>{DEMO_CODE}</strong> (four zeros).
+      </p>
       {error && <p className="verify-error" role="alert">{error}</p>}
     </div>
   );

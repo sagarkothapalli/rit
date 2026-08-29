@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { signOutEmail, verifiedEmail, verifyEmailCode } from "./application-records";
+import { DEMO_CODE, signOutEmail, verifiedEmail, verifyEmailCode } from "./application-records";
 
 describe("email verification", () => {
-  it("accepts 0000 and 4000 and nothing else", async () => {
+  it("accepts 0000 and nothing else", async () => {
+    expect(DEMO_CODE).toBe("0000");
     await expect(verifyEmailCode("a@b.com", "1234")).rejects.toThrow();
+    await expect(verifyEmailCode("a@b.com", "4000")).rejects.toThrow();
     await verifyEmailCode("A@B.com", "0000");
     expect(await verifiedEmail()).toBe("a@b.com");
-    await verifyEmailCode("c@d.com", "4000");
-    expect(await verifiedEmail()).toBe("c@d.com");
   });
 
   it("forgets the address on sign out", async () => {

@@ -136,34 +136,27 @@ export async function findApplication(acknowledgementNumber: string): Promise<St
 }
 
 /* ---------- email verification ----------
-   Demo verification, on this device and nowhere else. No provider, no server,
-   no session that outlives the page: reload and the citizen verifies again.
-   ponytail: DEMO_CODES is the whole auth story. A real one needs a mailer and
-   a signed server session. */
+   There is none, and none is intended. No mailer, no provider, no server, no
+   session that outlives the page: the code is 0000, it is printed on screen,
+   and reloading starts over.
+   ponytail: a stand-in for the portal's first step, not auth. Nothing
+   server-side trusts it — every owner-scoped route refuses regardless. */
 
-const DEMO_CODES = new Set(["0000", "4000"]);
+export { DEMO_EMAIL } from "@/lib/applicant";
+
+/** The only accepted code. Shown to the citizen, not a secret. */
+export const DEMO_CODE = "0000";
 
 /** Module state, so nothing survives a reload, a new tab, or a new visit. */
 let verifiedAddress: string | null = null;
 
-export interface CodeRequestOutcome {
-  delivery: "email" | "console";
-  notice?: string;
-  demoBypass?: boolean;
-}
-
-export async function requestEmailCode(email: string): Promise<CodeRequestOutcome> {
+export async function requestEmailCode(email: string): Promise<void> {
   if (!email.trim().includes("@")) throw new Error("Enter a valid email address.");
-  return {
-    delivery: "console",
-    notice: "No code is emailed in this build. Enter 0000 or 4000 to continue.",
-    demoBypass: true,
-  };
 }
 
 export async function verifyEmailCode(email: string, code: string): Promise<void> {
-  if (!DEMO_CODES.has(code.replace(/\D/g, ""))) {
-    throw new Error("That code is not correct. Enter 0000 or 4000.");
+  if (code.replace(/\D/g, "") !== DEMO_CODE) {
+    throw new Error(`That code is not correct. Enter ${DEMO_CODE}.`);
   }
   verifiedAddress = email.trim().toLowerCase();
 }

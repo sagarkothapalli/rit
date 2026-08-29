@@ -476,6 +476,11 @@ export const STATES: readonly string[] = [
   "West Bengal",
 ];
 
+/** Prefilled everywhere an applicant starts blank. This build has no mailer
+    and verifies nothing, so it ships a stand-in address rather than asking
+    for a real one. See DEMO_CODE in lib/application-records.ts. */
+export const DEMO_EMAIL = "abcd@gmail.com";
+
 export function emptyApplicant(): ApplicantDetails {
   return {
     name: "",
@@ -488,7 +493,7 @@ export function emptyApplicant(): ApplicantDetails {
     educationalStatus: "Literate",
     phone: "",
     mobile: "",
-    email: "",
+    email: DEMO_EMAIL,
     citizenship: "Indian",
     isBpl: false,
     bplDocument: null,
