@@ -82,6 +82,7 @@ import {
 import { attachmentMeta } from "@/lib/packets/meta";
 import { blobToBytes } from "@/lib/packets/zip";
 import type { CaseRecord } from "@/lib/domain/case";
+import { screenValidity } from "@/lib/cage/validity";
 
 function StepFallback() {
   return (
@@ -152,6 +153,22 @@ async function localFallback(url: string, body: unknown): Promise<unknown> {
     return {
       mode: "SIMULATED",
       data: bplVerificationFallback(request.fileName ?? "document"),
+    };
+  }
+  if (url.endsWith("/assess")) {
+    const { assessFallback } = await import("@/lib/cage/schemas");
+    const request = body as { transcript?: string };
+    return {
+      mode: "SIMULATED",
+      data: assessFallback(request.transcript ?? ""),
+    };
+  }
+  if (url.endsWith("/chat")) {
+    const { chatFallback } = await import("@/lib/cage/schemas");
+    const request = body as { messages?: Array<{ role: "user" | "assistant" | "system"; content: string }>; transcript?: string; lang?: string };
+    return {
+      mode: "SIMULATED",
+      data: chatFallback(request.messages ?? [], request.transcript ?? "", request.lang ?? "en-IN"),
     };
   }
   throw new Error("This service is temporarily unavailable.");
@@ -469,6 +486,13 @@ export default function RequestWorkspace() {
   /* ---------- gates ---------- */
 
   async function runNotes(text: string, handoff?: IntakeHandoff): Promise<boolean> {
+    const validity = screenValidity(text);
+    if (!validity.is_valid_rti) {
+      setErr(validity.refusal_reason || "This request cannot be filed under the Right to Information Act, 2005. Please change the information to describe a matter concerning official government records or public authorities.");
+      setStep("describe");
+      return false;
+    }
+
     setBusy("notes");
     setErr(null);
     try {
@@ -484,6 +508,11 @@ export default function RequestWorkspace() {
           }
         : undefined;
       const response = await postJSON<NotesResp>("/api/agent/notes", { transcript: text, lang, intake });
+      if (response.data.valid_for_rti === false) {
+        setErr(response.data.refusal_reason || "This request cannot be filed under the RTI Act, 2005. Please change the information to describe a matter concerning official government records or public authorities.");
+        setStep("describe");
+        return false;
+      }
       setNotes(response.data);
       setCandidates([]);
       setRetrieved([]);
@@ -502,6 +531,11 @@ export default function RequestWorkspace() {
     const final = correction.trim();
     if (final.length < 10) {
       setErr("Tell us a little more about the problem before we continue.");
+      return;
+    }
+    const validity = screenValidity(final);
+    if (!validity.is_valid_rti) {
+      setErr(validity.refusal_reason || "Cannot be filed under RTI Act, 2005. Please change the information above to continue.");
       return;
     }
     setErr(null);

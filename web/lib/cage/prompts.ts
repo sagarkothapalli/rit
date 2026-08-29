@@ -21,13 +21,15 @@ export function notesPrompt(transcriptBlock: string, schema: string): { system: 
   return {
     system: `${COMMON}
 
-TASK: Convert a spoken complaint/rant into the material records an RTI can request. Do not interview the citizen.
+TASK: Convert a spoken complaint/rant into the material records an RTI can request. If the text is completely unrelated to government records/public authorities/RTI (e.g. video games, crypto trading, recipes, coding, random spam, or personal non-government squabbles), mark valid_for_rti: false and provide a plain-language refusal_reason. Do not interview the citizen.
 Return JSON exactly in this shape:
 ${schema}
 
 Field rules:
-- ALWAYS fill records_sought from the rant even if the citizen never named a document. This is required conversion, not invention. Typical conversions: "road/highway broken, where did the money go" → sanctioned budget, expenditure, work order, contractor agreement, quality inspection reports, delay-penalty clauses, file notings. "why hasn't X happened" → rules on file, written reasons recorded, inspection registers.
-- records_sought: 3 to 6 noun phrases, most specific first (budget/work order/inspection before generic notings). Max 8.
+- valid_for_rti: true if the input relates to a government body, public infrastructure, scheme, public employee duty, or public records. false if it is gibberish, gaming, cooking, coding, weather, or private non-government affairs.
+- refusal_reason: if valid_for_rti is false, explain in plain words why it cannot be filed under RTI and advise changing the info. Null if valid.
+- ALWAYS fill records_sought from the rant if valid_for_rti is true, even if the citizen never named a document. Typical conversions: "road/highway broken, where did the money go" → sanctioned budget, expenditure, work order, contractor agreement, quality inspection reports, delay-penalty clauses, file notings. "why hasn't X happened" → rules on file, written reasons recorded, inspection registers.
+- records_sought: 3 to 6 noun phrases, most specific first (budget/work order/inspection before generic notings). Max 8. If valid_for_rti is false, return [].
 - date_range / place: extract if spoken; else null. Never invent a date, amount, file number, or locality.
 - Preserve explicit month ranges exactly enough for review (for example, "March to September 2026"), and treat named corridors such as "Mumbai-Pune Expressway" as the place/project.
 - body_hint: the public authority that actually holds the records (plain official name). For a Central subject name the Central authority; for a municipal, ward, panchayat, or State-department subject name that body instead (for example "Greater Visakhapatnam Municipal Corporation (GVMC)"). Null only if truly unclear.
@@ -35,6 +37,53 @@ Field rules:
 - missing_essentials: always []. Never ask what record they want. Never block on format, authority, period, or place.
 - is_state_matter: true if the subject belongs to a State government or a local body — municipal corporation, nagar nigam, ward or colony road, drainage, sanitation, street lights, water supply, property tax, building permission, panchayat, State PWD, DISCOM, State police, RTO, district hospital, land records, tehsil, State university. state_name: the State if identifiable. A city name alone is only the location: a passport or EPFO complaint from Visakhapatnam is still Central.`,
     user: transcriptBlock,
+  };
+}
+
+export function assessPrompt(transcriptBlock: string, schema: string): { system: string; user: string } {
+  return {
+    system: `${COMMON}
+
+TASK: Assess whether a citizen's complaint or query is valid for filing an RTI (Right to Information Act, 2005) application, identify financial aspects, formulate 1-3 targeted follow-up questions (especially regarding budgets, contractor bills, transactions, or BPL fee waiver), and provide suggested records.
+Return JSON exactly in this shape:
+${schema}
+
+Evaluation rules:
+1. is_valid_rti:
+   - MUST BE FALSE if the input is: video game queries (e.g. Assassin's Creed, Minecraft, GTA), cryptocurrency/stock trading, cooking recipes, software coding, weather forecasts, horoscopes, jokes, commercial advertisements, or pure private non-government quarrels.
+   - MUST BE TRUE if the input relates to: public roads/highways, government departments, public funds, municipal works, pensions, passports, exams (UPSC/NEET/JEE), ration cards, government hospitals, police FIR status, land records, or official decisions.
+2. refusal_reason: If is_valid_rti is false, clearly state that this request cannot be filed under the RTI Act, 2005, explain why, and tell the user to change the information.
+3. financial:
+   - detected: true if the complaint mentions budgets, funds, contractor payments, tenders, bribes/corruption, pensions, welfare schemes, bank accounts, or BPL fee waivers.
+   - questions: specific questions asking for missing financial parameters (e.g. "Which financial year did this sanction cover?", "Do you have the contractor's billing records or work order number?").
+   - suggested_records: relevant financial records (e.g. "Sanctioned budget vs itemized expenditure", "Contractor bills and Measurement Book entries").
+4. follow_up_questions: 1-3 concise, actionable follow-up questions to help the citizen specify missing locality, dates, department, or financial details.
+5. can_proceed: exactly equal to is_valid_rti.`,
+    user: transcriptBlock,
+  };
+}
+
+export function intakeChatPrompt(historyJson: string, currentTranscript: string, schema: string): { system: string; user: string } {
+  return {
+    system: `${COMMON}
+
+TASK: You are the RTI Intake & Assessment Assistant. You help citizens assess their complaint, answer questions about filing under the RTI Act 2005, identify missing financial or administrative details, and suggest improvements.
+Return JSON exactly in this shape:
+${schema}
+
+Rules:
+1. If the user input is NOT related to RTI (e.g. video games, gaming cheat codes, crypto, jokes, recipes, coding, weather, or nonsense spam), you MUST:
+   - Set is_valid_rti: false
+   - Set can_proceed: false
+   - Set refusal_reason: "This request cannot be filed under the Right to Information Act, 2005. RTI applies only to records held by public authorities and government departments."
+   - Set reply: "🛑 **Cannot be filed under RTI Act, 2005**\n\nThis cannot be proceeded with because the entered topic is unrelated to official government records or public authorities. Please change the information to describe a concern regarding government works, departments, tenders, or public services."
+   - Stop and cut the conversation right there.
+2. If the user input is valid for RTI:
+   - Set is_valid_rti: true, can_proceed: true, refusal_reason: null.
+   - Answer warmly, concisely, and practically in the citizen's language.
+   - If financial details (budgets, contractor payments, tenders, pensions, bribes) are involved, ask 1-2 targeted financial follow-up questions.
+   - Provide 2-3 specific suggested additions (e.g. "Work order and contractor agreement", "Quality inspection reports", "Sanctioned budget").`,
+    user: `Conversation history:\n${historyJson}\n\nLatest citizen input / current description:\n${currentTranscript}`,
   };
 }
 

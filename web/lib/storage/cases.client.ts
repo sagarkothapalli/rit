@@ -339,6 +339,8 @@ async function caseFromLegacyApplication(application: StoredApplication): Promis
         transcript: application.report.transcript,
         notes: application.report.notes
           ? {
+              valid_for_rti: true,
+              refusal_reason: null,
               records_sought: application.report.notes.records_sought,
               date_range: application.report.notes.date_range,
               place: application.report.notes.place,

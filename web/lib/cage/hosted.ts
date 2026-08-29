@@ -221,5 +221,15 @@ export async function hostedGate(url: string, body: unknown): Promise<unknown> {
     const data = bplVerificationFallback(request.fileName ?? "document");
     return { mode: "SIMULATED", data };
   }
+  if (url.endsWith("/assess")) {
+    const { assessFallback } = await import("@/lib/cage/schemas");
+    const request = body as { transcript?: string };
+    return { mode: "SIMULATED", data: assessFallback(request.transcript ?? "") };
+  }
+  if (url.endsWith("/chat")) {
+    const { chatFallback } = await import("@/lib/cage/schemas");
+    const request = body as { messages?: Array<{ role: "user" | "assistant" | "system"; content: string }>; transcript?: string; lang?: string };
+    return { mode: "SIMULATED", data: chatFallback(request.messages ?? [], request.transcript ?? "", request.lang ?? "en-IN") };
+  }
   throw new Error("Unknown gate");
 }

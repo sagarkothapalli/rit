@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { screenValidity, type ValidityAssessment } from "./validity";
 
 /* ============================================================
    The cage: every model output passes zod or it never reaches
@@ -6,6 +7,8 @@ import { z } from "zod";
    ============================================================ */
 
 export const NotesSchema = z.object({
+  valid_for_rti: z.boolean().default(true),
+  refusal_reason: z.string().max(500).nullable().optional().default(null),
   records_sought: z.array(z.string().min(3)).max(8).default([]),
   date_range: z.string().max(80).nullable().optional().default(null),
   place: z.string().max(120).nullable().optional().default(null),
@@ -27,6 +30,60 @@ export const NotesSchema = z.object({
   jurisdiction_reasons: z.array(z.string().max(300)).max(6).default([]),
 });
 export type Notes = z.infer<typeof NotesSchema>;
+
+export const AssessmentResultSchema = z.object({
+  is_valid_rti: z.boolean(),
+  refusal_reason: z.string().nullable().optional().default(null),
+  category: z.string().max(80).default("Public Records & Governance"),
+  summary: z.string().max(400).default(""),
+  financial: z
+    .object({
+      detected: z.boolean().default(false),
+      details_found: z.array(z.string()).default([]),
+      missing_financial_info: z.array(z.string()).default([]),
+      questions: z.array(z.string()).default([]),
+      suggested_records: z.array(z.string()).default([]),
+    })
+    .default({
+      detected: false,
+      details_found: [],
+      missing_financial_info: [],
+      questions: [],
+      suggested_records: [],
+    }),
+  follow_up_questions: z.array(z.string()).default([]),
+  suggested_records: z.array(z.string()).default([]),
+  safe_guidance: z.string().max(500).default(""),
+  can_proceed: z.boolean().default(true),
+});
+export type AssessmentResult = z.infer<typeof AssessmentResultSchema>;
+
+export const AssessRequest = z.object({
+  transcript: z.string().max(6000),
+  lang: z.string().max(20).optional().default("en-IN"),
+});
+
+export const ChatMessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string().max(4000),
+});
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
+
+export const ChatRequest = z.object({
+  messages: z.array(ChatMessageSchema).max(20),
+  transcript: z.string().max(6000).optional().default(""),
+  lang: z.string().max(20).optional().default("en-IN"),
+});
+
+export const ChatResponseSchema = z.object({
+  reply: z.string().max(2000),
+  is_valid_rti: z.boolean().default(true),
+  refusal_reason: z.string().nullable().optional().default(null),
+  can_proceed: z.boolean().default(true),
+  suggested_additions: z.array(z.string()).max(5).default([]),
+  financial_questions: z.array(z.string()).max(4).default([]),
+});
+export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 
 export const GuardSchema = z.object({
   verdict: z.enum(["ALLOWED", "EXEMPT"]),
@@ -102,7 +159,77 @@ export interface GateResult<T> {
 
 /* ---------- Deterministic fallbacks (SIMULATED mode / model failure) ---------- */
 
+export function assessFallback(transcript: string): AssessmentResult {
+  const result = screenValidity(transcript);
+  return {
+    is_valid_rti: result.is_valid_rti,
+    refusal_reason: result.refusal_reason,
+    category: result.category,
+    summary: result.summary,
+    financial: result.financial,
+    follow_up_questions: result.follow_up_questions,
+    suggested_records: result.suggested_records,
+    safe_guidance: result.safe_guidance,
+    can_proceed: result.can_proceed,
+  };
+}
+
+export function chatFallback(messages: ChatMessage[], transcript = "", lang = "en-IN"): ChatResponse {
+  const latestUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? transcript;
+  const assessment = screenValidity(latestUser || transcript);
+
+  if (!assessment.is_valid_rti) {
+    return {
+      reply: `🛑 **Cannot be filed under RTI Act, 2005**\n\n${assessment.refusal_reason}\n\nPlease change the information to describe a genuine concern regarding official government records, public works, or public authorities.`,
+      is_valid_rti: false,
+      refusal_reason: assessment.refusal_reason,
+      can_proceed: false,
+      suggested_additions: [],
+      financial_questions: [],
+    };
+  }
+
+  const parts: string[] = [];
+  parts.push(`This is a valid matter under the Right to Information Act (${assessment.category}).`);
+
+  if (assessment.financial.detected && assessment.financial.questions.length > 0) {
+    parts.push(`\n**Financial aspects noted:**\n${assessment.financial.questions.map((q) => `• ${q}`).join("\n")}`);
+  } else if (assessment.follow_up_questions.length > 0) {
+    parts.push(`\n**Key details to specify:**\n${assessment.follow_up_questions.map((q) => `• ${q}`).join("\n")}`);
+  }
+
+  parts.push("\nYou can type your answer or click any suggested addition below to incorporate it into your request.");
+
+  return {
+    reply: parts.join("\n"),
+    is_valid_rti: true,
+    refusal_reason: null,
+    can_proceed: true,
+    suggested_additions: assessment.suggested_records.slice(0, 3),
+    financial_questions: assessment.financial.questions,
+  };
+}
+
 export function notesFallback(transcript: string): Notes {
+  const assessment = screenValidity(transcript);
+  if (!assessment.is_valid_rti) {
+    return {
+      valid_for_rti: false,
+      refusal_reason: assessment.refusal_reason,
+      records_sought: [],
+      date_range: null,
+      place: null,
+      body_hint: null,
+      format: "certified copies",
+      missing_essentials: [],
+      is_state_matter: false,
+      state_name: null,
+      jurisdiction: "unclear",
+      filing_channel: null,
+      jurisdiction_reasons: [],
+    };
+  }
+
   const t = transcript.toLowerCase();
   const state = /\b(municipal|nagar|ward|panchayat|bijli|electricity board|safai|sewer|jal board|tehsil|patwari|land record)\b/.test(t);
   const records: string[] = [];
@@ -133,6 +260,8 @@ export function notesFallback(transcript: string): Notes {
     );
   }
   return {
+    valid_for_rti: true,
+    refusal_reason: null,
     records_sought: records.slice(0, 6),
     date_range: /(month|mahine|महीने|साल|year|saal)/.test(t) ? "the period mentioned by the citizen" : null,
     place: null,
