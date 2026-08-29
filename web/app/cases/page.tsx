@@ -35,7 +35,8 @@ export default function CasesPage() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [reminders, setReminders] = useState<string[]>([]);
-  const [recovery, setRecovery] = useState("");
+  const [referenceInput, setReferenceInput] = useState("");
+  const [lookupBusy, setLookupBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -71,13 +72,25 @@ export default function CasesPage() {
   }, [rows, filter, query]);
 
   async function openReference(value: string) {
-    setError(null);
-    const record = await fetchCaseByReference(value, recovery || undefined);
-    if (!record) {
-      setError("No Praja case matched that number and recovery token.");
+    const normalized = value.trim().toUpperCase();
+    if (!normalized) {
+      setError("Enter the Praja Acknowledgement Number.");
       return;
     }
-    router.push(casePath(record.id));
+    setLookupBusy(true);
+    setError(null);
+    try {
+      const record = await fetchCaseByReference(normalized);
+      if (!record) {
+        setError("No Praja case matched that acknowledgement number.");
+        return;
+      }
+      router.push(casePath(record.id));
+    } catch {
+      setError("The case store could not be reached. Try again when you are online.");
+    } finally {
+      setLookupBusy(false);
+    }
   }
 
   return (
@@ -86,7 +99,7 @@ export default function CasesPage() {
         <div className="step-body">
           <h1>My RTI cases.</h1>
           <p className="step-lede">
-            Praja references and packets you prepared. Official status exists only on the government channel that
+            Praja acknowledgements and packets you prepared. Official status exists only on the government channel that
             issued a registration number.
           </p>
 
@@ -101,23 +114,27 @@ export default function CasesPage() {
           )}
 
           <div className="applicant-row">
-            <label className="applicant-field">
-              <span className="applicant-label">Praja reference</span>
-              <input
-                placeholder="PRTI/ACK/26/XXXXXXXXX"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") void openReference((event.target as HTMLInputElement).value);
-                }}
-              />
-            </label>
-            <label className="applicant-field">
-              <span className="applicant-label">Recovery token</span>
-              <input
-                value={recovery}
-                onChange={(event) => setRecovery(event.target.value.toUpperCase())}
-                placeholder="Shown on the Praja acknowledgement"
-                autoComplete="off"
-              />
+            <label className="applicant-field" style={{ flex: 1 }}>
+              <span className="applicant-label">Praja Acknowledgement Number</span>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input
+                  value={referenceInput}
+                  onChange={(event) => setReferenceInput(event.target.value.toUpperCase())}
+                  placeholder="PRTI/ACK/26/XXXXXXXXX"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void openReference(referenceInput);
+                  }}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => void openReference(referenceInput)}
+                  disabled={lookupBusy}
+                >
+                  {lookupBusy ? "Opening…" : "Open"}
+                </button>
+              </div>
             </label>
           </div>
           {error && <p className="step-error" role="alert">{error}</p>}

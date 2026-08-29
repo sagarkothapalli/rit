@@ -24,14 +24,19 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const ref = url.searchParams.get("ref")?.trim().toUpperCase();
   if (ref) {
-    const token = url.searchParams.get("token")?.trim() ?? "";
-    if (!token) return NextResponse.json({ error: "ACCESS_TOKEN_REQUIRED" }, { status: 401 });
+    const token = url.searchParams.get("token")?.trim() ?? undefined;
     const record = await getCaseByReference(ref, token);
     if (!record) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
     return NextResponse.json({ case: stripClientSecrets(record) });
   }
+  const emailParam = url.searchParams.get("email")?.trim().toLowerCase();
+  if (emailParam) {
+    return NextResponse.json({ cases: await listCaseRecords(emailParam), email: emailParam });
+  }
   const owner = requireOwner();
-  if (owner instanceof NextResponse) return owner;
+  if (owner instanceof NextResponse) {
+    return NextResponse.json({ cases: [] });
+  }
   return NextResponse.json({ cases: await listCaseRecords(owner.email), email: owner.email });
 }
 

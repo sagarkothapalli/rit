@@ -8,22 +8,21 @@ import { casePath } from "@/lib/storage/paths";
 export default function ApplicationAccess() {
   const router = useRouter();
   const [ack, setAck] = useState("");
-  const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function openByReference() {
     const normalized = ack.trim().toUpperCase();
     if (!normalized) {
-      setError("Enter the Praja reference number printed on your acknowledgement.");
+      setError("Enter your Praja Acknowledgement Number.");
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const record = await fetchCaseByReference(normalized, token || undefined);
+      const record = await fetchCaseByReference(normalized);
       if (!record) {
-        setError("No saved case matched that number. Check every character and try again.");
+        setError("No saved case matched that acknowledgement number. Check every character and try again.");
         return;
       }
       router.push(casePath(record.id));
@@ -49,7 +48,7 @@ export default function ApplicationAccess() {
 
       <div className="application-access-workspace">
         <div className="application-access-form">
-          <label htmlFor="reference-number">Praja reference number</label>
+          <label htmlFor="reference-number">Praja Acknowledgement Number</label>
           <div className="application-access-row">
             <input
               id="reference-number"
@@ -65,14 +64,6 @@ export default function ApplicationAccess() {
               {busy ? "Looking up…" : "Open"}
             </button>
           </div>
-          <label htmlFor="recovery-token">Recovery token</label>
-          <input
-            id="recovery-token"
-            value={token}
-            onChange={(event) => setToken(event.target.value.toUpperCase())}
-            placeholder="Printed with the Praja acknowledgement"
-            autoComplete="off"
-          />
           {error && <p className="application-access-error" role="alert">{error}</p>}
         </div>
       </div>

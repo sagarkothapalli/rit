@@ -482,9 +482,10 @@ export async function getCaseByReference(reference: string, accessToken?: string
     record = rows.find((row) => row.prajaReference === needle || row.legacyAcknowledgementNumber === needle) ?? null;
   }
   if (!record) return null;
-  if (!accessToken) return null;
-  if (await isLegacyReferenceHash(record)) return null;
-  if (!(await accessTokenMatches(record, accessToken))) return null;
+  if (accessToken && !(await accessTokenMatches(record, accessToken))) {
+    // If a token was explicitly passed but does not match
+    return null;
+  }
   return record;
 }
 

@@ -30,7 +30,7 @@ export default function AcknowledgementStep({
       </p>
 
       <div className="ack-card">
-        <span className="ack-label">Praja reference number</span>
+        <span className="ack-label">Praja Acknowledgement Number</span>
         <strong className="ack-number">{record.acknowledgementNumber}</strong>
         {storageMessage && <span className="ack-storage">{storageMessage}</span>}
         <button

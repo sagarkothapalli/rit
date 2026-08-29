@@ -566,26 +566,22 @@ export async function downloadAttachmentBytes(caseId: string, attachmentId: stri
   }
 }
 
-export async function fetchCaseByReference(reference: string, token?: string): Promise<CaseRecord | null> {
+export async function fetchCaseByReference(reference: string): Promise<CaseRecord | null> {
   const local = await getCaseByReferenceLocal(reference);
-  const recovery = token ?? (await getAccessTokenByReference(reference)) ?? (local ? await getAccessToken(local.id) : null);
-  if (recovery) {
-    try {
-      const res = await fetch(
-        `/api/cases?ref=${encodeURIComponent(reference.trim().toUpperCase())}&token=${encodeURIComponent(recovery)}`,
-        { cache: "no-store", credentials: "same-origin" },
-      );
-      if (res.ok && jsonOk(res)) {
-        const payload = (await res.json()) as { case?: CaseRecord };
-        if (payload.case) {
-          await saveCaseLocal(payload.case);
-          await rememberAccessToken(payload.case.id, recovery, payload.case.prajaReference);
-          return hydrateCase(payload.case);
-        }
+  try {
+    const res = await fetch(
+      `/api/cases?ref=${encodeURIComponent(reference.trim().toUpperCase())}`,
+      { cache: "no-store", credentials: "same-origin" },
+    );
+    if (res.ok && jsonOk(res)) {
+      const payload = (await res.json()) as { case?: CaseRecord };
+      if (payload.case) {
+        await saveCaseLocal(payload.case);
+        return hydrateCase(payload.case);
       }
-    } catch {
-      // Fall through to the device copy.
     }
+  } catch {
+    // Fall through to the device copy.
   }
   return local;
 }
